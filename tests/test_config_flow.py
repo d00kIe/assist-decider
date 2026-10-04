@@ -43,7 +43,7 @@ async def test_user_flow_creates_entry(
     ("mock", "error"),
     [
         ({"status": 401}, {"base": "invalid_auth"}),
-        ({"json": INFO | {"protocol_version": 2}}, {"base": "protocol_mismatch"}),
+        ({"json": INFO | {"protocol_version": 1}}, {"base": "protocol_mismatch"}),
         ({"exc": aiohttp.ClientError()}, {"base": "cannot_connect"}),
         ({"exc": TimeoutError()}, {"base": "cannot_connect"}),
         ({"status": 500}, {"base": "cannot_connect"}),

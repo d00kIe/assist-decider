@@ -118,3 +118,62 @@ def test_live(model: str) -> None:
         f"{model}: p50 {sorted(latencies)[len(latencies) // 2]:.0f} ms, max {max(latencies):.0f} ms"
     )
     assert not failures, failures
+
+
+# (lang, text, outdoor °C, expected); conditions and follow-ups, run on the multilingual model
+CONDITION_CASES = [
+    (
+        "en",
+        "if it is cold outside set the thermostat to 24 and open the living room blinds",
+        5,
+        [
+            ("HassClimateSetTemperature", {"name": "climate.living_room", "temperature": 24.0}),
+            ("HassTurnOn", {"name": "cover.living_room_blinds"}),
+        ],
+    ),
+    ("en", "if it is cold outside set the thermostat to 24", 20, []),
+    (
+        "de",
+        "Wenn es draußen kalt ist, stell die Heizung im Bad auf 22 Grad",
+        3,
+        [("HassClimateSetTemperature", {"area": "bathroom", "temperature": 22.0})],
+    ),
+    ("en", "turn on the kitchen light if it is warm outside", 25, [("HassTurnOn", KITCHEN)]),
+]
+FOLLOW_UPS = [
+    ("en", "turn on the kitchen light", [("HassTurnOn", KITCHEN)]),
+    ("en", "turn it off", [("HassTurnOff", KITCHEN)]),
+    ("en", "and the hallway too", [("HassTurnOff", {"area": "hallway", "domain": ["light"]})]),
+    ("de", "Mach das Küchenlicht an", [("HassTurnOn", KITCHEN)]),
+    ("de", "und im Flur auch", [("HassTurnOn", {"area": "hallway", "domain": ["light"]})]),
+]
+
+
+def test_live_conditions_and_follow_ups() -> None:
+    from .test_pipeline import SENSOR_HOME
+
+    provider = LayaProvider("multilingual")
+    provider.load()
+    failures = []
+    for lang, text, outdoor, expected in CONDITION_CASES:
+        req = make_request(
+            text,
+            lang,
+            home=SENSOR_HOME,
+            states={"sensor.outdoor_temperature": str(outdoor)},
+            options={"confidence_threshold": 0.4 if lang == "en" else 0.5},
+        )
+        response, _ = decide(req, provider)
+        got = [(a.intent, a.slots) for a in response.actions]
+        result = got or response.skipped or response.reason
+        print(f"{'ok ' if got == expected else 'BAD'} {text!r} @{outdoor}° -> {result}")
+        if got != expected:
+            failures.append((text, got, response.reason))
+    for lang, text, expected in FOLLOW_UPS:
+        req = make_request(text, lang, context_id=f"live_{lang}")
+        response, _ = decide(req, provider)
+        got = [(a.intent, a.slots) for a in response.actions]
+        print(f"{'ok ' if got == expected else 'BAD'} {text!r} -> {got or response.reason}")
+        if got != expected:
+            failures.append((text, got, response.reason))
+    assert not failures, failures

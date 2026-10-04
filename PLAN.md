@@ -21,9 +21,16 @@ running on a separate machine. It needs to be:
 
 - **Server** (`server/`, Python ≥3.11, FastAPI):
   - Holds one Laya checkpoint (`english` | `multilingual`), resident and warmed up.
-  - The pipeline turns text into ordered intent calls with IDs: fold → mentions → split →
-    lexical guards → Laya intent question → targets (exact names → single device →
-    satellite area → Laya target question) → confidence gate → slots.
+  - The pipeline turns text into ordered intent calls with IDs: fold → mentions → "if"
+    clause → split → lexical guards → Laya intent question → targets (exact names →
+    previous turn → single device → satellite area → Laya target question) → confidence
+    gate → slots.
+  - Conditions: the "if/wenn …" clause is resolved to one sensor (exact name, area, or the
+    Laya target question) and tested **in code** against `ProcessRequest.states`. It
+    guards the commands after it (or before it, when it comes last).
+  - Follow-ups: the last command per `context_id` (hashed satellite device or conversation
+    id), for `memory_seconds` (default 60). A clause without a verb reuses the previous
+    intent; a command that names no device reuses the previous targets.
   - Live log: in-memory ring buffer, server-sent events (SSE) over an authenticated
     `fetch`, and a static UI.
 - **Integration** (`custom_components/assist_decider/`, no pip requirements):
@@ -31,7 +38,7 @@ running on a separate machine. It needs to be:
   - Validates the returned actions and executes them in order via `intent.async_handle`
     with `assistant="conversation"`.
   - Speech comes from home-assistant-intents templates. There is an optional fallback agent.
-- **Protocol**: `protocol.py` v1, byte-identical in both places, pydantic v2.
+- **Protocol**: `protocol.py` v2, byte-identical in both places, pydantic v2.
 - **Provider seam**: `DecisionProvider.predict(state, questions, lang)` (choice questions)
   in `providers.py`. A future generative model would replace `pipeline.decide()` instead.
 
@@ -49,6 +56,14 @@ running on a separate machine. It needs to be:
 - HA's built-in intent handlers return **empty speech**, so we render
   home-assistant-intents templates. Response keys differ per language: the HA side picks
   them (`_response_keys`).
+- **Laya can't do per-device decisions (probe, 2026-10-04).** Giving every device its own
+  state (utterance + device) with role, action, value-tree and condition questions scored
+  0/32 cases on multilingual and 0/17 on english. Every device got the action of the
+  whole sentence. Naming the device in a yes/no question scored 7/32: the right device
+  often scores highest, but mixed on/off still fails. Choosing exact values had
+  confidence ~0.01–0.03, and "is it cold?" over -5…30 °C gave flat probabilities. Laya
+  only answers about the utterance as a whole, so splitting, numbers and comparisons
+  stay in code.
 - Don't construct `ToolResultContent` in the chat log (2026.9 → 2026.10 API break). We
   only add a final `AssistantContent`.
 
@@ -97,6 +112,9 @@ fallback/error wording).
 - [ ] Brightness phrases (max/min/half), cover "halb"/"half" → 50
 - [ ] HassGetState with area + domain + state ("are any lights on in the kitchen?") → `any`/`all` templates
 - [ ] Floors as targets
+- [x] Conditions ("if it is cold outside …", "wenn das Fenster offen ist …") with sensor values sent by HA, thresholds in options, `skipped` spoken
+- [x] Follow-ups within `memory_seconds` ("turn it off", "and the hallway too", "23 degrees")
+- [ ] Generative planner as an optional provider for compound and conditional commands that the lexical split gets wrong (idea from the probe: a 1.5–3B model with JSON-constrained output)
 - [ ] Check each `_response_keys` choice against the intents JSON in a test, for every supported intent × language
 - [ ] Log UI: per-segment collapse, copy-as-test-case button
 
@@ -132,7 +150,7 @@ fallback/error wording).
 - [ ] More providers: ONNX/CoreML Laya, NLI zero-shot (mDeBERTa), cross-encoder rerankers, GLiNER for free-text slots
 - [ ] Choose or switch the server model from HA (admin endpoint)
 - [ ] Hash-only context with resync (fewer bytes per request)
-- [ ] State-aware disambiguation ("the light that is on"), follow-ups ("turn it off")
+- [ ] State-aware disambiguation ("the light that is on")
 - [ ] Light colors and kelvin; free-text intents (shopping list, broadcast, media search)
 - [ ] Batch the Laya questions across segments
 - [ ] Option to redact utterances from logs
@@ -157,3 +175,11 @@ cd .. && uv sync --python 3.14 && uv run pytest tests                # integrati
 # Real HA dev instance (config in .ha-config/, git-ignored):
 uv run hass -c .ha-config   # http://127.0.0.1:8124, integration symlinked in .ha-config/custom_components
 ```
+
+### Session 2 (2026-10-04)
+
+- Probed a device-centric decision tree on Laya (see Key findings): rejected.
+- Protocol v2: `context_id`, `states` (condition values only), `Options.memory_seconds/cold_below/warm_above`, `ProcessResponse.skipped`.
+- Server: "if" clause → one sensor → test in code; follow-up memory per context. Integration: sends hashed context and states, speaks skipped commands, three new options (EN/DE).
+- Tests: server 99 fast (10 new) + live conditions and follow-ups, all green on both checkpoints; integration 36.
+- **Not done:** real HA end-to-end check of conditions and follow-ups; not yet checked on a real satellite that consecutive wake-word turns share the device id the memory is keyed on.

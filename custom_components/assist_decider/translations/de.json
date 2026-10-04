@@ -17,7 +17,9 @@
       "reauth_confirm": {
         "title": "Neuer Token für {url}",
         "description": "Der Server hat den gespeicherten Token abgelehnt. Gib den aktuellen ein.",
-        "data": { "token": "Token" }
+        "data": {
+          "token": "Token"
+        }
       },
       "reconfigure": {
         "title": "Server ändern",
@@ -48,11 +50,17 @@
         "data": {
           "threshold_en": "Konfidenzschwelle (Englisch)",
           "threshold_de": "Konfidenzschwelle (Deutsch)",
+          "memory_seconds": "Gedächtnis für Folgebefehle (Sekunden)",
+          "cold_below": "„Kalt“ unter",
+          "warm_above": "„Warm“ über",
           "fallback_agent": "Ersatz-Agent"
         },
         "data_description": {
           "threshold_en": "Darunter wird die Anfrage nicht ausgeführt. Höher ist sicherer, niedriger versteht mehr.",
           "threshold_de": "Deutsch ist ungenauer als Englisch, daher ist der Standard strenger.",
+          "memory_seconds": "Wie lange sich „mach es aus“ oder „auch in der Küche“ auf den vorigen Befehl bezieht. 0 schaltet Folgebefehle ab.",
+          "cold_below": "Für Bedingungen wie „wenn es draußen kalt ist“, in deiner Temperatureinheit.",
+          "warm_above": "Für Bedingungen wie „wenn es draußen warm ist“, in deiner Temperatureinheit.",
           "fallback_agent": "Optional. Anfragen, die Assist Decider nicht entscheiden kann, gehen hierhin (z. B. Home Assistant oder ein LLM-Agent)."
         }
       }

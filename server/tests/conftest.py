@@ -137,7 +137,7 @@ HOME = Home(
 
 def make_request(text: str, language: str = "en", **kw: Any) -> ProcessRequest:
     data: dict[str, Any] = {
-        "protocol_version": 1,
+        "protocol_version": 2,
         "text": text,
         "language": language,
         "intents": ALL_INTENTS,

@@ -44,7 +44,7 @@ def test_process_ok(client):
 
 def test_info(client):
     r = client.get("/v1/info", headers=AUTH)
-    assert r.json()["protocol_version"] == 1
+    assert r.json()["protocol_version"] == 2
     assert r.json()["languages"] == ["en", "de"]
 
 
@@ -110,7 +110,7 @@ def test_extra_fields_rejected(client):
 
 
 @pytest.mark.parametrize(
-    "patch", [{"language": "fr"}, {"protocol_version": 2}, {"text": "x" * 501}, {"text": ""}]
+    "patch", [{"language": "fr"}, {"protocol_version": 1}, {"text": "x" * 501}, {"text": ""}]
 )
 def test_invalid_requests_rejected(client, patch):
     assert client.post("/v1/process", json=body() | patch, headers=AUTH).status_code == 422

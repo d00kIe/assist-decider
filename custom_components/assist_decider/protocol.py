@@ -1,4 +1,4 @@
-"""Assist Decider wire protocol, version 1.
+"""Assist Decider wire protocol, version 2.
 
 This file is shared verbatim between the decision server
 (server/assist_decider_server/protocol.py) and the Home Assistant integration
@@ -16,7 +16,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 
 EntityId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]+\.[a-z0-9_]+$", max_length=255)]
 Ident = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]+$", min_length=1, max_length=100)]
@@ -25,6 +25,7 @@ IntentName = Annotated[str, StringConstraints(pattern=r"^[A-Za-z][A-Za-z0-9_]*$"
 ShortStr = Annotated[str, StringConstraints(max_length=255)]
 Aliases = Annotated[list[Name], Field(max_length=10)]
 SlotValue = int | float | ShortStr | Annotated[list[ShortStr], Field(max_length=20)]
+ContextId = Annotated[str, StringConstraints(pattern=r"^[A-Za-z0-9_-]{1,64}$")]
 
 
 class _Request(BaseModel):
@@ -57,7 +58,7 @@ class Entity(_Request):
 
 
 class Home(_Request):
-    """Everything exposed to Assist. Never contains states or attributes."""
+    """Everything exposed to Assist. Never contains states (see ProcessRequest.states)."""
 
     entities: Annotated[list[Entity], Field(max_length=3000)]
     areas: Annotated[list[Area], Field(max_length=500)] = []
@@ -68,13 +69,21 @@ class Options(_Request):
     """Behaviour configured in Home Assistant, already resolved for the request language."""
 
     confidence_threshold: float = Field(default=0.4, ge=0.0, le=1.0)
+    memory_seconds: int = Field(default=60, ge=0, le=3600)  # 0: no follow-ups
+    # "cold"/"warm" in conditions, in the home's temperature unit.
+    cold_below: float = Field(default=12.0, ge=-100, le=200)
+    warm_above: float = Field(default=20.0, ge=-100, le=200)
 
 
 class ProcessRequest(_Request):
-    protocol_version: Literal[1]
+    protocol_version: Literal[2]
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
     language: Literal["en", "de"]
     satellite_area_id: Ident | None = None
+    context_id: ContextId | None = None  # satellite or conversation: scopes follow-ups
+    # Current values that conditions can test: sensor and binary_sensor states, weather
+    # temperature, climate current temperature. Nothing else.
+    states: Annotated[dict[EntityId, ShortStr], Field(max_length=3000)] = {}
     intents: Annotated[list[IntentName], Field(max_length=300)]
     home: Home
     options: Options = Options()
@@ -92,6 +101,14 @@ class Action(_Response):
     confidence: float
 
 
+class Skipped(_Response):
+    """Commands not run because their condition was false."""
+
+    segment: Annotated[str, StringConstraints(max_length=500)]
+    entity: ShortStr  # the entity the condition tested
+    value: ShortStr  # its value at decision time
+
+
 class ProcessResponse(_Response):
     protocol_version: int = PROTOCOL_VERSION
     status: Literal["ok", "escalate"]
@@ -99,6 +116,7 @@ class ProcessResponse(_Response):
     unresolved: Annotated[
         list[Annotated[str, StringConstraints(max_length=500)]], Field(max_length=10)
     ] = []
+    skipped: Annotated[list[Skipped], Field(max_length=10)] = []
     reason: ShortStr | None = None
     trace_id: ShortStr
     elapsed_ms: float

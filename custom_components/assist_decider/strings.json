@@ -17,7 +17,9 @@
       "reauth_confirm": {
         "title": "New token for {url}",
         "description": "The server rejected the stored token. Enter the current one.",
-        "data": { "token": "Token" }
+        "data": {
+          "token": "Token"
+        }
       },
       "reconfigure": {
         "title": "Change the server",
@@ -48,11 +50,17 @@
         "data": {
           "threshold_en": "Confidence threshold (English)",
           "threshold_de": "Confidence threshold (German)",
+          "memory_seconds": "Follow-up memory (seconds)",
+          "cold_below": "\"Cold\" below",
+          "warm_above": "\"Warm\" above",
           "fallback_agent": "Fallback agent"
         },
         "data_description": {
           "threshold_en": "Below this the request is not executed. Higher is safer, lower understands more.",
           "threshold_de": "German is less accurate than English, so the default is stricter.",
+          "memory_seconds": "How long \"turn it off\" or \"and the kitchen too\" refers to the previous command. 0 turns follow-ups off.",
+          "cold_below": "Used by conditions like \"if it is cold outside\", in your temperature unit.",
+          "warm_above": "Used by conditions like \"if it is warm outside\", in your temperature unit.",
           "fallback_agent": "Optional. Requests Assist Decider cannot decide go here (for example Home Assistant or an LLM agent)."
         }
       }
