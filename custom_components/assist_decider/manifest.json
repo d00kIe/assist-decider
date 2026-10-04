@@ -1,0 +1,14 @@
+{
+  "domain": "assist_decider",
+  "name": "Assist Decider",
+  "after_dependencies": ["assist_pipeline"],
+  "codeowners": ["@d00kIe"],
+  "config_flow": true,
+  "dependencies": ["conversation", "intent"],
+  "documentation": "https://github.com/d00kIe/assist-decider",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/d00kIe/assist-decider/issues",
+  "requirements": [],
+  "version": "0.1.0"
+}

@@ -1,0 +1,29 @@
+# Test environment for the Home Assistant integration (custom_components/assist_decider).
+# The decision server has its own project in server/.
+[project]
+name = "assist-decider-ha"
+version = "0.1.0"
+requires-python = ">=3.14.2"
+
+[dependency-groups]
+test = [
+    "pytest-homeassistant-custom-component==0.13.367",  # Home Assistant 2026.9.4
+    # Requirements of the conversation component in Home Assistant 2026.9.4
+    "gazetteer-matcher==1.1.0",
+    "hassil==3.12.1",
+    "home-assistant-intents==2026.8.28",
+]
+
+[tool.uv]
+package = false
+default-groups = ["test"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["server"]

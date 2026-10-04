@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Connect to the Assist Decider server",
+        "description": "Start the server first (see the README). The token is printed by `assist-decider gen-token`.",
+        "data": {
+          "url": "Server URL",
+          "token": "Token",
+          "verify_ssl": "Verify TLS certificate"
+        },
+        "data_description": {
+          "url": "For example http://192.168.1.20:8765",
+          "verify_ssl": "Only relevant for https:// URLs."
+        }
+      },
+      "reauth_confirm": {
+        "title": "New token for {url}",
+        "description": "The server rejected the stored token. Enter the current one.",
+        "data": { "token": "Token" }
+      },
+      "reconfigure": {
+        "title": "Change the server",
+        "description": "Leave the token empty to keep the current one.",
+        "data": {
+          "url": "Server URL",
+          "token": "Token",
+          "verify_ssl": "Verify TLS certificate"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Cannot reach the server. Check the URL, that the server runs with --host 0.0.0.0, and the firewall.",
+      "invalid_auth": "The server rejected the token.",
+      "invalid_url": "The URL must start with http:// or https://.",
+      "protocol_mismatch": "The server and this integration speak different protocol versions. Update both to the same release."
+    },
+    "abort": {
+      "already_configured": "This server is already configured.",
+      "reauth_successful": "Token updated.",
+      "reconfigure_successful": "Server updated."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Assist Decider options",
+        "data": {
+          "threshold_en": "Confidence threshold (English)",
+          "threshold_de": "Confidence threshold (German)",
+          "fallback_agent": "Fallback agent"
+        },
+        "data_description": {
+          "threshold_en": "Below this the request is not executed. Higher is safer, lower understands more.",
+          "threshold_de": "German is less accurate than English, so the default is stricter.",
+          "fallback_agent": "Optional. Requests Assist Decider cannot decide go here (for example Home Assistant or an LLM agent)."
+        }
+      }
+    },
+    "error": {
+      "fallback_is_self": "The fallback agent cannot be this agent."
+    }
+  },
+  "issues": {
+    "protocol_mismatch": {
+      "title": "Assist Decider server needs an update",
+      "description": "The server at {url} does not speak protocol version {expected}. Install the same release of the server and the integration."
+    }
+  }
+}

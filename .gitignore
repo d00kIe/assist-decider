@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# Local Home Assistant dev instance
+.ha-config/
+
+# Secrets and local config
+assist-decider.toml
+*.token
+*.pem
+*.key
+.env
+
+# OS / editors
+.DS_Store
+.idea/
+.vscode/

@@ -1,0 +1,38 @@
+# Assist Decider server configuration.
+# Copy to assist-decider.toml (git-ignored), then: chmod 600 assist-decider.toml
+# Start with: assist-decider --config assist-decider.toml
+# (or set ASSIST_DECIDER_CONFIG=/path/to/assist-decider.toml). The file is not read otherwise.
+# Every setting can also be given as an environment variable ASSIST_DECIDER_<NAME>
+# (e.g. ASSIST_DECIDER_TOKEN) or on the command line (--host, --port, --model, ...).
+# Precedence: defaults < this file < environment < command line.
+
+# Address to listen on. 127.0.0.1 = this machine only. Use 0.0.0.0 so Home Assistant
+# on another machine can connect (the token is always required).
+host = "127.0.0.1"
+port = 8765
+
+# Shared secret, at least 32 characters. Create one with: assist-decider gen-token
+# Prefer token_file or ASSIST_DECIDER_TOKEN over putting it here. Set token or
+# token_file, not both (counting the environment).
+# token = "..."
+# token_file = "/etc/assist-decider/token"
+
+# Laya checkpoint kept in memory:
+#   "english"      ModernBERT-large, best for English, ~1.7 GB
+#   "multilingual" mmBERT-base, English + German, ~1.3 GB
+model = "multilingual"
+
+# auto picks cuda, then mps (Apple Silicon), then xpu, then cpu.
+device = "auto"
+
+# Requests waiting for the model beyond this get HTTP 503.
+max_pending = 4
+# Largest accepted request body in bytes.
+max_body_bytes = 1048576
+# Log lines and decisions kept in memory for the web UI.
+log_buffer = 2000
+log_level = "INFO"
+
+# Optional TLS. Both must be set together.
+# tls_certfile = "/path/to/cert.pem"
+# tls_keyfile = "/path/to/key.pem"

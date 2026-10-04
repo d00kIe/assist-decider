@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Mit dem Assist-Decider-Server verbinden",
+        "description": "Starte zuerst den Server (siehe README). Den Token erzeugt `assist-decider gen-token`.",
+        "data": {
+          "url": "Server-URL",
+          "token": "Token",
+          "verify_ssl": "TLS-Zertifikat prüfen"
+        },
+        "data_description": {
+          "url": "Zum Beispiel http://192.168.1.20:8765",
+          "verify_ssl": "Nur für https://-URLs relevant."
+        }
+      },
+      "reauth_confirm": {
+        "title": "Neuer Token für {url}",
+        "description": "Der Server hat den gespeicherten Token abgelehnt. Gib den aktuellen ein.",
+        "data": { "token": "Token" }
+      },
+      "reconfigure": {
+        "title": "Server ändern",
+        "description": "Token leer lassen, um den bisherigen zu behalten.",
+        "data": {
+          "url": "Server-URL",
+          "token": "Token",
+          "verify_ssl": "TLS-Zertifikat prüfen"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Server nicht erreichbar. Prüfe die URL, ob der Server mit --host 0.0.0.0 läuft, und die Firewall.",
+      "invalid_auth": "Der Server hat den Token abgelehnt.",
+      "invalid_url": "Die URL muss mit http:// oder https:// beginnen.",
+      "protocol_mismatch": "Server und Integration sprechen unterschiedliche Protokollversionen. Aktualisiere beide auf dieselbe Version."
+    },
+    "abort": {
+      "already_configured": "Dieser Server ist bereits eingerichtet.",
+      "reauth_successful": "Token aktualisiert.",
+      "reconfigure_successful": "Server aktualisiert."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Assist-Decider-Optionen",
+        "data": {
+          "threshold_en": "Konfidenzschwelle (Englisch)",
+          "threshold_de": "Konfidenzschwelle (Deutsch)",
+          "fallback_agent": "Ersatz-Agent"
+        },
+        "data_description": {
+          "threshold_en": "Darunter wird die Anfrage nicht ausgeführt. Höher ist sicherer, niedriger versteht mehr.",
+          "threshold_de": "Deutsch ist ungenauer als Englisch, daher ist der Standard strenger.",
+          "fallback_agent": "Optional. Anfragen, die Assist Decider nicht entscheiden kann, gehen hierhin (z. B. Home Assistant oder ein LLM-Agent)."
+        }
+      }
+    },
+    "error": {
+      "fallback_is_self": "Der Ersatz-Agent darf nicht dieser Agent sein."
+    }
+  },
+  "issues": {
+    "protocol_mismatch": {
+      "title": "Assist-Decider-Server muss aktualisiert werden",
+      "description": "Der Server unter {url} spricht nicht Protokollversion {expected}. Installiere dieselbe Version von Server und Integration."
+    }
+  }
+}

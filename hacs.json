@@ -1,0 +1,7 @@
+{
+  "name": "Assist Decider",
+  "homeassistant": "2026.9.0",
+  "zip_release": true,
+  "filename": "assist_decider.zip",
+  "hide_default_branch": true
+}

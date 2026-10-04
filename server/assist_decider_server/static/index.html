@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>Assist Decider</title>
+  <link rel="stylesheet" href="app.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header>
+    <h1>Assist Decider</h1>
+    <span id="info" class="muted"></span>
+    <span id="conn" class="badge off">disconnected</span>
+  </header>
+
+  <form id="login" hidden>
+    <label for="token">Server token</label>
+    <input id="token" type="password" autocomplete="current-password" required>
+    <button type="submit">Connect</button>
+    <p class="muted">Kept in this browser tab only (sessionStorage).</p>
+    <p id="login-error" class="error"></p>
+  </form>
+
+  <main id="main" hidden>
+    <section>
+      <div class="bar">
+        <h2>Decisions</h2>
+        <button id="clear-decisions" type="button">Clear</button>
+      </div>
+      <div id="decisions"></div>
+    </section>
+    <section>
+      <div class="bar">
+        <h2>Log</h2>
+        <select id="level" aria-label="Minimum level">
+          <option value="DEBUG">debug</option>
+          <option value="INFO" selected>info</option>
+          <option value="WARNING">warning</option>
+          <option value="ERROR">error</option>
+        </select>
+        <input id="search" type="search" placeholder="filter" aria-label="Filter log">
+        <button id="pause" type="button">Pause</button>
+        <button id="clear-log" type="button">Clear</button>
+      </div>
+      <div id="log" role="log"></div>
+    </section>
+  </main>
+</body>
+</html>
