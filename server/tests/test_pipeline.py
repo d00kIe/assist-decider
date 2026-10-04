@@ -435,3 +435,8 @@ def test_memory_expires_and_is_per_context(monkeypatch):
     now[0] += 61
     response, *_ = run("turn it off", intent_rule("HassTurnOff"), context_id="sat_a")
     assert response.status == "escalate"
+
+
+def test_sensor_named_temperature_is_a_state_question():
+    response, *_ = run("what is the outdoor temperature?", home=SENSOR_HOME)
+    assert acts(response) == [("HassGetState", {"name": "sensor.outdoor_temperature"})]

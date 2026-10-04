@@ -417,7 +417,8 @@ class SegmentDecider:
             return None  # not a question
         names_device = bool(seg.mentions) or bool(domain_words_in(seg.tokens, self.lang))
         by_name = {spec.name: spec for spec in allowed}
-        if set(seg.tokens) & self.lang.temperature_words and "HassClimateGetTemperature" in by_name:
+        # Words outside names: "Outdoor Temperature" is a sensor, not a thermostat question.
+        if set(seg.free) & self.lang.temperature_words and "HassClimateGetTemperature" in by_name:
             return by_name["HassClimateGetTemperature"]
         if names_device and "HassGetState" in by_name:
             return by_name["HassGetState"]
