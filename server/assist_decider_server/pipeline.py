@@ -302,11 +302,30 @@ class SegmentDecider:
         self.trace = trace
         self.model_ms = 0.0
 
+    def step(
+        self, phase: str, check: str, result: str, ok: bool | None = None, **extra: Any
+    ) -> None:
+        """One node of the decision tree in the log UI, in the order the checks ran.
+
+        ok: True = this check decided, False = tried and passed over (or failed), None = info.
+        """
+        self.trace["steps"].append(
+            {"phase": phase, "check": check, "result": result, "ok": ok, **extra}
+        )
+
     def ask(
-        self, key: str, question: Question, state: dict[str, Any], allowed: set[str] | None = None
+        self,
+        key: str,
+        question: Question,
+        state: dict[str, Any],
+        allowed: set[str] | None = None,
+        phase: str | None = None,
+        ids: dict[str, str] | None = None,
     ) -> str:
         """Ask one question. Options outside `allowed` stay visible to the model (it is
-        sensitive to option count and order) but are masked out of the answer."""
+        sensitive to option count and order) but are masked out of the answer.
+
+        `ids` maps option keys to entity/area IDs, so the log UI can show them on the home."""
         started = time.perf_counter()
         answer = self.provider.predict(state, {key: question}, self.req.language)[key]
         elapsed = (time.perf_counter() - started) * 1000
@@ -329,7 +348,15 @@ class SegmentDecider:
                 "confidence": round(conf, 3),
                 "threshold": self.threshold,
                 "ms": round(elapsed, 1),
+                **({"ids": ids} if ids else {}),
             }
+        )
+        self.step(
+            phase or key,
+            "Laya",
+            f"{choice if key == 'intent' else question.options[choice]} ({conf:.2f})",
+            choice != NONE and conf >= self.threshold,
+            q=len(self.trace["questions"]) - 1,
         )
         if choice == NONE:
             raise Escalate("none_chosen" if key == "intent" else "no_target")
@@ -371,7 +398,13 @@ class SegmentDecider:
                 dropped[name] = "value with unit spoken"
             else:
                 keep.append(spec)
-        self.trace["dropped_intents"] = dropped
+        self.step(
+            "intent",
+            "word rules",
+            "allowed: " + (", ".join(s.key for s in keep) or "nothing"),
+            None if keep else False,
+            dropped=dropped,
+        )
         return shown, keep
 
     def follow_up(self, seg: Segment, nums: list[numbers.Num]) -> IntentSpec | None:
@@ -389,17 +422,21 @@ class SegmentDecider:
 
     def decide_intent(self, seg: Segment, nums: list[numbers.Num]) -> IntentSpec:
         if spec := self.follow_up(seg, nums):
-            self.trace["intent_shortcut"] = "previous turn"
+            self.step("intent", "follow-up without a verb", f"reuse {spec.name}", True)
             return spec
+        if self.previous:
+            self.step("intent", "follow-up without a verb", "no", False)
         value_words = set(seg.free) & self.lang.value_words
         if value_words and not any(n.unit in ("pct", "") for n in nums):
-            self.trace["note"] = f"'{', '.join(sorted(value_words))}' without a value"
+            self.step(
+                "intent", "value word", f"'{', '.join(sorted(value_words))}' without a value", False
+            )
             raise Escalate("missing_value")
         shown, allowed = self.candidate_intents(seg, nums)
         if not allowed:
             raise Escalate("no_intent")
         if query := self.question_about_device(seg, allowed):
-            self.trace["intent_shortcut"] = "question about a device"
+            self.step("intent", "question naming a device", query.name, True)
             return query
         options = {s.key: self.lang.intents[s.name] for s in shown} | {NONE: self.lang.none_intent}
         choice = self.ask(
@@ -452,18 +489,23 @@ class SegmentDecider:
             raise Escalate("area_not_supported")
         domains = domain_words_in(seg.tokens, self.lang)
         domains = {d for d in domains if spec.domains is None or d in spec.domains} - {"lock"}
+        source = "said"
         if not domains and spec.implied_domain:
-            domains = {spec.implied_domain}
+            domains, source = {spec.implied_domain}, "implied by the action"
         if not domains and self.previous:  # "and the kitchen too": the previous kind of device
             domains = {
                 d
                 for t in self.previous[1]
                 if (d := self.target_domain(t)) and (spec.domains is None or d in spec.domains)
             } - {"lock"}
+            source = "previous command"
         if not domains:
             if spec.target_optional:
+                self.step("target", "kind of device", "not needed for this action")
                 return [Target("area", a) for a in area_ids]
+            self.step("target", "kind of device", "none said", False)
             raise Escalate("area_without_domain")
+        self.step("target", "kind of device", f"{', '.join(sorted(domains))} ({source})")
         return [Target("area", a, d) for a in area_ids for d in sorted(domains)]
 
     def decide_targets(self, spec: IntentSpec, seg: Segment) -> list[Target]:
@@ -478,9 +520,14 @@ class SegmentDecider:
             if not ents:
                 area_mentions += [r[1] for r in m.refs if r[0] == "area"]
             if len(ents) > 1:  # same name in several rooms
-                for area in (mentioned_areas, [sat_area]):
+                for label, area in (("room said", mentioned_areas), ("satellite room", [sat_area])):
                     narrowed = [e for e in ents if e.area_id in area]
                     if narrowed:
+                        self.step(
+                            "target",
+                            "same name in several rooms",
+                            f"kept {len(narrowed)} of {len(ents)} by {label}",
+                        )
                         ents = narrowed
                         break
             if len(ents) == 1:
@@ -492,13 +539,16 @@ class SegmentDecider:
         if areas:
             targets += self.area_targets(spec, areas, seg)
         if targets:
-            self.trace["shortcut"] = "spoken names"
+            self.step("target", "names said", _describe(targets), True)
             return targets
+        self.step("target", "names said", "none usable" if seg.mentions else "none", False)
         if self.previous and not domain_words_in(seg.tokens, self.lang):
             # "turn it off": nothing named, so the devices of the previous command.
             kept = [t for t in self.previous[1] if self.target_fits(spec, t)]
+            self.step(
+                "target", "previous command's devices", _describe(kept) or "none fit", bool(kept)
+            )
             if kept:
-                self.trace["shortcut"] = "previous turn"
                 return kept
 
         # Nothing named: a single matching device, the satellite's room, or ask the model.
@@ -509,16 +559,22 @@ class SegmentDecider:
             e for e in idx.entities.values() if self.compatible(spec, e) and e.domain in domains
         ]
         if len(pool) == 1 and not pool[0].sensitive:
-            self.trace["shortcut"] = "only matching device"
+            self.step("target", "only device of that kind", pool[0].id, True)
             return [Target("entity", pool[0].id)]
+        kinds = ", ".join(sorted(domains)) or "no kind said"
+        self.step("target", "only device of that kind", f"{len(pool)} found ({kinds})", False)
         if pool and sat_area and not spec.entity_only:
-            self.trace["shortcut"] = "satellite area"
-            return self.area_targets(spec, [sat_area], seg)
+            targets = self.area_targets(spec, [sat_area], seg)
+            self.step("target", "satellite's room", _describe(targets), True)
+            return targets
+        if pool:
+            reason = "action needs one device" if sat_area else "satellite has no room"
+            self.step("target", "satellite's room", reason, False)
 
         ents, area_scores = self.fuzzy(spec, seg)
         if not ents and not area_scores:
             if spec.target_optional:
-                self.trace["shortcut"] = "let Home Assistant choose"
+                self.step("target", "let Home Assistant choose", "no device needed", True)
                 return [Target("none")]
             raise Escalate("no_target")
         return [self.ask_target(spec, seg, ents, area_scores)]
@@ -557,7 +613,14 @@ class SegmentDecider:
             areas = [(a.id, s) for a in self.index.areas.values() if (s := name_score(a.names)) > 0]
         ents.sort(key=lambda x: -x[1])
         areas.sort(key=lambda x: -x[1])
-        self.trace["fuzzy"] = {"entities": ents[:12], "areas": areas[:6]}
+        top = sorted(ents[:5] + areas[:3], key=lambda x: -x[1])
+        self.step(
+            "target",
+            "similar names",
+            ", ".join(f"{i} {s:.2f}" for i, s in top) or "none",
+            None if top else False,
+            scores={i: round(s, 2) for i, s in ents[:20] + areas[:10]},
+        )
         return ents, areas
 
     def ask_target(
@@ -577,21 +640,17 @@ class SegmentDecider:
             key = f"{kind}{n}"
             keys[key] = (kind, ident)
             if kind == "e":
-                e = idx.entities[ident]
-                label = lang.domains.get(e.domain, (e.domain.replace("_", " "), ()))[0]
-                area = idx.areas.get(e.area_id) if e.area_id else None
-                options[key] = (
-                    lang.entity_option.format(name=e.name, kind=label, area=area.name)
-                    if area
-                    else lang.entity_option_no_area.format(name=e.name, kind=label)
-                )
+                options[key] = entity_option(idx.entities[ident], idx, lang)
             else:
                 options[key] = lang.area_option.format(area=idx.areas[ident].name)
         options[NONE] = lang.none_target
         state = {"utterance": seg.text}
         if self.req.satellite_area_id in idx.areas:
             state["room"] = idx.areas[self.req.satellite_area_id].name
-        kind, ident = keys[self.ask("target", Question(lang.target_question, options), state)]
+        phase = "condition" if spec is CONDITION else "target"
+        ids = {key: ident for key, (_, ident) in keys.items()}
+        question = Question(lang.target_question, options)
+        kind, ident = keys[self.ask("target", question, state, phase=phase, ids=ids)]
         if kind == "e":
             return Target("entity", ident)
         return self.area_targets(spec, [ident], seg)[0]
@@ -616,8 +675,11 @@ class SegmentDecider:
         elif words & lang.active_words:
             op = "on"
         else:
+            self.step("condition", "test", "no test word (cold, warm, below, open…)", False)
             raise Escalate("condition_unknown")
-        self.trace["test"] = f"{op} {value}" if value is not None else op
+        test = {"lt": "below", "gt": "above", "on": "on / open", "off": "off / closed"}[op]
+        test += f" {value:g}" if value is not None else ""
+        self.step("condition", "test", test)
 
         def fits(e: EntityRec) -> bool:
             if e.id not in self.req.states:
@@ -629,36 +691,120 @@ class SegmentDecider:
             return e.domain in ("sensor", "weather", "climate")
 
         pool = [e for e in idx.entities.values() if fits(e)]
+        self.step("condition", "sensors with a value", str(len(pool)))
         named = {r[1] for m in seg.mentions for r in m.refs if r[0] == "entity"}
         areas = {r[1] for m in seg.mentions for r in m.refs if r[0] == "area"}
         if named & {e.id for e in pool}:
             pool = [e for e in pool if e.id in named]
+            narrowed = "name said"
         elif areas:
             pool = [e for e in pool if e.area_id in areas]
+            narrowed = "room said"
         elif words & lang.outside_words:
             # ponytail: outdoor = weather entities and sensors without an area, ranked first;
             # only the first MAX_OPTIONS - 1 reach the model.
             pool.sort(key=lambda e: (e.domain != "weather", e.area_id is not None))
+            narrowed = "'outside': weather first"
         else:
             pool.sort(key=lambda e: e.area_id != self.req.satellite_area_id)
+            narrowed = "satellite's room first"
+        self.step("condition", narrowed, f"{len(pool)} left", None if pool else False)
         if not pool:
             raise Escalate("condition_unknown")
         if len(pool) == 1:
             entity = pool[0].id
+            self.step("condition", "only one sensor", entity, True)
         else:
             entity = self.ask_target(CONDITION, seg, [(e.id, 1.0) for e in pool], []).id or ""
         actual = self.req.states[entity]
         if op in ("on", "off"):
             if actual not in ("on", "off"):
+                self.step("condition", "compare", f"{entity} = {actual}: not on/off", False)
                 raise Escalate("condition_unknown")
             holds = (actual == "on") == (op == "on")
         else:
             try:
                 number = float(actual)
             except ValueError:
+                self.step("condition", "compare", f"{entity} = {actual}: not a number", False)
                 raise Escalate("condition_unknown") from None
             holds = number < value if op == "lt" else number > value  # type: ignore[operator]
+        verdict = "holds" if holds else "does not hold"
+        self.step("condition", "compare", f"{entity} = {actual}, {test} → {verdict}", holds)
         return Condition(entity, op, value, actual, holds)
+
+
+def kind_label(domain: str, lang: Lang) -> str:
+    return lang.domains.get(domain, (domain.replace("_", " "), ()))[0]
+
+
+def entity_option(e: EntityRec, idx: Index, lang: Lang) -> str:
+    """How an entity is worded as an answer in Laya's "which device?" question."""
+    area = idx.areas.get(e.area_id) if e.area_id else None
+    kind = kind_label(e.domain, lang)
+    if area:
+        return lang.entity_option.format(name=e.name, kind=kind, area=area.name)
+    return lang.entity_option_no_area.format(name=e.name, kind=kind)
+
+
+def describe_home(home: Home, language: str) -> dict[str, Any]:
+    """The home as the matcher sees it, for the log UI's Home tab."""
+    idx, lang = get_index(home), LANGS[language]
+    areas = []
+    for a in home.areas:
+        names = idx.areas[a.id].names
+        areas.append(
+            {
+                "id": a.id,
+                "name": a.name,
+                "aliases": a.aliases,
+                "floor_id": a.floor_id,
+                "words": [" ".join(p) for p in names],
+                # find_mentions: a one-word name of 4+ letters also matches inside compounds.
+                "compound": [p[0] for p in names if len(p) == 1 and len(p[0]) >= 4],
+                "option": lang.area_option.format(area=a.name),
+            }
+        )
+    entities = []
+    for x in home.entities:
+        e = idx.entities[x.id]
+        entities.append(
+            {
+                "id": e.id,
+                "name": e.name,
+                "aliases": x.aliases,
+                "area_id": e.area_id,
+                "domain": e.domain,
+                "kind": kind_label(e.domain, lang),
+                "device_class": e.device_class,
+                "sensitive": e.sensitive,
+                "words": [" ".join(p) for p in e.names],
+                "option": entity_option(e, idx, lang),
+            }
+        )
+    floors = [{"id": f.id, "name": f.name, "aliases": f.aliases} for f in home.floors]
+    # Words that say which kind of device a room command means ("the kitchen lights").
+    kinds = {d: list(lang.domains.get(d, ("", ()))[1]) for d in sorted(idx.domains)}
+    return {
+        "language": language,
+        "floors": floors,
+        "areas": areas,
+        "entities": entities,
+        "kinds": kinds,
+    }
+
+
+def _describe(targets: list[Target]) -> str:
+    """Targets as the log UI shows them: "light.kitchen, room bedroom (light)"."""
+    parts = []
+    for t in targets:
+        if t.kind == "entity":
+            parts.append(str(t.id))
+        elif t.kind == "area":
+            parts.append(f"room {t.id}" + (f" ({t.domain})" if t.domain else ""))
+        else:
+            parts.append("Home Assistant chooses")
+    return ", ".join(parts)
 
 
 @lru_cache(maxsize=65536)
@@ -736,6 +882,7 @@ def decide(
         spans = [(char_map[s], char_map[e - 1] + 1) for _, s, e in toks]
         lang = LANGS[req.language]
         mentions = find_mentions(tokens, index)
+        trace["said"] = sorted({ref[1] for m in mentions for ref in m.refs})
         inside = {i for m in mentions for i in range(m.start, m.end)}
 
         # An "if" clause guards the commands after it, or before it when it comes last.
@@ -757,7 +904,12 @@ def decide(
                 mentions=clause_mentions,
                 free=[tokens[j] for j in range(start + 1, end) if j not in clause_inside],
             )
-            cond_trace: dict[str, Any] = {"text": clause.text, "questions": [], "actions": []}
+            cond_trace: dict[str, Any] = {
+                "text": clause.text,
+                "questions": [],
+                "steps": [],
+                "actions": [],
+            }
             trace["segments"].append(cond_trace)
             decider = SegmentDecider(req, index, provider, cond_trace)
             try:
@@ -786,7 +938,12 @@ def decide(
         trace["previous"] = previous[0].name if previous else None
         last: tuple[IntentSpec, list[Target]] | None = None
         for seg, guarded in segments:
-            seg_trace: dict[str, Any] = {"text": seg.text, "questions": [], "actions": []}
+            seg_trace: dict[str, Any] = {
+                "text": seg.text,
+                "questions": [],
+                "steps": [],
+                "actions": [],
+            }
             trace["segments"].append(seg_trace)
             if guarded and condition is None:
                 seg_trace["escalate"] = condition_error

@@ -21,8 +21,8 @@ from uvicorn.protocols.http.h11_impl import H11Protocol
 
 from . import __version__
 from .logbuf import EventBus
-from .pipeline import decide
-from .protocol import PROTOCOL_VERSION, ProcessRequest, ProcessResponse, ServerInfo
+from .pipeline import decide, describe_home
+from .protocol import PROTOCOL_VERSION, Home, ProcessRequest, ProcessResponse, ServerInfo
 from .providers import DecisionProvider
 
 _LOGGER = logging.getLogger(__name__)
@@ -223,6 +223,8 @@ def create_app(
     # One worker: the GPU runs one inference at a time and model calls are not thread-safe.
     executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="inference")
     pending = 0
+    # The last home Home Assistant sent, for the log UI's Home tab. Memory only.
+    last_home: tuple[Home, str] | None = None
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
@@ -259,7 +261,7 @@ def create_app(
 
     @app.post("/v1/process")
     async def process(request: ProcessRequest) -> ProcessResponse:
-        nonlocal pending
+        nonlocal pending, last_home
         if pending >= max_pending:
             raise HTTPException(503, "Busy, try again", headers={"Retry-After": "1"})
         pending += 1
@@ -272,6 +274,7 @@ def create_app(
             raise HTTPException(500, "Decision failed") from None
         finally:
             pending -= 1
+        last_home = (request.home, request.language)
         bus.publish(trace)
         summary = "; ".join(f"{a.intent} {a.slots}" for a in response.actions) or response.reason
         _LOGGER.info(
@@ -285,6 +288,13 @@ def create_app(
         )
         _LOGGER.debug("[%s] home: %s", response.trace_id, request.home.model_dump_json())
         return response
+
+    @app.get("/v1/home")
+    async def home() -> dict[str, Any]:
+        if last_home is None:
+            return {"entities": [], "areas": [], "floors": []}
+        # Same worker as decisions: the name index cache is not thread-safe.
+        return await asyncio.get_running_loop().run_in_executor(executor, describe_home, *last_home)
 
     @app.get("/v1/events")
     async def events() -> StreamingResponse:

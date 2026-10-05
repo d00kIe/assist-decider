@@ -32,19 +32,33 @@
       <div id="decisions"></div>
     </section>
     <section>
-      <div class="bar">
-        <h2>Log</h2>
-        <select id="level" aria-label="Minimum level">
-          <option value="DEBUG">debug</option>
-          <option value="INFO" selected>info</option>
-          <option value="WARNING">warning</option>
-          <option value="ERROR">error</option>
-        </select>
-        <input id="search" type="search" placeholder="filter" aria-label="Filter log">
-        <button id="pause" type="button">Pause</button>
-        <button id="clear-log" type="button">Clear</button>
+      <div class="bar" role="tablist">
+        <button id="tab-log" class="tab active" type="button" role="tab" aria-selected="true">Log</button>
+        <button id="tab-home" class="tab" type="button" role="tab" aria-selected="false">Home</button>
       </div>
-      <div id="log" role="log"></div>
+      <div id="pane-log" class="pane" role="tabpanel">
+        <div class="bar">
+          <select id="level" aria-label="Minimum level">
+            <option value="DEBUG">debug</option>
+            <option value="INFO" selected>info</option>
+            <option value="WARNING">warning</option>
+            <option value="ERROR">error</option>
+          </select>
+          <input id="search" type="search" placeholder="filter" aria-label="Filter log">
+          <button id="pause" type="button">Pause</button>
+          <button id="clear-log" type="button">Clear</button>
+        </div>
+        <div id="log" role="log"></div>
+      </div>
+      <div id="pane-home" class="pane" role="tabpanel" hidden>
+        <div class="bar">
+          <input id="home-search" type="search" placeholder="filter names" aria-label="Filter home">
+          <label class="small"><input id="home-only" type="checkbox"> only what the decision touched</label>
+          <button id="home-refresh" type="button">Refresh</button>
+        </div>
+        <p id="home-focus" class="muted small"></p>
+        <div id="home"></div>
+      </div>
     </section>
   </main>
 </body>

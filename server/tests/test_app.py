@@ -63,6 +63,19 @@ def test_auth_required(client, headers):
     assert client.post("/v1/process", json=body(), headers=headers).status_code == 401
 
 
+def test_home_shows_last_request_as_the_matcher_sees_it(client):
+    assert client.get("/v1/home").status_code == 401
+    assert client.get("/v1/home", headers=AUTH).json()["entities"] == []
+    client.post("/v1/process", json=body(), headers=AUTH)
+    home = client.get("/v1/home", headers=AUTH).json()
+    kitchen = next(e for e in home["entities"] if e["id"] == "light.kitchen_ceiling")
+    assert kitchen["words"] == ["kitchen light", "kuechenlicht"]
+    assert kitchen["option"] == "Kitchen Light (light) in Kitchen"
+    assert next(e for e in home["entities"] if e["id"] == "lock.front_door")["sensitive"]
+    living = next(a for a in home["areas"] if a["id"] == "living_room")
+    assert living["compound"] == ["wohnzimmer"]
+
+
 def test_auth_checked_before_body_is_parsed(client):
     r = client.post(
         "/v1/process", content=b"{not json", headers={"Content-Type": "application/json"}

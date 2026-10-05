@@ -16,11 +16,18 @@ def acts(response):
     return [(a.intent, a.slots) for a in response.actions]
 
 
+def decided(trace, phase, seg=0):
+    """The check that settled `phase` in the decision tree."""
+    return next(
+        s["check"] for s in trace["segments"][seg]["steps"] if s["phase"] == phase and s["ok"]
+    )
+
+
 def test_exact_entity_name_skips_target_question():
     response, trace, provider = run("turn on the kitchen light", intent_rule("HassTurnOn"))
     assert acts(response) == [("HassTurnOn", {"name": "light.kitchen_ceiling"})]
     assert [c[0] for c in provider.calls] == ["intent"]
-    assert trace["segments"][0]["shortcut"] == "spoken names"
+    assert decided(trace, "target") == "names said"
 
 
 def test_brightness_with_number():
@@ -55,7 +62,8 @@ def test_model_always_sees_every_intent_but_guards_mask_answers():
     _, trace, provider = run("turn on the kitchen light", intent_rule("HassTurnOn"))
     assert len(provider.calls[0][1].options) == len(ALL_INTENTS) + 1
     assert {"set_brightness", "set_position", "set_temperature"} <= masked(trace)
-    assert trace["segments"][0]["dropped_intents"]["HassLightSet"] == "no value spoken"
+    rules = next(s for s in trace["segments"][0]["steps"] if s["check"] == "word rules")
+    assert rules["dropped"]["HassLightSet"] == "no value spoken"
 
 
 def test_off_word_masks_turn_on():
@@ -76,7 +84,7 @@ def test_question_about_a_device_is_a_state_query_without_the_model():
     # Laya maps "is the X on?" to turn_on; a question naming a device can only be a query.
     response, trace, provider = run("is the front door locked?", intent_rule("HassTurnOn"))
     assert acts(response) == [("HassGetState", {"name": "lock.front_door"})]
-    assert trace["segments"][0]["intent_shortcut"] == "question about a device"
+    assert decided(trace, "intent") == "question naming a device"
     assert provider.calls == []
 
 
@@ -399,11 +407,11 @@ def test_follow_up_reuses_targets_then_intent():
     run("turn on the kitchen light", intent_rule("HassTurnOn"), **ctx)
     response, trace, _ = run("turn it off", intent_rule("HassTurnOff"), **ctx)
     assert acts(response) == [("HassTurnOff", {"name": "light.kitchen_ceiling"})]
-    assert trace["segments"][0]["shortcut"] == "previous turn"
+    assert decided(trace, "target") == "previous command's devices"
 
     response, trace, provider = run("and the hallway too", **ctx)
     assert acts(response) == [("HassTurnOff", {"area": "hallway", "domain": ["light"]})]
-    assert trace["segments"][0]["intent_shortcut"] == "previous turn"
+    assert decided(trace, "intent") == "follow-up without a verb"
     assert not provider.calls
 
 
