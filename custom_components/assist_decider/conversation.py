@@ -455,7 +455,7 @@ def _match_error_text(
 
             error_key, args = _get_match_error_response(hass, err)
             key = getattr(error_key, "value", str(error_key))
-        except Exception:  # noqa: BLE001
+        except Exception:
             _LOGGER.debug("No specific error text for %s", err, exc_info=True)
             key, args = "no_intent", {}
         if "area" in args:
@@ -467,7 +467,7 @@ def _match_error_text(
         return " ".join(
             str(template.Template(text, hass).async_render(args, parse_result=False)).split()
         )
-    except Exception:  # noqa: BLE001 - a broken template must not break the reply
+    except Exception:  # a broken template must not break the reply
         _LOGGER.debug("Could not render error %s", key, exc_info=True)
         return errors.get("no_intent", "")
 
