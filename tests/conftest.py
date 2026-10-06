@@ -15,7 +15,7 @@ from custom_components.assist_decider.const import CONF_VERIFY_SSL, DOMAIN
 URL = "http://decider.local:8765"
 TOKEN = "x" * 40
 INFO = {
-    "protocol_version": 2,
+    "protocol_version": 3,
     "server_version": "0.1.0",
     "provider": "laya",
     "model": "multilingual",
@@ -46,7 +46,7 @@ def config_entry() -> MockConfigEntry:
 
 def process_response(*actions: dict[str, Any], status: str = "ok", **kw: Any) -> dict[str, Any]:
     return {
-        "protocol_version": 2,
+        "protocol_version": 3,
         "status": status,
         "actions": list(actions),
         "unresolved": [],

@@ -1,13 +1,21 @@
 from __future__ import annotations
 
+import pytest
+
 from assist_decider_server.pipeline import MAX_OPTIONS, decide
 from assist_decider_server.protocol import Entity, Home
+from assist_decider_server.providers import Answer
 
 from .conftest import ALL_INTENTS, HOME, FakeProvider, intent_rule, make_request
 
 
 def run(text: str, rule=None, language: str = "en", p: float = 0.95, **kw):
     provider = FakeProvider(rule, p=p)
+    response, trace = decide(make_request(text, language, **kw), provider)
+    return response, trace, provider
+
+
+def decide_with(provider, text: str, language: str = "en", **kw):
     response, trace = decide(make_request(text, language, **kw), provider)
     return response, trace, provider
 
@@ -286,26 +294,7 @@ def test_nfkc_expansion_does_not_break_the_response():
     assert all(len(s) <= 500 for s in response.unresolved)
 
 
-# ---------------------------------------------------------------- conditions and memory
-
-SENSOR_HOME = Home(
-    areas=HOME.areas,
-    entities=[
-        *HOME.entities,
-        Entity(
-            id="sensor.outdoor_temperature",
-            name="Outdoor Temperature",
-            aliases=["Außentemperatur"],
-            device_class="temperature",
-        ),
-        Entity(
-            id="binary_sensor.living_room_window",
-            name="Living Room Window",
-            area_id="living_room",
-            device_class="window",
-        ),
-    ],
-)
+# ---------------------------------------------------------------- not expressible
 
 
 def by_words(**intents: str):
@@ -320,78 +309,345 @@ def by_words(**intents: str):
     return rule
 
 
-COLD = "if it is cold outside set the thermostat to 24 and open the living room blinds"
-COLD_RULE = by_words(set="HassClimateSetTemperature", open="HassTurnOn")
+@pytest.mark.parametrize(
+    ("text", "language", "reason"),
+    [
+        ("if it is cold outside set the thermostat to 24", "en", "conditional"),
+        ("turn on the kitchen light unless it is warm", "en", "conditional"),
+        ("Wenn es draußen kalt ist, stell die Heizung im Bad auf 22 Grad", "de", "conditional"),
+        ("don't turn on the kitchen light", "en", "negation"),
+        ("never open the garage door", "en", "negation"),
+        ("Mach das Küchenlicht nicht an", "de", "negation"),
+        ("turn on all lights except the kitchen light", "en", "exception"),
+        ("turn on the kitchen light but not the desk lamp", "en", "exception"),
+        ("turn on the kitchen light or the desk lamp", "en", "exception"),
+        ("Schalte alle Lichter an außer das Küchenlicht", "de", "exception"),
+        ("turn on the kitchen light tomorrow", "en", "scheduled"),
+        ("Schalte das Küchenlicht um 7 Uhr an", "de", "scheduled"),
+    ],
+)
+def test_sentences_that_no_intent_call_can_express_are_not_attempted(text, language, reason):
+    # The exact names in these sentences would otherwise run as a plain command.
+    response, trace, provider = run(text, intent_rule("HassTurnOn"), language)
+    assert response.status == "escalate" and not response.actions
+    assert response.reason == trace["blocked"]["reason"] == reason
+    assert provider.calls == []
 
 
-def test_condition_true_runs_every_guarded_command():
-    states = {"sensor.outdoor_temperature": "5"}
-    response, trace, _ = run(COLD, COLD_RULE, home=SENSOR_HOME, states=states)
+def test_a_blocking_word_inside_a_device_name_is_just_a_name():
+    home = Home(areas=HOME.areas, entities=[Entity(id="scene.if_only", name="If Only")])
+    response, *_ = run("turn on if only", intent_rule("HassTurnOn"), home=home)
+    assert acts(response) == [("HassTurnOn", {"name": "scene.if_only"})]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "turn on the kitchen light in 10 minutes",
+        "turn on the kitchen light for 5 minutes",
+        "turn on the kitchen light at 7",
+        "set the kitchen light to 50 percent in 10 minutes",
+    ],
+)
+def test_a_number_the_intent_has_no_slot_for_escalates(text):
+    rule = by_words(set="HassLightSet", turn="HassTurnOn")
+    response, trace, _ = run(text, rule)
+    assert response.status == "escalate" and response.reason == "unused_number"
+    assert "no use for" in trace["segments"][0]["note"]
+
+
+def test_one_as_a_pronoun_is_not_a_stray_number():
+    ctx = {"context_id": "sat_one"}
+    run("turn on the kitchen light", intent_rule("HassTurnOn"), **ctx)
+    response, *_ = run("turn that one off", intent_rule("HassTurnOff"), **ctx)
+    assert acts(response) == [("HassTurnOff", {"name": "light.kitchen_ceiling"})]
+
+
+# ---------------------------------------------------------------- on/off words
+
+
+class Skewed(FakeProvider):
+    """A model that is sure of one intent, whatever is asked."""
+
+    def __init__(self, choice: str) -> None:
+        super().__init__()
+        self.choice = choice
+
+    def predict(self, state, questions, lang):
+        out = {}
+        for key, q in questions.items():
+            self.calls.append((key, q, state))
+            probs = {k: 0.03 / (len(q.options) - 1) for k in q.options} | {self.choice: 0.97}
+            out[key] = Answer(self.choice, probs)
+        return out
+
+
+@pytest.mark.parametrize(
+    ("text", "language"),
+    [
+        ("kill the light on the desk lamp", "en"),
+        ("darken the kitchen light on the left", "en"),
+        ("Lösche das Licht auf dem Flur", "de"),
+        ("Schalte das Licht an der Stehlampe aus", "de"),
+    ],
+)
+def test_on_as_a_preposition_does_not_overrule_the_model(text, language):
+    # "on the desk" used to mask turn_off; renormalizing the rest then ran turn_on.
+    response, trace, _ = decide_with(Skewed("turn_off"), text, language)
+    assert "turn_off" not in masked(trace)
+    assert [a.intent for a in response.actions] == ["HassTurnOff"]
+
+
+@pytest.mark.parametrize(
+    ("text", "language", "hidden"),
+    [
+        ("turn on the kitchen light", "en", "turn_off"),
+        ("turn the kitchen light on", "en", "turn_off"),
+        ("turn the lights on in the kitchen", "en", "turn_off"),
+        ("turn the kitchen light off please", "en", "turn_on"),
+        ("Mach das Küchenlicht an", "de", "turn_off"),
+        ("Mach das Licht an im Flur", "de", "turn_off"),
+        ("Schalte das Licht in der Küche und im Flur aus", "de", "turn_on"),
+    ],
+)
+def test_on_off_after_the_verb_or_at_the_end_still_guards(text, language, hidden):
+    _, trace, _ = run(text, intent_rule("none"), language)
+    assert hidden in masked(trace)
+
+
+def test_value_preposition_is_not_an_on_word():
+    # German "auf" is "on"/"open", and the preposition in "auf 50 Prozent".
+    _, trace, _ = run("Stell das Küchenlicht auf 50", intent_rule("HassLightSet"), "de")
+    assert "turn_off" not in masked(trace)
+
+
+@pytest.mark.parametrize(
+    ("text", "language", "intent"),
+    [
+        ("can you turn on the kitchen light?", "en", "HassTurnOn"),
+        ("could you switch the kitchen light off?", "en", "HassTurnOff"),
+        ("Kannst du das Küchenlicht anmachen?", "de", "HassTurnOn"),
+    ],
+)
+def test_polite_request_with_a_question_mark_is_a_command(text, language, intent):
+    response, trace, _ = run(text, intent_rule(intent), language)
+    assert acts(response) == [(intent, {"name": "light.kitchen_ceiling"})]
+    assert "intent_shortcut" not in trace["segments"][0]
+
+
+@pytest.mark.parametrize(
+    ("text", "language"), [("kitchen light on?", "en"), ("Küchenlicht an?", "de")]
+)
+def test_question_mark_without_a_command_word_stays_a_question(text, language):
+    response, *_ = run(text, intent_rule("HassTurnOn"), language)
+    assert acts(response) == [("HassGetState", {"name": "light.kitchen_ceiling"})]
+
+
+def test_state_words_with_a_question_mark_never_command():
+    # "open" is a verb, an on word and a state. Asked like this it must not open anything.
+    response, _, provider = run("garage door open?", intent_rule("HassTurnOn"))
+    assert acts(response) == [("HassGetState", {"name": "cover.garage_door"})]
+    assert provider.calls == []
+
+
+def test_a_device_word_that_is_also_an_on_word_is_not_a_command():
+    # "lock" names the device here; the only on/off word is "off".
+    _, trace, _ = run("turn off the front door lock", intent_rule("HassTurnOff"))
+    assert "turn_on" in masked(trace) and "turn_off" not in masked(trace)
+
+
+@pytest.mark.parametrize(
+    ("text", "language", "expected"),
+    [
+        ("kitchen light on", "en", ("HassTurnOn", {"name": "light.kitchen_ceiling"})),
+        ("Küchenlicht aus bitte", "de", ("HassTurnOff", {"name": "light.kitchen_ceiling"})),
+        (
+            "lights on in the hallway",
+            "en",
+            ("HassTurnOn", {"area": "hallway", "domain": ["light"]}),
+        ),
+    ],
+)
+def test_verbless_command_is_decided_by_its_on_off_word(text, language, expected):
+    response, trace, provider = run(text, intent_rule("none"), language)
+    assert acts(response) == [expected]
+    assert trace["segments"][0]["intent_shortcut"] == "spoken on/off word"
+    assert provider.calls == []
+
+
+def test_verbless_chatter_with_an_on_word_goes_to_the_model():
+    response, _, provider = run("the kitchen light was left on", intent_rule("none"))
+    assert response.status == "escalate"
+    assert [c[0] for c in provider.calls] == ["intent"]
+
+
+# ---------------------------------------------------------------- splitting
+
+
+@pytest.mark.parametrize(
+    ("text", "language", "expected"),
+    [
+        (
+            "kitchen light on and desk lamp off",
+            "en",
+            [("HassTurnOn", "light.kitchen_ceiling"), ("HassTurnOff", "light.desk_lamp")],
+        ),
+        (
+            "turn the kitchen light on and the desk lamp off",
+            "en",
+            [("HassTurnOn", "light.kitchen_ceiling"), ("HassTurnOff", "light.desk_lamp")],
+        ),
+        (
+            "Mach das Küchenlicht an und die Schreibtischlampe aus",
+            "de",
+            [("HassTurnOn", "light.kitchen_ceiling"), ("HassTurnOff", "light.desk_lamp")],
+        ),
+        (
+            "Küchenlicht aus, Fernseher an",
+            "de",
+            [("HassTurnOff", "light.kitchen_ceiling"), ("HassTurnOn", "media_player.tv")],
+        ),
+    ],
+)
+def test_opposite_on_off_words_make_two_commands(text, language, expected):
+    response, *_ = run(text, by_words(turn="HassTurnOn", mach="HassTurnOn"), language)
+    assert [(a.intent, a.slots["name"]) for a in response.actions] == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "language", "expected"),
+    [
+        (
+            "set the kitchen light to 50 percent and the desk lamp to 20 percent",
+            "en",
+            [
+                ("HassLightSet", {"name": "light.kitchen_ceiling", "brightness": 50}),
+                ("HassLightSet", {"name": "light.desk_lamp", "brightness": 20}),
+            ],
+        ),
+        (
+            "Stell das Küchenlicht auf 50 Prozent und die Stehlampe auf 20 Prozent",
+            "de",
+            [
+                ("HassLightSet", {"name": "light.kitchen_ceiling", "brightness": 50}),
+                ("HassLightSet", {"name": "light.living_room_floor", "brightness": 20}),
+            ],
+        ),
+    ],
+)
+def test_each_target_keeps_its_own_value(text, language, expected):
+    response, *_ = run(text, intent_rule("HassLightSet"), language)
+    assert acts(response) == expected
+
+
+def test_a_shared_value_is_still_one_command():
+    response, trace, _ = run(
+        "set the kitchen light and the desk lamp to 50 percent", intent_rule("HassLightSet")
+    )
+    assert len(trace["segments"]) == 1
+    assert [a.slots["brightness"] for a in response.actions] == [50, 50]
+
+
+def test_it_refers_to_the_command_before_in_the_same_sentence():
+    response, trace, _ = run(
+        "dim the kitchen light to 30 percent and then switch it off",
+        by_words(dim="HassLightSet", switch="HassTurnOff"),
+    )
+    # "switch" is the verb here, not a device word: the coffee maker stays on.
     assert acts(response) == [
-        ("HassClimateSetTemperature", {"name": "climate.living_room", "temperature": 24.0}),
-        ("HassTurnOn", {"name": "cover.living_room_blinds"}),
+        ("HassLightSet", {"name": "light.kitchen_ceiling", "brightness": 30}),
+        ("HassTurnOff", {"name": "light.kitchen_ceiling"}),
     ]
-    assert trace["segments"][0]["condition"]["holds"] is True
+    assert trace["segments"][1]["shortcut"] == "previous command"
 
 
-def test_condition_false_skips_and_reports():
-    states = {"sensor.outdoor_temperature": "20.5"}
-    response, _, provider = run(COLD, COLD_RULE, home=SENSOR_HOME, states=states)
-    assert response.status == "ok" and not response.actions
-    assert [(s.entity, s.value) for s in response.skipped] == [
-        ("sensor.outdoor_temperature", "20.5")
-    ] * 2
-    assert not provider.calls  # nothing asked for commands that will not run
+def test_switch_as_a_verb_does_not_pick_the_only_switch():
+    response, *_ = run("switch it off", intent_rule("HassTurnOff"))
+    assert response.status == "escalate" and response.reason == "no_target"
 
 
-def test_condition_threshold_is_an_option():
-    states = {"sensor.outdoor_temperature": "15"}
-    options = {"cold_below": 16}
-    response, *_ = run(COLD, COLD_RULE, home=SENSOR_HOME, states=states, options=options)
-    assert len(response.actions) == 2
-
-
-def test_condition_without_state_escalates_guarded_commands_only():
-    response, *_ = run(
-        "turn on the kitchen light and if it is cold outside set the thermostat to 24",
-        by_words(turn="HassTurnOn", set="HassClimateSetTemperature"),
-        home=SENSOR_HOME,
+def test_switch_as_a_device_word_does_not_start_a_new_command():
+    response, trace, _ = run(
+        "turn on the desk lamp and the kitchen switch", intent_rule("HassTurnOn")
     )
-    assert acts(response) == [("HassTurnOn", {"name": "light.kitchen_ceiling"})]
-    assert response.reason == "condition_unknown"
-    assert response.unresolved == ["set the thermostat to 24"]
+    assert len(trace["segments"]) == 1
+    assert acts(response) == [
+        ("HassTurnOn", {"name": "light.desk_lamp"}),
+        ("HassTurnOn", {"area": "kitchen", "domain": ["switch"]}),
+    ]
 
 
-def test_trailing_condition_guards_what_came_before():
-    states = {"binary_sensor.living_room_window": "off"}
+# ---------------------------------------------------------------- targets
+
+
+def test_device_words_inside_names_do_not_spread_to_rooms():
     response, *_ = run(
-        "turn off the thermostat if the living room window is open",
-        by_words(turn="HassTurnOff"),
-        home=SENSOR_HOME,
-        states=states,
+        "turn on the lights in the kitchen and the living room and the tv",
+        intent_rule("HassTurnOn"),
     )
-    assert not response.actions
-    assert response.skipped[0].segment == "turn off the thermostat"
+    assert acts(response) == [
+        ("HassTurnOn", {"name": "media_player.tv"}),
+        ("HassTurnOn", {"area": "kitchen", "domain": ["light"]}),
+        ("HassTurnOn", {"area": "living_room", "domain": ["light"]}),
+    ]
 
 
-def test_number_condition_and_german_comma():
-    states = {"sensor.outdoor_temperature": "-2"}
+def test_room_is_a_target_unless_it_only_locates_the_named_device():
     response, *_ = run(
-        "Wenn die Außentemperatur unter 0 Grad ist, schalte das Küchenlicht an",
-        by_words(schalte="HassTurnOn"),
-        language="de",
-        home=SENSOR_HOME,
-        states=states,
+        "turn on the floor lamp and the lights in the living room", intent_rule("HassTurnOn")
     )
-    assert acts(response) == [("HassTurnOn", {"name": "light.kitchen_ceiling"})]
+    assert acts(response) == [
+        ("HassTurnOn", {"name": "light.living_room_floor"}),
+        ("HassTurnOn", {"area": "living_room", "domain": ["light"]}),
+    ]
+    response, *_ = run("turn on the floor lamp in the living room", intent_rule("HassTurnOn"))
+    assert acts(response) == [("HassTurnOn", {"name": "light.living_room_floor"})]
 
 
-def test_condition_clause_keeps_state_words_that_are_verbs():
-    from assist_decider_server.lang import EN
-    from assist_decider_server.pipeline import find_condition
+def test_room_takes_the_kind_of_the_named_device():
+    response, *_ = run("turn on the kitchen light and the bedroom", intent_rule("HassTurnOn"))
+    assert acts(response)[1] == ("HassTurnOn", {"area": "bedroom", "domain": ["light"]})
 
-    tokens = ["if", "the", "window", "is", "open", "close", "the", "blinds"]
-    assert find_condition(tokens, set(), EN) == (0, 5)
+
+def test_named_device_limits_the_intents():
+    _, trace, _ = run("set the kitchen light to 20", intent_rule("HassLightSet"))
+    assert {"set_temperature", "set_position"} <= masked(trace)
+    reasons = trace["segments"][0]["dropped_intents"]
+    assert reasons["HassClimateSetTemperature"] == "does not fit the named device"
+
+
+def test_device_named_like_an_everyday_word_does_not_capture_the_word():
+    home = Home(
+        areas=HOME.areas,
+        entities=[
+            *HOME.entities,
+            Entity(id="sensor.temperature", name="Temperature", area_id="kitchen"),
+        ],
+    )
+    response, *_ = run(
+        "set the temperature to 22 degrees",
+        intent_rule("HassClimateSetTemperature"),
+        home=home,
+        satellite_area_id="bathroom",
+    )
+    assert acts(response) == [
+        ("HassClimateSetTemperature", {"area": "bathroom", "temperature": 22.0})
+    ]
+
+
+def test_named_device_is_never_dropped_to_make_a_follow_up_fit():
+    # Scenes cannot be turned off. Dropping the name would turn the kitchen light off again.
+    home = Home(
+        areas=HOME.areas, entities=[*HOME.entities, Entity(id="scene.movie", name="Movie Night")]
+    )
+    ctx = {"context_id": "sat_incompatible", "home": home}
+    run("turn off the kitchen light", intent_rule("HassTurnOff"), **ctx)
+    response, _, provider = run("and movie night too", **ctx)
+    assert response.status == "escalate" and response.reason == "incompatible_target"
+    assert provider.calls == []
+
+
+# ---------------------------------------------------------------- follow-ups
 
 
 def test_follow_up_reuses_targets_then_intent():
@@ -399,11 +655,11 @@ def test_follow_up_reuses_targets_then_intent():
     run("turn on the kitchen light", intent_rule("HassTurnOn"), **ctx)
     response, trace, _ = run("turn it off", intent_rule("HassTurnOff"), **ctx)
     assert acts(response) == [("HassTurnOff", {"name": "light.kitchen_ceiling"})]
-    assert trace["segments"][0]["shortcut"] == "previous turn"
+    assert trace["segments"][0]["shortcut"] == "previous command"
 
     response, trace, provider = run("and the hallway too", **ctx)
     assert acts(response) == [("HassTurnOff", {"area": "hallway", "domain": ["light"]})]
-    assert trace["segments"][0]["intent_shortcut"] == "previous turn"
+    assert trace["segments"][0]["intent_shortcut"] == "previous command"
     assert not provider.calls
 
 
@@ -435,3 +691,41 @@ def test_memory_expires_and_is_per_context(monkeypatch):
     now[0] += 61
     response, *_ = run("turn it off", intent_rule("HassTurnOff"), context_id="sat_a")
     assert response.status == "escalate"
+
+
+def test_follow_up_needs_every_word_accounted_for():
+    for n, text in enumerate(("I am going to the bedroom now", "the bedroom is a mess")):
+        ctx = {"context_id": f"sat_chatter_{n}"}
+        run("turn off the kitchen light", intent_rule("HassTurnOff"), **ctx)
+        response, trace, provider = run(text, intent_rule("none"), **ctx)
+        assert response.status == "escalate", text
+        assert "intent_shortcut" not in trace["segments"][0]
+        assert [c[0] for c in provider.calls] == ["intent"]  # the model decides, not memory
+
+
+def test_previous_targets_need_a_bare_reference():
+    ctx = {"context_id": "sat_everything"}
+    run("turn on the tv", intent_rule("HassTurnOn"), **ctx)
+    response, *_ = run("turn off everything", intent_rule("HassTurnOff"), **ctx)
+    assert response.status == "escalate"
+
+
+def test_locks_are_not_reached_through_it():
+    ctx = {"context_id": "sat_lock"}
+    response, *_ = run("lock the front door", intent_rule("HassTurnOn"), **ctx)
+    assert acts(response) == [("HassTurnOn", {"name": "lock.front_door"})]
+    response, *_ = run("turn it off", intent_rule("HassTurnOff"), **ctx)
+    assert response.status == "escalate" and response.reason == "no_target"
+    response, *_ = run(
+        "open the garage door and then close it",
+        by_words(open="HassTurnOn", close="HassTurnOff"),
+    )
+    assert acts(response) == [("HassTurnOn", {"name": "cover.garage_door"})]
+    assert response.unresolved == ["close it"]
+
+
+def test_bare_on_off_word_follows_up_on_the_previous_devices():
+    ctx = {"context_id": "sat_aus"}
+    run("Mach das Küchenlicht an", intent_rule("HassTurnOn"), "de", **ctx)
+    response, *_ = run("aus", intent_rule("none"), "de", **ctx)
+    assert acts(response) == [("HassTurnOff", {"name": "light.kitchen_ceiling"})]

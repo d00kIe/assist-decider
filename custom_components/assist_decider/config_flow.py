@@ -27,7 +27,7 @@ from .const import (
     CONF_FALLBACK_AGENT,
     CONF_MEMORY_SECONDS,
     CONF_VERIFY_SSL,
-    DEFAULT_CONDITIONS,
+    DEFAULT_MEMORY_SECONDS,
     DEFAULT_THRESHOLDS,
     DOMAIN,
     THRESHOLD_OPTIONS,
@@ -173,17 +173,12 @@ class AssistDeciderOptionsFlow(OptionsFlowWithReload):
                     vol.Required(key, default=options.get(key, DEFAULT_THRESHOLDS[lang])): slider
                     for lang, key in THRESHOLD_OPTIONS.items()
                 },
-                **{
-                    vol.Required(key, default=options.get(key, default)): NumberSelector(
-                        NumberSelectorConfig(
-                            min=0 if key == CONF_MEMORY_SECONDS else -50,
-                            max=3600 if key == CONF_MEMORY_SECONDS else 150,
-                            step=1 if key == CONF_MEMORY_SECONDS else 0.5,
-                            mode=NumberSelectorMode.BOX,
-                        )
-                    )
-                    for key, default in DEFAULT_CONDITIONS.items()
-                },
+                vol.Required(
+                    CONF_MEMORY_SECONDS,
+                    default=options.get(CONF_MEMORY_SECONDS, DEFAULT_MEMORY_SECONDS),
+                ): NumberSelector(
+                    NumberSelectorConfig(min=0, max=3600, step=1, mode=NumberSelectorMode.BOX)
+                ),
                 vol.Optional(CONF_FALLBACK_AGENT): ConversationAgentSelector(),
             }
         )

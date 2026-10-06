@@ -12,12 +12,10 @@ CONF_THRESHOLD_EN: Final = "threshold_en"
 CONF_THRESHOLD_DE: Final = "threshold_de"
 
 CONF_MEMORY_SECONDS: Final = "memory_seconds"
-CONF_COLD_BELOW: Final = "cold_below"
-CONF_WARM_ABOVE: Final = "warm_above"
 
 DEFAULT_THRESHOLDS: Final = {"en": 0.4, "de": 0.5}
-# Follow-ups ("turn it off") and "cold"/"warm" in conditions, in the home's temperature unit.
-DEFAULT_CONDITIONS: Final = {CONF_MEMORY_SECONDS: 60, CONF_COLD_BELOW: 12, CONF_WARM_ABOVE: 20}
+# How long a follow-up ("turn it off") refers to the previous command.
+DEFAULT_MEMORY_SECONDS: Final = 60
 THRESHOLD_OPTIONS: Final = {"en": CONF_THRESHOLD_EN, "de": CONF_THRESHOLD_DE}
 
 REQUEST_TIMEOUT: Final = 10
@@ -43,12 +41,10 @@ MESSAGES: Final = {
         "unavailable": "Sorry, the decision server is not reachable.",
         "rest_not_understood": "I didn't understand the rest.",
         "done": "Done.",
-        "skipped": "Not done, {name} is {value}.",
     },
     "de": {
         "unavailable": "Entschuldigung, der Entscheidungsserver ist nicht erreichbar.",
         "rest_not_understood": "Den Rest habe ich nicht verstanden.",
         "done": "Erledigt.",
-        "skipped": "Nicht ausgeführt, {name} ist {value}.",
     },
 }

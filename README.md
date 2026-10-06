@@ -52,7 +52,7 @@ decision takes **15–40 ms** on an Apple M-series GPU.
                                                         ▼
  ┌─ Home Assistant: custom_components/assist_decider ─────────────────────────────┐
  │ 1. Collect what is exposed to Assist: entity IDs, names, aliases, device class, │
- │    area and floor names, plus sensor/weather/thermostat values for conditions.  │
+ │    area and floor names. No states.                                             │
  │ 2. POST /v1/process (bearer token) ─────────────────────────────────────────┐   │
  │ 5. Check every proposed action: allowed intent, exposed device, allowed slots│   │
  │ 6. Run the actions in order through HA's own intent handlers                 │   │
@@ -61,8 +61,8 @@ decision takes **15–40 ms** on an Apple M-series GPU.
  └──────────────────────────────────────────────────────────────────────────────┼───┘
                                                                                 ▼
  ┌─ assist-decider server (your Mac / Linux box / Windows PC) ───────────────────────┐
- │ 3. Fold text, find spoken device and room names, split "…and…" into commands,     │
- │    read numbers ("einundzwanzig komma fünf Grad" → 21.5)                          │
+ │ 3. Fold text, find spoken device and room names, refuse what it cannot express    │
+ │    ("if …", "don't …"), split "…and…" into commands, read numbers ("21,5 Grad")   │
  │ 4. Ask Laya: which action? which device or room? Gate on confidence.              │
  │    Model stays loaded in RAM/VRAM. Live web UI shows every decision.              │
  └───────────────────────────────────────────────────────────────────────────────────┘
@@ -76,6 +76,9 @@ Responsibilities are split deliberately:
   Numbers, compound commands and exact device names are handled by fast, deterministic
   code around it. Lexical guards stop the model from contradicting what you said: when
   you say "aus", "turn on" is never chosen. Every guard is visible in the live log.
+- **No action beats a wrong action.** A sentence that says more than an intent call can
+  express ("if it is cold …", "don't …", "all except …", "… in 10 minutes") is not run
+  with the awkward part ignored. It goes to your fallback agent as a whole.
 - **Safety by construction.** Locks and garage/gate/door covers are never *guessed*.
   They only act when you say their exact name. A room command never includes locks.
 
@@ -91,8 +94,8 @@ Responsibilities are split deliberately:
 | Temperature | "how warm is it in the living room?" | "Wie warm ist es im Wohnzimmer?" |
 | **Compound commands** | "turn off the kitchen light and set the bedroom to 19 degrees" | "Mach die Kaffeemaschine an und stell das Bad auf 22 Grad" |
 | **Several targets** | "turn off the lights in the kitchen and the hallway" | "Schalte das Licht in der Küche und im Flur aus" |
-| **Conditions** | "if it is cold outside set the heating to 24 and open the blinds" | "Wenn es draußen kalt ist, stell die Heizung im Bad auf 22 Grad" |
-| **Follow-ups** (within a minute) | "turn it off", "and the hallway too", "23 degrees" | "Mach es aus", "und im Flur auch" |
+| **Mixed commands** | "kitchen light on and desk lamp off", "set the lamp to 50 percent and the spots to 20 percent" | "Mach das Küchenlicht an und die Stehlampe aus" |
+| **Follow-ups** (within a minute, or within one sentence) | "turn it off", "and the hallway too", "23 degrees", "turn on the light and then dim it to 30 percent" | "Mach es aus", "und im Flur auch" |
 
 Devices can be named by their name or any alias you set in Home Assistant. Rooms are named
 by area name or alias. German compounds work ("Wohnzimmerlicht"). Without a room, the
@@ -229,7 +232,6 @@ The integration checks the connection and token right away. The new agent appear
 | Confidence threshold (English) | 0.40 | Below this, a command is not executed. Higher is safer, lower understands more. |
 | Confidence threshold (German) | 0.50 | Stricter because German is less accurate. |
 | Follow-up memory (seconds) | 60 | How long "turn it off" refers to the previous command, per satellite (or conversation). 0 turns it off. |
-| "Cold" below / "Warm" above | 12 / 20 | Thresholds for "if it is cold/warm …", in your temperature unit. "below 5 degrees" uses the spoken number. |
 | Fallback agent | none | Where requests go that Assist Decider can't decide, e.g. *Home Assistant* or an LLM agent. If only part of a sentence is understood, the whole sentence goes to the fallback. |
 
 Only entities **exposed to Assist** are ever sent or controlled
@@ -319,8 +321,7 @@ public issue.
 
 Everything stays on your network. The server receives what you said, the names, aliases
 and device classes of *exposed* entities, and your area and floor names. Device
-**states** are not sent, except the current values conditions can test: exposed sensors and
-binary sensors, weather temperature and thermostat current temperature. Utterances appear in the live view (memory only, gone after a
+**states** are never sent. Utterances appear in the live view (memory only, gone after a
 restart) and in the server log on stderr. Whatever captures stderr (journald, a launchd
 log file, Docker) may keep them on disk. Use `--log-level WARNING` to keep utterances out
 of the log.
@@ -333,6 +334,7 @@ of the log.
 | "The server rejected the token" | Paste the exact token, without quotes or spaces. |
 | Assistant says "the decision server is not reachable" | The server is down or restarting. Home Assistant retries setup automatically. |
 | A command is not executed | Open the live log. Usually it is `low_confidence` (lower the threshold slightly), `no_target` (add an alias to the device) or `area_without_domain` (say "lights": "turn off the kitchen **lights**"). |
+| The log says `conditional`, `negation`, `exception`, `scheduled` or `unused_number` | The sentence contains something no intent call can express: "if/when", "not/don't", "except/or", "tomorrow", or a number with no use ("in 10 minutes"). It is handed to the fallback agent on purpose. |
 | German is less reliable than English | Expected with the current Laya checkpoint. Add German aliases, keep the German threshold at 0.5, and configure a fallback agent. |
 | The first command after start is slow | The model warms up at startup. If it is still slow, check that the log says `device=mps`/`cuda`, not `cpu`. |
 
@@ -344,10 +346,11 @@ of the log.
   volume and floors (see the roadmap).
 - No follow-up questions ("which light?"). References to the previous command work for
   about a minute ("turn *it* off", "and the kitchen too").
-- Conditions test one sensor (temperature: cold/warm/below/above; binary sensors:
-  open/closed, on/off). Nested conditions ("if … and …") are not supported.
-- Mixed on/off in one sentence without a second verb ("Licht an und Heizung aus") is
-  ambiguous. Say "Mach das Licht an und schalte die Heizung aus".
+- Conditions, negation, exceptions and schedules ("if it is cold …", "don't …", "all
+  except …", "in 10 minutes") are recognized and refused, not executed. Configure a
+  fallback agent if you want them handled.
+- Locks and garage/gate/door covers are not reached through "it": after "lock the front
+  door", say "unlock the front door", not "unlock it".
 
 ## Development
 
