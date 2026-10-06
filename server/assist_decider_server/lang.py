@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from functools import cached_property
 
 _UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue"})
 TOKEN_RE = re.compile(r"\d+(?:\.\d+)?|\w+|[,;?%°]")
@@ -38,7 +39,7 @@ def tokenize(folded: str) -> list[tuple[str, int, int]]:
     return [(m.group(), m.start(), m.end()) for m in TOKEN_RE.finditer(folded)]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, eq=False)
 class Lang:
     intent_question: str
     target_question: str
@@ -59,28 +60,29 @@ class Lang:
     value_words: frozenset[str]  # "dim" etc.: needs a number, never guess one
     temperature_words: frozenset[str]
     stop_words: frozenset[str] = field(default_factory=frozenset)
-    # Conditions: "if <clause>" ends at a comma, a condition_end word, or a command verb
-    # once the clause has a test word (so "if the window is open" keeps its "open").
-    condition_words: frozenset[str] = field(default_factory=frozenset)
-    condition_end: frozenset[str] = frozenset({",", ";"})
-    cold_words: frozenset[str] = field(default_factory=frozenset)
-    warm_words: frozenset[str] = field(default_factory=frozenset)
-    below_words: frozenset[str] = field(default_factory=frozenset)
-    above_words: frozenset[str] = field(default_factory=frozenset)
-    active_words: frozenset[str] = field(default_factory=frozenset)  # binary sensor "on"
-    inactive_words: frozenset[str] = field(default_factory=frozenset)
-    outside_words: frozenset[str] = field(default_factory=frozenset)
+    # on/off words that are also prepositions ("the lamp on the desk", "auf dem Flur").
+    # They only count as on/off right after a verb or at the end of a clause.
+    particles: frozenset[str] = field(default_factory=frozenset)
+    # on/off words that also describe a state: "garage door open?" asks, it does not command.
+    state_words: frozenset[str] = field(default_factory=frozenset)
+    # After one of these, a word like "switch" or "lock" is a device, not a verb.
+    articles: frozenset[str] = field(default_factory=frozenset)
+    # Pronouns and filler that say nothing new: "turn it off", "and the hallway too".
+    filler_words: frozenset[str] = field(default_factory=frozenset)
+    # Reject-only lists: a sentence with one of these means something this pipeline cannot
+    # express, so the whole sentence goes to the fallback agent instead of being run as if
+    # the word were not there. reason -> words.
+    blockers: dict[str, frozenset[str]] = field(default_factory=dict)
 
-    @property
-    def test_words(self) -> frozenset[str]:
-        return (
-            self.cold_words
-            | self.warm_words
-            | self.below_words
-            | self.above_words
-            | self.active_words
-            | self.inactive_words
-        )
+    @cached_property
+    def noun_verbs(self) -> frozenset[str]:
+        """Verbs that are also device words: "switch it off" / "the kitchen switch"."""
+        nouns = {word for _label, words in self.domains.values() for word in words}
+        return self.verbs & nouns
+
+    @cached_property
+    def joiners(self) -> frozenset[str]:
+        return frozenset(t for c in self.conjunctions for t in c)
 
 
 EN = Lang(
@@ -213,15 +215,38 @@ EN = Lang(
             "it",
         }
     ),
-    condition_words=frozenset({"if", "when", "whenever"}),
-    condition_end=frozenset({",", ";", "then"}),
-    cold_words=frozenset({"cold", "cool", "chilly", "freezing"}),
-    warm_words=frozenset({"warm", "hot"}),
-    below_words=frozenset({"below", "under", "less", "lower"}),
-    above_words=frozenset({"above", "over", "more", "higher"}),
-    active_words=frozenset({"on", "open", "opened", "active", "running", "detected"}),
-    inactive_words=frozenset({"off", "closed", "shut", "inactive", "clear"}),
-    outside_words=frozenset({"outside", "outdoors", "outdoor"}),
+    particles=frozenset({"on", "off"}),
+    state_words=frozenset({"open", "shut"}),
+    articles=frozenset(
+        {"the", "a", "an", "my", "our", "your", "this", "that", "these", "those", "all", "both"}
+    ),
+    filler_words=frozenset(
+        {"it", "them", "that", "this", "those", "these", "too", "also", "as", "well", "again"}
+    ),
+    blockers={
+        "conditional": frozenset({"if", "when", "whenever", "unless", "until", "till", "while"}),
+        # "t" is what is left of "don't", "isn't", "can't" after tokenizing.
+        "negation": frozenset({"not", "never", "no", "dont", "cannot", "without", "t"}),
+        "exception": frozenset({"except", "excluding", "but", "or", "either", "instead"}),
+        "scheduled": frozenset(
+            {
+                "tomorrow",
+                "tonight",
+                "later",
+                "every",
+                "daily",
+                "morning",
+                "afternoon",
+                "evening",
+                "noon",
+                "midnight",
+                "sunrise",
+                "sunset",
+                "oclock",
+                "clock",
+            }
+        ),
+    },
 )
 
 DE = Lang(
@@ -395,31 +420,101 @@ DE = Lang(
             "mal",
         }
     ),
-    condition_words=frozenset({"wenn", "falls", "sobald"}),
-    condition_end=frozenset({",", ";", "dann"}),
-    cold_words=frozenset({"kalt", "kuehl", "frostig"}),
-    warm_words=frozenset({"warm", "heiss"}),
-    below_words=frozenset({"unter", "weniger", "kleiner", "niedriger"}),
-    above_words=frozenset({"ueber", "mehr", "groesser", "hoeher"}),
-    active_words=frozenset({"an", "ein", "offen", "auf", "geoeffnet", "aktiv"}),
-    inactive_words=frozenset({"aus", "zu", "geschlossen", "inaktiv"}),
-    outside_words=frozenset({"draussen", "aussen"}),
+    particles=frozenset({"an", "ein", "auf", "aus", "ab", "zu"}),
+    articles=frozenset(
+        {
+            "der",
+            "die",
+            "das",
+            "den",
+            "dem",
+            "des",
+            "ein",
+            "eine",
+            "einen",
+            "einem",
+            "einer",
+            "mein",
+            "meine",
+            "meinen",
+            "meinem",
+            "meiner",
+            "diese",
+            "diesen",
+            "diesem",
+            "dieser",
+            "dieses",
+            "alle",
+            "beide",
+        }
+    ),
+    filler_words=frozenset(
+        {"es", "sie", "ihn", "dies", "diese", "dieses", "auch", "noch", "ebenfalls", "wieder"}
+    ),
+    blockers={
+        "conditional": frozenset(
+            {"wenn", "falls", "sobald", "solange", "waehrend", "bevor", "nachdem"}
+        ),
+        "negation": frozenset(
+            {
+                "nicht",
+                "nie",
+                "niemals",
+                "nein",
+                "kein",
+                "keine",
+                "keinen",
+                "keinem",
+                "keiner",
+                "keines",
+                "ohne",
+                "weder",
+            }
+        ),
+        "exception": frozenset(
+            {"ausser", "ausgenommen", "aber", "sondern", "oder", "entweder", "statt", "anstatt"}
+        ),
+        "scheduled": frozenset(
+            {
+                "morgen",
+                "uebermorgen",
+                "spaeter",
+                "nachher",
+                "heute",
+                "morgens",
+                "mittags",
+                "abends",
+                "nachts",
+                "taeglich",
+                "jeden",
+                "uhr",
+                "mitternacht",
+                "sonnenaufgang",
+                "sonnenuntergang",
+            }
+        ),
+    },
 )
 
 LANGS: dict[str, Lang] = {"en": EN, "de": DE}
 
 
-def domain_words_in(tokens: list[str], lang: Lang) -> set[str]:
-    """Domains whose words occur in `tokens` (whole token, or inside a compound for long words)."""
-    found: set[str] = set()
-    joined = " ".join(tokens)
+def domain_hits(tokens: list[str], lang: Lang) -> list[tuple[int, str]]:
+    """(token index, domain) for every device word in `tokens`: a whole token, or inside a
+    compound for long words ("kuechenlicht" contains "licht")."""
+    hits: list[tuple[int, str]] = []
     for domain, (_label, words) in lang.domains.items():
         for word in words:
-            if " " in word:
-                if f" {word} " in f" {joined} ":
-                    found.add(domain)
-                    break
-            elif word in tokens or (len(word) >= 5 and any(word in t for t in tokens)):
-                found.add(domain)
-                break
-    return found
+            parts = word.split()
+            for i, token in enumerate(tokens):
+                if len(parts) > 1:
+                    if tokens[i : i + len(parts)] == parts:
+                        hits += [(i + n, domain) for n in range(len(parts))]
+                elif token == word or (len(word) >= 5 and word in token):
+                    hits.append((i, domain))
+    return hits
+
+
+def domain_words_in(tokens: list[str], lang: Lang) -> set[str]:
+    """Domains whose words occur in `tokens`."""
+    return {domain for _i, domain in domain_hits(tokens, lang)}

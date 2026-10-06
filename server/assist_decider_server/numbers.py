@@ -78,6 +78,11 @@ def _digits(text: str, lang: str) -> str:
     return _ONE_BEFORE_UNIT.sub("1 ", text)
 
 
+def strip(folded: str, lang: str) -> str:
+    """`folded` without its numbers and their units: what is left is not a value."""
+    return _NUM_RE.sub(" ", _digits(folded, lang))
+
+
 def extract(folded: str, lang: str) -> list[Num]:
     """All numbers in `folded` text, in order, with the unit that follows them."""
     nums = []

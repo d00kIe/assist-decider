@@ -31,7 +31,8 @@ from . import DeciderConfigEntry
 from .client import AuthError, ServerUnavailable
 from .const import (
     CONF_FALLBACK_AGENT,
-    DEFAULT_CONDITIONS,
+    CONF_MEMORY_SECONDS,
+    DEFAULT_MEMORY_SECONDS,
     DEFAULT_THRESHOLDS,
     DOMAIN,
     MESSAGES,
@@ -107,38 +108,6 @@ def build_home(hass: HomeAssistant) -> Home:
     return Home(entities=entities[:3000], areas=areas[:500], floors=floors[:50])
 
 
-# The values conditions can test, and where each domain keeps it.
-CONDITION_VALUES = {
-    "sensor": None,  # the state itself
-    "binary_sensor": None,
-    "weather": "temperature",
-    "climate": "current_temperature",
-}
-
-
-def build_states(hass: HomeAssistant, home: Home) -> dict[str, str]:
-    """Current values for conditions ("if it is cold outside"), exposed entities only."""
-    states = {}
-    for entity in home.entities:
-        domain = entity.id.split(".", 1)[0]
-        if domain not in CONDITION_VALUES or not (state := hass.states.get(entity.id)):
-            continue
-        attr = CONDITION_VALUES[domain]
-        value = state.state if attr is None else state.attributes.get(attr)
-        if value is not None:
-            states[entity.id] = str(value)[:255]
-    return states
-
-
-def _value_text(hass: HomeAssistant, entity_id: str, value: str) -> tuple[str, str]:
-    """(friendly name, value with its unit) for speech."""
-    state = hass.states.get(entity_id)
-    if state is None:
-        return entity_id, value
-    unit = state.attributes.get("unit_of_measurement") or state.attributes.get("temperature_unit")
-    return state.name, f"{value} {unit}" if unit else value
-
-
 def _speech(response: intent.IntentResponse) -> str:
     return response.speech.get("plain", {}).get("speech", "") or ""
 
@@ -184,7 +153,7 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
         # Follow-ups are scoped to the satellite, else the conversation. Hashed: any id fits.
         context = device_id or chat_log.conversation_id
         request = ProcessRequest(
-            protocol_version=2,
+            protocol_version=3,
             text=user_input.text[:500] or "-",
             language=language if language in THRESHOLD_OPTIONS else "en",
             satellite_area_id=satellite_area_id
@@ -197,12 +166,11 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
             ),
             context_id=hashlib.sha256(context.encode()).hexdigest()[:32] if context else None,
             home=home,
-            states=build_states(self.hass, home),
             options=Options(
                 confidence_threshold=options.get(
                     THRESHOLD_OPTIONS.get(language, ""), DEFAULT_THRESHOLDS.get(language, 0.5)
                 ),
-                **{key: options.get(key, default) for key, default in DEFAULT_CONDITIONS.items()},
+                memory_seconds=options.get(CONF_MEMORY_SECONDS, DEFAULT_MEMORY_SECONDS),
             ),
         )
 
@@ -230,20 +198,12 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
                     action, user_input, language, device_id, satellite_area_id, intents_json
                 )
             )
-        if not responses and not result.skipped:
+        if not responses:
             return await self._fallback_or_error(user_input, chat_log, language, "no_intent")
 
         messages = MESSAGES.get(language, MESSAGES["en"])
-        response = _merge(responses, language) if responses else intent.IntentResponse(language)
-        speech = " ".join(
-            [s for r in responses if (s := _speech(r))]
-            + [
-                messages["skipped"].format_map(
-                    dict(zip(("name", "value"), _value_text(self.hass, entity, value)))
-                )
-                for entity, value in dict.fromkeys((s.entity, s.value) for s in result.skipped)
-            ]
-        )
+        response = _merge(responses, language)
+        speech = " ".join(s for r in responses if (s := _speech(r)))
         if result.unresolved:
             speech = f"{speech} {messages['rest_not_understood']}".strip()
         response.async_set_speech(speech)

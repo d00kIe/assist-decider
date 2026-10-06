@@ -79,6 +79,7 @@ function renderTrace(t) {
   head.append(el("q", "utterance", t.text));
   head.append(el("span", "muted", `${t.language}${t.satellite_area ? " · " + t.satellite_area : ""} · ${time(t.ts)} · ${t.elapsed_ms} ms (model ${t.model_ms} ms)`));
   card.append(head);
+  if (t.blocked) card.append(el("div", "muted small", `not attempted: "${t.blocked.word}" (${t.blocked.reason}) is not something an intent call can express`));
   for (const seg of t.segments || []) {
     const s = el("div", "segment");
     s.append(el("div", "stext", "› " + seg.text));
@@ -87,9 +88,6 @@ function renderTrace(t) {
     if (seg.dropped_intents && Object.keys(seg.dropped_intents).length) facts.push("dropped: " + Object.entries(seg.dropped_intents).map(([k, v]) => `${k} (${v})`).join(", "));
     if (seg.intent_shortcut) facts.push("intent: " + seg.intent_shortcut);
     if (seg.shortcut) facts.push("target: " + seg.shortcut);
-    if (seg.test) facts.push("condition test: " + seg.test);
-    if (seg.condition) facts.push(`condition: ${seg.condition.entity} = ${seg.condition.value} → ${seg.condition.holds ? "holds" : "does not hold"}`);
-    if (seg.skipped) facts.push("skipped: " + seg.skipped);
     if (seg.note) facts.push(seg.note);
     if (seg.escalate) facts.push("escalated: " + seg.escalate);
     for (const f of facts) s.append(el("div", "muted small", f));

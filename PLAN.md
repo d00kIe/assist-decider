@@ -21,16 +21,20 @@ running on a separate machine. It needs to be:
 
 - **Server** (`server/`, Python ≥3.11, FastAPI):
   - Holds one Laya checkpoint (`english` | `multilingual`), resident and warmed up.
-  - The pipeline turns text into ordered intent calls with IDs: fold → mentions → "if"
-    clause → split → lexical guards → Laya intent question → targets (exact names →
-    previous turn → single device → satellite area → Laya target question) → confidence
-    gate → slots.
-  - Conditions: the "if/wenn …" clause is resolved to one sensor (exact name, area, or the
-    Laya target question) and tested **in code** against `ProcessRequest.states`. It
-    guards the commands after it (or before it, when it comes last).
-  - Follow-ups: the last command per `context_id` (hashed satellite device or conversation
-    id), for `memory_seconds` (default 60). A clause without a verb reuses the previous
-    intent; a command that names no device reuses the previous targets.
+  - The pipeline turns text into ordered intent calls with IDs: fold → mentions → reject
+    list (conditions, negation, exceptions, schedules) → split → lexical guards → Laya
+    intent question → every number used → targets (exact names → previous command →
+    single device → satellite area → Laya target question) → confidence gate → slots.
+  - Splitting: at conjunctions, where the next clause has its own verb, or its own on/off
+    word or value when the command before has one too ("Licht an und Heizung aus").
+  - Word lists select as little as possible. on/off particles count only after the verb
+    or at the end of a clause (elsewhere they are prepositions). The reject lists only
+    ever escalate.
+  - Follow-ups: the previous command is the one before in the same sentence, else the
+    last per `context_id` (hashed satellite device or conversation id) for
+    `memory_seconds` (default 60). A clause without a verb reuses the previous intent; a
+    command that names no device reuses the previous targets. Both need every word
+    accounted for, and neither reaches a lock or a garage door.
   - Live log: in-memory ring buffer, server-sent events (SSE) over an authenticated
     `fetch`, and a static UI.
 - **Integration** (`custom_components/assist_decider/`, no pip requirements):
@@ -38,7 +42,7 @@ running on a separate machine. It needs to be:
   - Validates the returned actions and executes them in order via `intent.async_handle`
     with `assistant="conversation"`.
   - Speech comes from home-assistant-intents templates. There is an optional fallback agent.
-- **Protocol**: `protocol.py` v2, byte-identical in both places, pydantic v2.
+- **Protocol**: `protocol.py` v3, byte-identical in both places, pydantic v2.
 - **Provider seam**: `DecisionProvider.predict(state, questions, lang)` (choice questions)
   in `providers.py`. A future generative model would replace `pipeline.decide()` instead.
 
@@ -107,12 +111,12 @@ fallback/error wording).
 ### M2: Language and coverage (next)
 
 - [ ] **Yes/no state answers**: send a `state` slot ("an"/"on" → `on`) and use the `one_yesno` template. Currently German says "Bed light ist on".
-- [ ] Mixed polarity in one clause without a second verb ("Licht an und Heizung aus"): split on particles and swap the intent per segment
+- [x] Mixed polarity in one clause without a second verb ("Licht an und Heizung aus"): split on particles and decide each part by its particle
 - [ ] More intents: HassFanSetSpeed, HassSetVolume, media pause/unpause/next/previous, HassStartTimer/HassCancelTimer/HassTimerStatus (durations are already parsed), HassGetCurrentTime/Date, HassNevermind, HassStopMoving
 - [ ] Brightness phrases (max/min/half), cover "halb"/"half" → 50
 - [ ] HassGetState with area + domain + state ("are any lights on in the kitchen?") → `any`/`all` templates
 - [ ] Floors as targets
-- [x] Conditions ("if it is cold outside …", "wenn das Fenster offen ist …") with sensor values sent by HA, thresholds in options, `skipped` spoken
+- [x] ~~Conditions with sensor values sent by HA~~ removed in session 3: conditional sentences are refused and go to the fallback agent
 - [x] Follow-ups within `memory_seconds` ("turn it off", "and the hallway too", "23 degrees")
 - [ ] Generative planner as an optional provider for compound and conditional commands that the lexical split gets wrong (idea from the probe: a 1.5–3B model with JSON-constrained output)
 - [ ] Check each `_response_keys` choice against the intents JSON in a test, for every supported intent × language
@@ -183,3 +187,12 @@ uv run hass -c .ha-config   # http://127.0.0.1:8124, integration symlinked in .h
 - Server: "if" clause → one sensor → test in code; follow-up memory per context. Integration: sends hashed context and states, speaks skipped commands, three new options (EN/DE).
 - Tests: server 99 fast (10 new) + live conditions and follow-ups, all green on both checkpoints; integration 36.
 - **Not done:** real HA end-to-end check of conditions and follow-ups; not yet checked on a real satellite that consecutive wake-word turns share the device id the memory is keyed on.
+
+### Session 3 (2026-10-06)
+
+- Removed the conditional workflow. Protocol v3: no `states`, no `cold_below`/`warm_above`, no `skipped`. Home Assistant sends no state at all any more.
+- Adversarial pass over the code around the model (scripted provider, ~60 EN/DE sentences). Fixed, each with a test: on/off particles used as prepositions masking the right intent; "can you …?" answered as a state query; negation, exceptions and schedules executed as plain commands; one intent or one value applied to every target of a mixed sentence; follow-ups triggered by chatter that names a room; locks reached through "it"; "switch"/"lock" read as device words; device words inside names spreading to rooms; a room dropped because a named device lives in it.
+- Tests: server 155 fast; integration 35 (HA 2026.9.4).
+- **Not done:** nothing here ran against the real Laya weights (no model download in that environment). Run `uv run pytest -m slow -s` before releasing. `masked_mass` is now in every question trace: use it in the M4 eval to decide whether a guard/model disagreement should escalate.
+- **Open:** an area command for covers still includes garage doors in that area (Home Assistant matches by domain); "X on Y off" without "and" or a comma is still read as one command.
+

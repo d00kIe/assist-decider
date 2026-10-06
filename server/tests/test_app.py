@@ -44,7 +44,7 @@ def test_process_ok(client):
 
 def test_info(client):
     r = client.get("/v1/info", headers=AUTH)
-    assert r.json()["protocol_version"] == 2
+    assert r.json()["protocol_version"] == 3
     assert r.json()["languages"] == ["en", "de"]
 
 
@@ -110,7 +110,14 @@ def test_extra_fields_rejected(client):
 
 
 @pytest.mark.parametrize(
-    "patch", [{"language": "fr"}, {"protocol_version": 1}, {"text": "x" * 501}, {"text": ""}]
+    "patch",
+    [
+        {"language": "fr"},
+        {"protocol_version": 2},
+        {"states": {}},  # protocol 2 sent sensor values; version 3 takes none
+        {"text": "x" * 501},
+        {"text": ""},
+    ],
 )
 def test_invalid_requests_rejected(client, patch):
     assert client.post("/v1/process", json=body() | patch, headers=AUTH).status_code == 422
@@ -123,10 +130,11 @@ def test_invalid_entity_id_rejected(client):
 
 
 def test_busy_returns_503():
-    gate = threading.Event()
+    gate, started = threading.Event(), threading.Event()
 
     class Slow(FakeProvider):
         def predict(self, *a, **kw):
+            started.set()
             gate.wait(5)
             return super().predict(*a, **kw)
 
@@ -139,10 +147,10 @@ def test_busy_returns_503():
             target=lambda: results.append(c.post("/v1/process", json=body(), headers=AUTH))
         )
         t.start()
-        for _ in range(100):  # wait until the first request occupies the slot
-            r = c.post("/v1/process", json=body(), headers=AUTH)
-            if r.status_code == 503:
-                break
+        # Only probe once the first request holds the slot. Probing earlier could win the
+        # slot instead and then block on the gate, once per attempt.
+        assert started.wait(5)
+        r = c.post("/v1/process", json=body(), headers=AUTH)
         gate.set()
         t.join()
         assert r.status_code == 503
