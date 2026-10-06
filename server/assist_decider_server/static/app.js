@@ -72,7 +72,7 @@ function renderQuestion(q) {
 
 // --- decision tree ----------------------------------------------------------
 
-const PHASES = { intent: "Action", target: "Device or room", condition: "Condition" };
+const PHASES = { intent: "Action", target: "Device or room" };
 const REASONS = {
   low_confidence: "Laya was not sure enough",
   none_chosen: "Laya: not a smart-home command",
@@ -81,7 +81,7 @@ const REASONS = {
   area_not_supported: "this action needs one device, not a room",
   missing_value: "no number said",
   no_intent: "every action was ruled out",
-  condition_unknown: "the 'if' part could not be matched to a sensor or test",
+  conditional: "'if …' commands are not supported",
   too_many_segments: "more than 5 commands",
   unsupported_language: "the model does not speak this language",
   no_exposed_entities: "nothing is exposed to Assist",
@@ -130,7 +130,7 @@ function renderSegment(seg, n) {
   if (seg.numbers && seg.numbers.length) {
     kids.append(item(node("info", "#", "numbers", seg.numbers.map((x) => x.value + (x.unit ? " " + x.unit : "")).join(", "))));
   }
-  // Consecutive steps of one phase form one branch: Action, Device or room, Condition.
+  // Consecutive steps of one phase form one branch: Action, Device or room.
   let branch = null;
   let phase = null;
   for (const step of seg.steps || []) {
@@ -145,19 +145,12 @@ function renderSegment(seg, n) {
     const slots = Object.entries(a.slots).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("|") : v}`).join(" ");
     kids.append(item(node("yes", "→", a.intent, `${slots} · confidence ${a.confidence.toFixed(2)}`)));
   }
-  if (seg.condition) {
-    kids.append(item(node(seg.condition.holds ? "yes" : "no", "⇒", seg.condition.holds ? "condition holds" : "condition does not hold",
-      `${seg.condition.entity} = ${seg.condition.value}`)));
-  }
-  if (seg.skipped) kids.append(item(node("no", "⏭", "skipped", seg.skipped)));
   if (seg.escalate) kids.append(item(node("err", "✗", "not understood", REASONS[seg.escalate] || seg.escalate)));
 
-  const isCondition = (seg.steps || []).some((s) => s.phase === "condition");
-  const outcome = seg.escalate ? ["err", "not understood"] : seg.skipped ? ["warn", "skipped"]
-    : isCondition ? [seg.condition && seg.condition.holds ? "ok" : "warn", seg.condition && seg.condition.holds ? "true" : "false"]
+  const outcome = seg.escalate ? ["err", "not understood"]
     : ["ok", (seg.actions || []).length + " action" + ((seg.actions || []).length === 1 ? "" : "s")];
   const line = el("span", "node");
-  line.append(el("span", "check", isCondition ? "If" : `Command ${n}`), el("q", "stext", seg.text), el("span", "badge " + outcome[0], outcome[1]));
+  line.append(el("span", "check", `Command ${n}`), el("q", "stext", seg.text), el("span", "badge " + outcome[0], outcome[1]));
   return item(line, kids, true);
 }
 
@@ -174,10 +167,7 @@ function renderTrace(t) {
   card.append(head);
   const tree = el("ul", "tree");
   let n = 0;
-  for (const seg of t.segments || []) {
-    const isCondition = (seg.steps || []).some((s) => s.phase === "condition");
-    tree.append(renderSegment(seg, isCondition ? 0 : ++n));
-  }
+  for (const seg of t.segments || []) tree.append(renderSegment(seg, ++n));
   card.append(tree);
   return card;
 }
@@ -232,7 +222,6 @@ function touched(t) {
       if (a.slots.name) get(a.slots.name).used = true;
       if (a.slots.area) get(a.slots.area).used = true;
     }
-    if (seg.condition) get(seg.condition.entity).used = true;
   }
   return marks;
 }

@@ -106,35 +106,11 @@ async def test_request_contains_only_exposed_entities(
     assert request["options"] == {
         "confidence_threshold": 0.4,
         "memory_seconds": 60,
-        "cold_below": 12.0,
-        "warm_above": 20.0,
     }
     kitchen = next(e for e in request["home"]["entities"] if e["id"] == "light.kitchen")
     assert kitchen["name"] == "Kitchen Light" and kitchen["area_id"] == home["kitchen"]
     assert "state" not in kitchen  # the snapshot never carries states
-    assert request["states"] == {}  # lights are not condition values
     assert len(request["context_id"]) == 32  # hashed conversation id
-
-
-async def test_condition_values_and_skipped_speech(
-    hass, aioclient_mock, setup_entry, home
-) -> None:
-    for eid, value, attrs in (
-        ("sensor.outdoor", "20.5", {"unit_of_measurement": "°C", "friendly_name": "Outdoor"}),
-        ("sensor.hidden", "1", {}),
-        ("weather.home", "sunny", {"temperature": 18, "temperature_unit": "°C"}),
-    ):
-        hass.states.async_set(eid, value, attrs)
-        async_expose_entity(hass, conversation.DOMAIN, eid, eid != "sensor.hidden")
-    skipped = {"segment": "turn on the light", "entity": "sensor.outdoor", "value": "20.5"}
-    mock_process(aioclient_mock, json=process_response(skipped=[skipped, skipped]))
-    result = await converse(hass, "if it is cold outside turn on the light")
-    assert sent_request(aioclient_mock)["states"] == {
-        "sensor.outdoor": "20.5",
-        "weather.home": "18",
-    }
-    assert speech(result) == "Not done, Outdoor is 20.5 °C."
-    assert not home["turn_on"]
 
 
 async def test_german_speech_from_templates(hass, aioclient_mock, setup_entry, home) -> None:

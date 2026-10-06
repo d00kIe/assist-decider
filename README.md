@@ -52,7 +52,7 @@ decision takes **15–40 ms** on an Apple M-series GPU.
                                                         ▼
  ┌─ Home Assistant: custom_components/assist_decider ─────────────────────────────┐
  │ 1. Collect what is exposed to Assist: entity IDs, names, aliases, device class, │
- │    area and floor names, plus sensor/weather/thermostat values for conditions.  │
+ │    area and floor names. No states.                                             │
  │ 2. POST /v1/process (bearer token) ─────────────────────────────────────────┐   │
  │ 5. Check every proposed action: allowed intent, exposed device, allowed slots│   │
  │ 6. Run the actions in order through HA's own intent handlers                 │   │
@@ -91,7 +91,6 @@ Responsibilities are split deliberately:
 | Temperature | "how warm is it in the living room?" | "Wie warm ist es im Wohnzimmer?" |
 | **Compound commands** | "turn off the kitchen light and set the bedroom to 19 degrees" | "Mach die Kaffeemaschine an und stell das Bad auf 22 Grad" |
 | **Several targets** | "turn off the lights in the kitchen and the hallway" | "Schalte das Licht in der Küche und im Flur aus" |
-| **Conditions** | "if it is cold outside set the heating to 24 and open the blinds" | "Wenn es draußen kalt ist, stell die Heizung im Bad auf 22 Grad" |
 | **Follow-ups** (within a minute) | "turn it off", "and the hallway too", "23 degrees" | "Mach es aus", "und im Flur auch" |
 
 Devices can be named by their name or any alias you set in Home Assistant. Rooms are named
@@ -229,7 +228,6 @@ The integration checks the connection and token right away. The new agent appear
 | Confidence threshold (English) | 0.40 | Below this, a command is not executed. Higher is safer, lower understands more. |
 | Confidence threshold (German) | 0.50 | Stricter because German is less accurate. |
 | Follow-up memory (seconds) | 60 | How long "turn it off" refers to the previous command, per satellite (or conversation). 0 turns it off. |
-| "Cold" below / "Warm" above | 12 / 20 | Thresholds for "if it is cold/warm …", in your temperature unit. "below 5 degrees" uses the spoken number. |
 | Fallback agent | none | Where requests go that Assist Decider can't decide, e.g. *Home Assistant* or an LLM agent. If only part of a sentence is understood, the whole sentence goes to the fallback. |
 
 Only entities **exposed to Assist** are ever sent or controlled
@@ -319,8 +317,7 @@ public issue.
 
 Everything stays on your network. The server receives what you said, the names, aliases
 and device classes of *exposed* entities, and your area and floor names. Device
-**states** are not sent, except the current values conditions can test: exposed sensors and
-binary sensors, weather temperature and thermostat current temperature. Utterances appear in the live view (memory only, gone after a
+**states** are not sent. Utterances appear in the live view (memory only, gone after a
 restart) and in the server log on stderr. Whatever captures stderr (journald, a launchd
 log file, Docker) may keep them on disk. Use `--log-level WARNING` to keep utterances out
 of the log.
@@ -344,8 +341,8 @@ of the log.
   volume and floors (see the roadmap).
 - No follow-up questions ("which light?"). References to the previous command work for
   about a minute ("turn *it* off", "and the kitchen too").
-- Conditions test one sensor (temperature: cold/warm/below/above; binary sensors:
-  open/closed, on/off). Nested conditions ("if … and …") are not supported.
+- Conditions ("if it is cold outside …", "wenn …") are not supported. Such sentences go
+  to the fallback agent; use a Home Assistant automation instead.
 - Mixed on/off in one sentence without a second verb ("Licht an und Heizung aus") is
   ambiguous. Say "Mach das Licht an und schalte die Heizung aus".
 

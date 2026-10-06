@@ -59,28 +59,7 @@ class Lang:
     value_words: frozenset[str]  # "dim" etc.: needs a number, never guess one
     temperature_words: frozenset[str]
     stop_words: frozenset[str] = field(default_factory=frozenset)
-    # Conditions: "if <clause>" ends at a comma, a condition_end word, or a command verb
-    # once the clause has a test word (so "if the window is open" keeps its "open").
-    condition_words: frozenset[str] = field(default_factory=frozenset)
-    condition_end: frozenset[str] = frozenset({",", ";"})
-    cold_words: frozenset[str] = field(default_factory=frozenset)
-    warm_words: frozenset[str] = field(default_factory=frozenset)
-    below_words: frozenset[str] = field(default_factory=frozenset)
-    above_words: frozenset[str] = field(default_factory=frozenset)
-    active_words: frozenset[str] = field(default_factory=frozenset)  # binary sensor "on"
-    inactive_words: frozenset[str] = field(default_factory=frozenset)
-    outside_words: frozenset[str] = field(default_factory=frozenset)
-
-    @property
-    def test_words(self) -> frozenset[str]:
-        return (
-            self.cold_words
-            | self.warm_words
-            | self.below_words
-            | self.above_words
-            | self.active_words
-            | self.inactive_words
-        )
+    condition_words: frozenset[str] = field(default_factory=frozenset)  # "if": unsupported
 
 
 EN = Lang(
@@ -214,14 +193,6 @@ EN = Lang(
         }
     ),
     condition_words=frozenset({"if", "when", "whenever"}),
-    condition_end=frozenset({",", ";", "then"}),
-    cold_words=frozenset({"cold", "cool", "chilly", "freezing"}),
-    warm_words=frozenset({"warm", "hot"}),
-    below_words=frozenset({"below", "under", "less", "lower"}),
-    above_words=frozenset({"above", "over", "more", "higher"}),
-    active_words=frozenset({"on", "open", "opened", "active", "running", "detected"}),
-    inactive_words=frozenset({"off", "closed", "shut", "inactive", "clear"}),
-    outside_words=frozenset({"outside", "outdoors", "outdoor"}),
 )
 
 DE = Lang(
@@ -396,14 +367,6 @@ DE = Lang(
         }
     ),
     condition_words=frozenset({"wenn", "falls", "sobald"}),
-    condition_end=frozenset({",", ";", "dann"}),
-    cold_words=frozenset({"kalt", "kuehl", "frostig"}),
-    warm_words=frozenset({"warm", "heiss"}),
-    below_words=frozenset({"unter", "weniger", "kleiner", "niedriger"}),
-    above_words=frozenset({"ueber", "mehr", "groesser", "hoeher"}),
-    active_words=frozenset({"an", "ein", "offen", "auf", "geoeffnet", "aktiv"}),
-    inactive_words=frozenset({"aus", "zu", "geschlossen", "inaktiv"}),
-    outside_words=frozenset({"draussen", "aussen"}),
 )
 
 LANGS: dict[str, Lang] = {"en": EN, "de": DE}

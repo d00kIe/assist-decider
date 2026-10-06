@@ -47,9 +47,9 @@ Home Assistant has many kinds of entities. These are the ones voice actions work
 | `scene` | A saved set of device settings | – | ✅ turn on |
 | `script` | A saved sequence of steps | – | ✅ turn on |
 | `automation` | A rule that runs by itself | – | ✅ on/off |
-| `sensor` | Measures something: temperature, humidity, power… | `temperature`, `humidity`, `power`… | ✅ ask state, use in "if…" |
-| `binary_sensor` | A yes/no sensor: door open, motion seen | `door`, `window`, `motion`, `opening`… | ✅ ask state, use in "if…" |
-| `weather` | Weather forecast | – | ✅ outside temperature in "if…" |
+| `sensor` | Measures something: temperature, humidity, power… | `temperature`, `humidity`, `power`… | ✅ ask state |
+| `binary_sensor` | A yes/no sensor: door open, motion seen | `door`, `window`, `motion`, `opening`… | ✅ ask state |
+| `weather` | Weather forecast | – | ✅ ask state |
 | `vacuum` | Robot vacuums | – | ❌ |
 | `lawn_mower` | Robot mowers | – | ❌ |
 | `todo` | To-do and shopping lists | – | ❌ |
@@ -66,9 +66,8 @@ Home Assistant sends the decision server only names and IDs, never a full pictur
 | Each exposed entity | ID, friendly name, up to 10 aliases, room ID, sub-kind | up to 3000 entities; names up to 100 characters |
 | Each area | ID, name, up to 10 aliases, floor ID | up to 500 areas |
 | Each floor | ID, name, up to 10 aliases | up to 50 floors |
-| Current values | **Only** sensor values, yes/no sensor values, weather temperature and thermostat current temperature. Used for "if…" sentences. | up to 3000 values, 255 characters each |
 
-Lights being on or off, lock states and anything else are **not** sent.
+**No states are sent**: not whether a light is on, not lock states, not sensor values.
 
 ### 1.3 Every voice action Home Assistant has
 
@@ -191,7 +190,6 @@ We keep the state tiny on purpose. **The list of your devices is never put into 
 |---|---|---|
 | Which action? | `{"utterance": "<one command>"}` | the 7 actions + "none" |
 | Which device or room? | `{"utterance": "<one command>", "room": "<satellite's room>"}` | up to 9 candidates + "none" |
-| Which sensor? (for "if…") | same as above | up to 9 sensors + "none" |
 
 Measured with the real tokenizers (9 device candidates with typical names):
 
@@ -235,7 +233,7 @@ sequenceDiagram
             Laya-->>Srv: likelihood of each answer
         end
     end
-    Srv-->>Int: list of proposed actions, plus what was not understood or skipped
+    Srv-->>Int: list of proposed actions, plus what was not understood
     Int->>Int: check every action against the allow-list
     Int->>HA: run each action, in order
     HA-->>Int: result of each
@@ -251,14 +249,12 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 | Decision | Who decides | How |
 |---|---|---|
 | Where one command ends and the next begins | **Code** | Split at "and", "then", commas… but only if the next part has its own verb. "Turn off the kitchen **and** hallway lights" stays one command with two rooms. |
-| Is there an "if…" part, and what does it test? | **Code** | Words like "if/wenn", then "cold", "warm", "below 5", "open", "closed"… |
+| Is it an "if…" sentence? | **Code** | Words like "if/wenn/falls". Not supported: the whole sentence is not understood (`conditional`) and goes to the fallback agent. |
 | Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. |
 | Which device or room names were said | **Code** | Exact match against names and aliases, including German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"). |
 | Which actions are **not** possible | **Code** | "Word rules". "off" said → "turn on" is ruled out. A question ("is…?") → only ask-actions. A number with % or ° said → plain on/off ruled out. No number said → "set brightness" ruled out. |
 | Which action | **Laya**, unless a shortcut applies | Shortcuts: a follow-up with no verb reuses the last action ("and the hallway too"); a question naming a device is always "ask state". |
 | Which device or room | **Code first, Laya last** | See 3.4. |
-| Which sensor an "if…" refers to | **Code first, Laya if several fit** | |
-| Is the "if…" true? | **Code** | Compares the number or on/off value Home Assistant sent. Laya never reads values. |
 | Is Laya sure enough? | **Code** | Confidence check, see 3.5. |
 | The values sent with the action (brightness, temperature…) | **Code** | From the numbers it found. Laya never picks numbers. |
 | May this action run on this device? | **Home Assistant** | Allow-list check, then Home Assistant's own exposure check. |
@@ -271,21 +267,18 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 flowchart TD
     A["Sentence from Home Assistant"] --> B["Normalize text<br/>lowercase, ä→ae, ß→ss, 21,5→21.5"]
     B --> C["Find spoken device and room names"]
-    C --> D{"'if …' part?"}
-    D -- yes --> E["Test the condition<br/>see 3.6"]
-    D -- no --> F
-    E --> F["Split into commands<br/>at most 5"]
+    C --> D{"'if …' sentence?"}
+    D -- yes --> X["Not understood: conditional"]
+    D -- no --> F["Split into commands<br/>at most 5"]
     F --> G["For each command"]
-    G --> G1{"Guarded by a false 'if'?"}
-    G1 -- yes --> SK["Skip it<br/>(will be said: 'Not done, Outside is 18 °C')"]
-    G1 -- no --> H["Read numbers"]
+    G --> H["Read numbers"]
     H --> I["Pick the action<br/>shortcut, or Laya"]
     I --> J["Pick device(s) or room(s)<br/>see 3.4"]
     J --> K["Confidence check"]
     K -- "too unsure" --> U["Mark command as not understood"]
     K -- ok --> L["Build the action with IDs and values"]
     L --> M["Remember it for follow-ups<br/>(60 s, per satellite)"]
-    SK --> R
+    X --> R
     U --> R
     M --> R["Answer to Home Assistant"]
 ```
@@ -384,29 +377,7 @@ Only actions that Home Assistant has, and that have at least one exposed device,
 
 A command usually needs **0, 1 or 2** Laya calls. One call takes about **15–40 ms** on an Apple M-series GPU. The server runs one call at a time. If more than 4 requests are waiting, it answers "busy".
 
-### 3.6 "If …" sentences
-
-> "If it is cold outside, set the heating to 24 and open the blinds"
-
-```mermaid
-flowchart TD
-    A["'if it is cold outside'"] --> B["Code: test = 'below 12 °'<br/>(your 'cold below' setting)"]
-    B --> C["Code: candidate sensors<br/>temperature sensors, weather, thermostats<br/>that Home Assistant sent a value for"]
-    C --> D{"'outside' said?"}
-    D -- yes --> E["Weather and room-less sensors first"]
-    D -- no --> E2["Satellite's room first"]
-    E --> F{"How many?"}
-    E2 --> F
-    F -- one --> G["Use it"]
-    F -- several --> H["Laya: which one?"] --> G
-    G --> I["Code: compare<br/>value 8 °C < 12 → true"]
-    I -- true --> J["Run the commands"]
-    I -- false --> K["Skip them, and say why"]
-```
-
-Tests the code understands: cold, warm, below *N*, above *N*, open/on, closed/off. One condition per sentence.
-
-### 3.7 What the server sends back
+### 3.6 What the server sends back
 
 ```json
 {
@@ -418,7 +389,6 @@ Tests the code understands: cold, warm, below *N*, above *N*, open/on, closed/of
      "segment": "set the bedroom to 21 degrees", "confidence": 0.87}
   ],
   "unresolved": [],
-  "skipped": [],
   "reason": null,
   "trace_id": "3f9a1c2b7d10",
   "elapsed_ms": 42.3
@@ -427,10 +397,9 @@ Tests the code understands: cold, warm, below *N*, above *N*, open/on, closed/of
 
 | Field | Meaning | Limits |
 |---|---|---|
-| `status` | `ok` if at least one action was found or skipped, otherwise `escalate` ("I give up") | |
+| `status` | `ok` if at least one action was found, otherwise `escalate` ("I give up") | |
 | `actions` | What to run, in order. `slots` are the parameters, always with IDs. `confidence` is the lowest of the Laya answers behind it, 1.0 if Laya was not asked. | up to 10 actions, 12 parameters each |
 | `unresolved` | Parts of the sentence that were not understood | up to 10 |
-| `skipped` | Parts not run because the "if" was false, plus the sensor and its value | up to 10 |
 | `reason` | Why something was not understood, see below | |
 | `trace_id`, `elapsed_ms` | For finding the request in the live log | |
 
@@ -445,12 +414,12 @@ Tests the code understands: cold, warm, below *N*, above *N*, open/on, closed/of
 | `area_not_supported` | This action needs one device, not a room. |
 | `missing_value` | "Dim the light", but no number was said. |
 | `no_intent` | The word rules ruled out every action. |
-| `condition_unknown` | The "if…" part could not be matched to a sensor or test. |
+| `conditional` | An "if…" sentence. These are not supported. |
 | `too_many_segments` | More than 5 commands in one sentence. |
 | `unsupported_language` | The loaded model does not speak this language. |
 | `no_exposed_entities` | Nothing is exposed to voice assistants. |
 
-### 3.8 What Home Assistant does with the answer
+### 3.7 What Home Assistant does with the answer
 
 ```mermaid
 flowchart TD
@@ -462,26 +431,24 @@ flowchart TD
     V -- fails --> DROP["Drop it and write a warning to the log"]
     V -- ok --> RUN["Run it through Home Assistant's own handler<br/>(same rules as any voice command)"]
     RUN --> SAY["Build the reply from Home Assistant's<br/>built-in sentences (EN/DE)"]
-    SAY --> ALL["Join all replies<br/>+ 'Not done, X is Y' for skipped parts<br/>+ 'I didn't understand the rest' if needed"]
+    SAY --> ALL["Join all replies<br/>+ 'I didn't understand the rest' if needed"]
 ```
 
 If the server cannot be reached, does not answer within **10 seconds**, or rejects the token, Home Assistant says "the decision server is not reachable", or uses the fallback agent if one is set. A rejected token also asks you to enter a new one.
 
-### 3.9 What Home Assistant sends to the server
+### 3.8 What Home Assistant sends to the server
 
 | Field | Meaning | Type and limits |
 |---|---|---|
-| `protocol_version` | Must match on both sides | always `2` |
+| `protocol_version` | Must match on both sides | always `3` |
 | `text` | What you said | 1–500 characters |
 | `language` | | `en` or `de` |
 | `satellite_area_id` | Room of the satellite you spoke to | room ID, optional |
 | `context_id` | A scrambled ID of the satellite (or chat). Used to remember the last command. | 1–64 characters, optional |
 | `intents` | Which actions this Home Assistant has | up to 300 names |
 | `home` | Exposed devices, rooms, floors (see 1.2) | |
-| `states` | Sensor values for "if…" (see 1.2) | |
 | `options.confidence_threshold` | How sure Laya must be | 0–1; default 0.4 EN, 0.5 DE |
 | `options.memory_seconds` | How long "turn it off" refers to the last command | 0–3600; default 60; 0 = off |
-| `options.cold_below` / `warm_above` | What "cold"/"warm" mean | −100 to 200; default 12 / 20, in your temperature unit |
 
 Every request must carry the secret token, and the server checks it before reading anything else. Unknown fields are refused.
 
@@ -492,20 +459,20 @@ Every request must carry the secret token, and the server checks it before readi
 ```mermaid
 flowchart LR
     subgraph HA["Home Assistant: owns the house"]
-        H1["Knows devices, rooms, values"]
+        H1["Knows devices, rooms, states"]
         H2["Checks and runs actions"]
         H3["Speaks the reply"]
     end
     subgraph SRV["Decision server: understands the sentence"]
-        S1["Code: splitting, names,<br/>numbers, word rules,<br/>conditions, memory"]
+        S1["Code: splitting, names,<br/>numbers, word rules,<br/>memory"]
         S2["Laya: 'which action?'<br/>'which device?'"]
     end
-    H1 -- "names, IDs, a few values" --> S1
+    H1 -- "names and IDs" --> S1
     S1 <-->|"one short question,<br/>at most 10 answers"| S2
     S1 -- "suggested actions with IDs" --> H2
     H2 --> H3
 ```
 
 - **Home Assistant** knows the house and has the final say.
-- **Code on the server** does everything that has a clear rule: splitting sentences, matching names, reading numbers, testing conditions, remembering the last command.
+- **Code on the server** does everything that has a clear rule: splitting sentences, matching names, reading numbers, remembering the last command.
 - **Laya** answers only two kinds of multiple-choice question: which action, and which device or room, when the rules cannot tell. It reads one short command at a time and never sees your whole home.

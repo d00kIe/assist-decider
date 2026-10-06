@@ -22,12 +22,11 @@ running on a separate machine. It needs to be:
 - **Server** (`server/`, Python ≥3.11, FastAPI):
   - Holds one Laya checkpoint (`english` | `multilingual`), resident and warmed up.
   - The pipeline turns text into ordered intent calls with IDs: fold → mentions → "if"
-    clause → split → lexical guards → Laya intent question → targets (exact names →
+    guard → split → lexical guards → Laya intent question → targets (exact names →
     previous turn → single device → satellite area → Laya target question) → confidence
     gate → slots.
-  - Conditions: the "if/wenn …" clause is resolved to one sensor (exact name, area, or the
-    Laya target question) and tested **in code** against `ProcessRequest.states`. It
-    guards the commands after it (or before it, when it comes last).
+  - Conditions: removed (2026-10-06, protocol v3). An "if/wenn …" utterance escalates as
+    a whole (`conditional`) so it never runs unguarded. HA sends no states at all.
   - Follow-ups: the last command per `context_id` (hashed satellite device or conversation
     id), for `memory_seconds` (default 60). A clause without a verb reuses the previous
     intent; a command that names no device reuses the previous targets.
@@ -38,7 +37,7 @@ running on a separate machine. It needs to be:
   - Validates the returned actions and executes them in order via `intent.async_handle`
     with `assistant="conversation"`.
   - Speech comes from home-assistant-intents templates. There is an optional fallback agent.
-- **Protocol**: `protocol.py` v2, byte-identical in both places, pydantic v2.
+- **Protocol**: `protocol.py` v3, byte-identical in both places, pydantic v2.
 - **Provider seam**: `DecisionProvider.predict(state, questions, lang)` (choice questions)
   in `providers.py`. A future generative model would replace `pipeline.decide()` instead.
 
@@ -112,7 +111,8 @@ fallback/error wording).
 - [ ] Brightness phrases (max/min/half), cover "halb"/"half" → 50
 - [ ] HassGetState with area + domain + state ("are any lights on in the kitchen?") → `any`/`all` templates
 - [ ] Floors as targets
-- [x] Conditions ("if it is cold outside …", "wenn das Fenster offen ist …") with sensor values sent by HA, thresholds in options, `skipped` spoken
+- [x] Conditions ("if it is cold outside …", "wenn das Fenster offen ist …") with sensor values sent by HA, thresholds in options, `skipped` spoken. **Removed from the server 2026-10-06**; "if" utterances escalate.
+- [x] Protocol v3: dropped `states`, `Options.cold_below/warm_above`, `ProcessResponse.skipped`; integration no longer sends sensor values, has no cold/warm options, no "Not done" speech
 - [x] Follow-ups within `memory_seconds` ("turn it off", "and the hallway too", "23 degrees")
 - [ ] Generative planner as an optional provider for compound and conditional commands that the lexical split gets wrong (idea from the probe: a 1.5–3B model with JSON-constrained output)
 - [ ] Check each `_response_keys` choice against the intents JSON in a test, for every supported intent × language

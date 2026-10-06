@@ -1,11 +1,10 @@
 """Turn an utterance plus the exposed home into ordered Home Assistant intent calls.
 
 Per request:
-  fold text -> find spoken entity/area names -> cut out an "if ..." clause -> split into
-  commands -> per command: lexical guards -> intent question -> targets (exact names first,
-  then the previous turn, model only if needed) -> confidence gate -> slots.
-  A condition is resolved to one sensor and tested against the states Home Assistant sent;
-  the commands it guards run only if it holds.
+  fold text -> find spoken entity/area names -> split into commands -> per command:
+  lexical guards -> intent question -> targets (exact names first, then the previous turn,
+  model only if needed) -> confidence gate -> slots.
+  "if ..." commands are not supported: they escalate as a whole.
 
 Every decision is recorded in a trace dict that the log UI renders.
 """
@@ -25,7 +24,7 @@ from typing import Any
 from . import numbers
 from .intents import INTENT_KEYS, INTENTS, IntentSpec, is_sensitive
 from .lang import LANGS, Lang, domain_words_in, fold, fold_with_map, tokenize
-from .protocol import Action, Home, ProcessRequest, ProcessResponse, Skipped
+from .protocol import Action, Home, ProcessRequest, ProcessResponse
 from .providers import DecisionProvider, Question
 
 MAX_SEGMENTS = 5
@@ -33,7 +32,6 @@ MAX_FUZZY_WORDS = 20
 MAX_OPTIONS = 10  # per question, including "none": keeps Laya calibrated and fast
 NONE = "none"
 MAX_MEMORY = 256  # contexts remembered for follow-ups
-CONDITION = IntentSpec("condition", "condition", None, entity_only=True)
 
 
 class Escalate(Exception):
@@ -258,34 +256,6 @@ def remember(req: ProcessRequest, last: tuple[IntentSpec, list[Target]] | None) 
         _MEMORY.popitem(last=False)
 
 
-@dataclass
-class Condition:
-    entity: str
-    op: str  # "lt" | "gt" | "on" | "off"
-    value: float | None
-    actual: str
-    holds: bool
-
-
-def find_condition(tokens: list[str], inside: set[int], lang: Lang) -> tuple[int, int] | None:
-    """Token range of an "if ..." clause, the condition word included."""
-    start = next(
-        (i for i, t in enumerate(tokens) if t in lang.condition_words and i not in inside), None
-    )
-    if start is None:
-        return None
-    commands = lang.verbs - lang.question_words
-    end, tested = start + 1, False
-    while end < len(tokens):
-        tok = tokens[end]
-        if end not in inside:
-            if tok in lang.condition_end or (tested and tok in commands):
-                break
-            tested = tested or tok in lang.test_words
-        end += 1
-    return start, end
-
-
 class SegmentDecider:
     def __init__(
         self,
@@ -319,7 +289,6 @@ class SegmentDecider:
         question: Question,
         state: dict[str, Any],
         allowed: set[str] | None = None,
-        phase: str | None = None,
         ids: dict[str, str] | None = None,
     ) -> str:
         """Ask one question. Options outside `allowed` stay visible to the model (it is
@@ -352,7 +321,7 @@ class SegmentDecider:
             }
         )
         self.step(
-            phase or key,
+            key,
             "Laya",
             f"{choice if key == 'intent' else question.options[choice]} ({conf:.2f})",
             choice != NONE and conf >= self.threshold,
@@ -647,91 +616,12 @@ class SegmentDecider:
         state = {"utterance": seg.text}
         if self.req.satellite_area_id in idx.areas:
             state["room"] = idx.areas[self.req.satellite_area_id].name
-        phase = "condition" if spec is CONDITION else "target"
         ids = {key: ident for key, (_, ident) in keys.items()}
         question = Question(lang.target_question, options)
-        kind, ident = keys[self.ask("target", question, state, phase=phase, ids=ids)]
+        kind, ident = keys[self.ask("target", question, state, ids=ids)]
         if kind == "e":
             return Target("entity", ident)
         return self.area_targets(spec, [ident], seg)[0]
-
-    # -- conditions
-
-    def decide_condition(self, seg: Segment) -> Condition:
-        """Pick the test from the clause's words and one sensor for it, then test its value."""
-        lang, idx, opts, words = self.lang, self.index, self.req.options, set(seg.free)
-        nums = numbers.extract(" ".join(seg.free), self.req.language)
-        value: float | None = None
-        if words & lang.below_words and nums:
-            op, value = "lt", nums[0].value
-        elif words & lang.above_words and nums:
-            op, value = "gt", nums[0].value
-        elif words & lang.cold_words:
-            op, value = "lt", opts.cold_below
-        elif words & lang.warm_words:
-            op, value = "gt", opts.warm_above
-        elif words & lang.inactive_words:
-            op = "off"
-        elif words & lang.active_words:
-            op = "on"
-        else:
-            self.step("condition", "test", "no test word (cold, warm, below, open…)", False)
-            raise Escalate("condition_unknown")
-        test = {"lt": "below", "gt": "above", "on": "on / open", "off": "off / closed"}[op]
-        test += f" {value:g}" if value is not None else ""
-        self.step("condition", "test", test)
-
-        def fits(e: EntityRec) -> bool:
-            if e.id not in self.req.states:
-                return False
-            if op in ("on", "off"):
-                return e.domain == "binary_sensor"
-            if words & (lang.cold_words | lang.warm_words):
-                return e.domain in ("weather", "climate") or e.device_class == "temperature"
-            return e.domain in ("sensor", "weather", "climate")
-
-        pool = [e for e in idx.entities.values() if fits(e)]
-        self.step("condition", "sensors with a value", str(len(pool)))
-        named = {r[1] for m in seg.mentions for r in m.refs if r[0] == "entity"}
-        areas = {r[1] for m in seg.mentions for r in m.refs if r[0] == "area"}
-        if named & {e.id for e in pool}:
-            pool = [e for e in pool if e.id in named]
-            narrowed = "name said"
-        elif areas:
-            pool = [e for e in pool if e.area_id in areas]
-            narrowed = "room said"
-        elif words & lang.outside_words:
-            # ponytail: outdoor = weather entities and sensors without an area, ranked first;
-            # only the first MAX_OPTIONS - 1 reach the model.
-            pool.sort(key=lambda e: (e.domain != "weather", e.area_id is not None))
-            narrowed = "'outside': weather first"
-        else:
-            pool.sort(key=lambda e: e.area_id != self.req.satellite_area_id)
-            narrowed = "satellite's room first"
-        self.step("condition", narrowed, f"{len(pool)} left", None if pool else False)
-        if not pool:
-            raise Escalate("condition_unknown")
-        if len(pool) == 1:
-            entity = pool[0].id
-            self.step("condition", "only one sensor", entity, True)
-        else:
-            entity = self.ask_target(CONDITION, seg, [(e.id, 1.0) for e in pool], []).id or ""
-        actual = self.req.states[entity]
-        if op in ("on", "off"):
-            if actual not in ("on", "off"):
-                self.step("condition", "compare", f"{entity} = {actual}: not on/off", False)
-                raise Escalate("condition_unknown")
-            holds = (actual == "on") == (op == "on")
-        else:
-            try:
-                number = float(actual)
-            except ValueError:
-                self.step("condition", "compare", f"{entity} = {actual}: not a number", False)
-                raise Escalate("condition_unknown") from None
-            holds = number < value if op == "lt" else number > value  # type: ignore[operator]
-        verdict = "holds" if holds else "does not hold"
-        self.step("condition", "compare", f"{entity} = {actual}, {test} → {verdict}", holds)
-        return Condition(entity, op, value, actual, holds)
 
 
 def kind_label(domain: str, lang: Lang) -> str:
@@ -865,7 +755,6 @@ def decide(
     }
     actions: list[Action] = []
     unresolved: list[str] = []
-    skipped: list[Skipped] = []
     reason = None
     model_ms = 0.0
     try:
@@ -883,61 +772,17 @@ def decide(
         lang = LANGS[req.language]
         mentions = find_mentions(tokens, index)
         trace["said"] = sorted({ref[1] for m in mentions for ref in m.refs})
+        # ponytail: "if ..." is not supported; escalate rather than run the command unguarded.
         inside = {i for m in mentions for i in range(m.start, m.end)}
-
-        # An "if" clause guards the commands after it, or before it when it comes last.
-        parts = [(0, len(tokens), False)]  # (token range, guarded)
-        condition: Condition | None = None
-        condition_error = "condition_unknown"
-        if found := find_condition(tokens, inside, lang):
-            start, end = found
-            joiners = {t for c in lang.conjunctions for t in c}
-            before = start
-            while before > 0 and tokens[before - 1] in joiners:
-                before -= 1
-            parts = [(0, before, end == len(tokens)), (end, len(tokens), True)]
-            clause_mentions = [m for m in mentions if start <= m.start < end]
-            clause_inside = {i for m in clause_mentions for i in range(m.start, m.end)}
-            clause = Segment(
-                tokens=tokens[start:end],
-                text=nfkc_text[spans[start][0] : spans[end - 1][1]][:500],
-                mentions=clause_mentions,
-                free=[tokens[j] for j in range(start + 1, end) if j not in clause_inside],
-            )
-            cond_trace: dict[str, Any] = {
-                "text": clause.text,
-                "questions": [],
-                "steps": [],
-                "actions": [],
-            }
-            trace["segments"].append(cond_trace)
-            decider = SegmentDecider(req, index, provider, cond_trace)
-            try:
-                condition = decider.decide_condition(clause)
-                cond_trace["condition"] = {
-                    "entity": condition.entity,
-                    "value": condition.actual,
-                    "holds": condition.holds,
-                }
-            except Escalate as err:
-                cond_trace["escalate"] = condition_error = err.reason
-            model_ms += decider.model_ms
-
-        segments: list[tuple[Segment, bool]] = []
-        for a, b, guarded in parts:
-            part_mentions = [
-                Mention(m.start - a, m.end - a, m.refs) for m in mentions if a <= m.start < b
-            ]
-            segments += [
-                (seg, guarded)
-                for seg in split(tokens[a:b], spans[a:b], nfkc_text, part_mentions, lang)
-            ]
+        if any(t in lang.condition_words for i, t in enumerate(tokens) if i not in inside):
+            raise Escalate("conditional")
+        segments = split(tokens, spans, nfkc_text, mentions, lang)
         if len(segments) > MAX_SEGMENTS:
             raise Escalate("too_many_segments")
         previous = recall(req)
         trace["previous"] = previous[0].name if previous else None
         last: tuple[IntentSpec, list[Target]] | None = None
-        for seg, guarded in segments:
+        for seg in segments:
             seg_trace: dict[str, Any] = {
                 "text": seg.text,
                 "questions": [],
@@ -945,17 +790,6 @@ def decide(
                 "actions": [],
             }
             trace["segments"].append(seg_trace)
-            if guarded and condition is None:
-                seg_trace["escalate"] = condition_error
-                unresolved.append(seg.text)
-                reason = reason or condition_error
-                continue
-            if guarded and condition and not condition.holds:
-                seg_trace["skipped"] = f"{condition.entity} is {condition.actual}"
-                skipped.append(
-                    Skipped(segment=seg.text, entity=condition.entity, value=condition.actual)
-                )
-                continue
             decider = SegmentDecider(req, index, provider, seg_trace, previous)
             try:
                 free_text = " ".join(seg.free)
@@ -984,13 +818,12 @@ def decide(
     except Escalate as err:
         reason = err.reason
         unresolved = [req.text]
-        actions, skipped = [], []
+        actions = []
     elapsed = (time.perf_counter() - started) * 1000
     response = ProcessResponse(
-        status="ok" if actions or skipped else "escalate",
+        status="ok" if actions else "escalate",
         actions=actions[:10],
         unresolved=unresolved[:10],
-        skipped=skipped[:10],
         reason=reason,
         trace_id=trace_id,
         elapsed_ms=round(elapsed, 1),
@@ -1001,6 +834,5 @@ def decide(
         elapsed_ms=round(elapsed, 1),
         model_ms=round(model_ms, 1),
         actions=[a.model_dump() for a in response.actions],
-        skipped=[k.model_dump() for k in response.skipped],
     )
     return response, trace

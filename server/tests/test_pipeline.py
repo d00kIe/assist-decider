@@ -294,7 +294,7 @@ def test_nfkc_expansion_does_not_break_the_response():
     assert all(len(s) <= 500 for s in response.unresolved)
 
 
-# ---------------------------------------------------------------- conditions and memory
+# ---------------------------------------------------------------- the 'if' guard and memory
 
 SENSOR_HOME = Home(
     areas=HOME.areas,
@@ -316,90 +316,13 @@ SENSOR_HOME = Home(
 )
 
 
-def by_words(**intents: str):
-    """Answer the intent question by the first word found in the segment."""
-
-    def rule(key, q, state):
-        if key != "intent":
-            return "none"
-        text = state["utterance"].lower()
-        return next((i for w, i in intents.items() if w in text), "none")
-
-    return rule
-
-
-COLD = "if it is cold outside set the thermostat to 24 and open the living room blinds"
-COLD_RULE = by_words(set="HassClimateSetTemperature", open="HassTurnOn")
-
-
-def test_condition_true_runs_every_guarded_command():
-    states = {"sensor.outdoor_temperature": "5"}
-    response, trace, _ = run(COLD, COLD_RULE, home=SENSOR_HOME, states=states)
-    assert acts(response) == [
-        ("HassClimateSetTemperature", {"name": "climate.living_room", "temperature": 24.0}),
-        ("HassTurnOn", {"name": "cover.living_room_blinds"}),
-    ]
-    assert trace["segments"][0]["condition"]["holds"] is True
-
-
-def test_condition_false_skips_and_reports():
-    states = {"sensor.outdoor_temperature": "20.5"}
-    response, _, provider = run(COLD, COLD_RULE, home=SENSOR_HOME, states=states)
-    assert response.status == "ok" and not response.actions
-    assert [(s.entity, s.value) for s in response.skipped] == [
-        ("sensor.outdoor_temperature", "20.5")
-    ] * 2
-    assert not provider.calls  # nothing asked for commands that will not run
-
-
-def test_condition_threshold_is_an_option():
-    states = {"sensor.outdoor_temperature": "15"}
-    options = {"cold_below": 16}
-    response, *_ = run(COLD, COLD_RULE, home=SENSOR_HOME, states=states, options=options)
-    assert len(response.actions) == 2
-
-
-def test_condition_without_state_escalates_guarded_commands_only():
-    response, *_ = run(
-        "turn on the kitchen light and if it is cold outside set the thermostat to 24",
-        by_words(turn="HassTurnOn", set="HassClimateSetTemperature"),
-        home=SENSOR_HOME,
+def test_conditional_command_escalates_instead_of_running_unguarded():
+    response, _, provider = run(
+        "turn on the kitchen light if it is cold outside", intent_rule("HassTurnOn")
     )
-    assert acts(response) == [("HassTurnOn", {"name": "light.kitchen_ceiling"})]
-    assert response.reason == "condition_unknown"
-    assert response.unresolved == ["set the thermostat to 24"]
-
-
-def test_trailing_condition_guards_what_came_before():
-    states = {"binary_sensor.living_room_window": "off"}
-    response, *_ = run(
-        "turn off the thermostat if the living room window is open",
-        by_words(turn="HassTurnOff"),
-        home=SENSOR_HOME,
-        states=states,
-    )
-    assert not response.actions
-    assert response.skipped[0].segment == "turn off the thermostat"
-
-
-def test_number_condition_and_german_comma():
-    states = {"sensor.outdoor_temperature": "-2"}
-    response, *_ = run(
-        "Wenn die Außentemperatur unter 0 Grad ist, schalte das Küchenlicht an",
-        by_words(schalte="HassTurnOn"),
-        language="de",
-        home=SENSOR_HOME,
-        states=states,
-    )
-    assert acts(response) == [("HassTurnOn", {"name": "light.kitchen_ceiling"})]
-
-
-def test_condition_clause_keeps_state_words_that_are_verbs():
-    from assist_decider_server.lang import EN
-    from assist_decider_server.pipeline import find_condition
-
-    tokens = ["if", "the", "window", "is", "open", "close", "the", "blinds"]
-    assert find_condition(tokens, set(), EN) == (0, 5)
+    assert response.status == "escalate" and not response.actions
+    assert response.reason == "conditional"
+    assert not provider.calls
 
 
 def test_follow_up_reuses_targets_then_intent():
