@@ -1,16 +1,20 @@
 # Decision model benchmark
 
 Which small decision model understands home commands best, and what does it cost to run?
-This page compares five models that can run locally, on 55 test sentences, in English and German.
+This page compares six models that can run locally, on 55 test sentences, in English and German.
 
 Measured on 2026-10-07 on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `laya 0.3.26`,
 `transformers 5.18.0` and `torch 2.14.1`. How to repeat it is at the [end](#repeat-the-benchmark).
 
 ## Short answer
 
-- **Most accurate: Intern-Decision 2B.** It got 52 of 55 sentences right. With the confidence check at
-  0.4 it got 51 right and 1 wrong, and that one mistake comes from a bug in our German word list,
-  not from the model. It needs about 4.6 GB, which is **too much for a 4 GB graphics card**.
+- **Most accurate: H2O-Lightning 4B.** It got 53 of 55 sentences right, and neither miss is the
+  model's fault: one is the bug in our German word list, the other is handed to Home Assistant on
+  purpose. It is the only model that gets every "only a room / nothing" sentence right, and its
+  confidence barely moves with the check (52 of 55 at 0.4). But it needs about 8.8 GB and is the
+  slowest (about 1.1 s per sentence on the Mac), so it is **far too big for a 4 GB graphics card**.
+- **Runner-up: Intern-Decision 2B** (52 of 55; 51 right and 1 wrong at check 0.4, the same word-list
+  bug). It needs about 4.6 GB, which is also **too much for a 4 GB graphics card**.
 - **Best that fits a 4 GB card: Intern-Decision 0.8B** (50 of 55 right, 2.3 GB), then **Kev 0.8B**
   (48 of 55 right, 2.3 GB). Both are much more careful about their own answers than Laya: they report
   lower confidence on the same answers. With our usual confidence setting (0.4) they hand many correct
@@ -21,7 +25,8 @@ Measured on 2026-10-07 on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `la
 - **Giving the model more context does not help.** Describing devices, putting numbers into the
   options, or letting the model split the sentence changed at most one sentence for the better.
 - **Your original idea, asking the model about every device and then about every action, only works
-  with Intern-Decision 2B** (23 of 32 whole sentences, against 2 to 8 for the others).
+  with the two biggest models**: H2O-Lightning 4B (27 of 32 whole sentences) and Intern-Decision 2B
+  (23 of 32), against 2 to 8 for the others.
 
 ## What was tested
 
@@ -74,6 +79,7 @@ A sentence counts as right only when every device, action and value in it is rig
 | Kev 0.8B | 752 M | 1.4 GB | 2.3 GB | 5.3 GB | 60 ms |
 | Intern-Decision 0.8B | 853 M | 1.6 GB | 2.3 GB | 0.7 GB | 209 ms |
 | Intern-Decision 2B | 2213 M | 4.1 GB | 4.6 GB | 3.0 GB | 276 ms |
+| H2O-Lightning 4B | 4539 M | 8.5 GB | 8.8 GB | 0.5 GB | 373 ms |
 
 ### Whole sentences: today's pipeline against the new approach
 
@@ -86,6 +92,7 @@ Confidence check at **0.0**:
 | Kev 0.8B | 44/55 · 8 · **3** | 48/55 · 1 · **6** (1🔒) |
 | Intern-Decision 0.8B | 49/55 · 2 · **4** (1🔒) | 50/55 · 1 · **4** (1🔒) |
 | Intern-Decision 2B | 50/55 · 2 · **3** (1🔒) | 52/55 · 1 · **2** (1🔒) |
+| H2O-Lightning 4B | 51/55 · 1 · **3** (1🔒) | 53/55 · 1 · **1** (1🔒) |
 
 Confidence check at **0.4**:
 
@@ -96,6 +103,7 @@ Confidence check at **0.4**:
 | Kev 0.8B | 39/55 · 14 · **2** | 36/55 · 16 · **3** (1🔒) |
 | Intern-Decision 0.8B | 46/55 · 6 · **3** (1🔒) | 33/55 · 21 · **1** (1🔒) |
 | Intern-Decision 2B | 49/55 · 3 · **3** (1🔒) | 51/55 · 3 · **1** (1🔒) |
+| H2O-Lightning 4B | 50/55 · 2 · **3** (1🔒) | 52/55 · 2 · **1** (1🔒) |
 
 ### New approach by sentence type and language (no confidence check)
 
@@ -106,6 +114,7 @@ Confidence check at **0.4**:
 | Kev 0.8B | 28/32 · 1 · **3** (1🔒) | 20/23 · 0 · **3** | 30/34 · 1 · **3** | 18/21 · 0 · **3** (1🔒) |
 | Intern-Decision 0.8B | 28/32 · 1 · **3** (1🔒) | 22/23 · 0 · **1** | 32/34 · 1 · **1** | 18/21 · 0 · **3** (1🔒) |
 | Intern-Decision 2B | 30/32 · 1 · **1** (1🔒) | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 19/21 · 0 · **2** (1🔒) |
+| H2O-Lightning 4B | 30/32 · 1 · **1** (1🔒) | 23/23 · 0 · **0** | 33/34 · 1 · **0** | 20/21 · 0 · **1** (1🔒) |
 
 ### Confidence check: what each setting does to the new approach
 
@@ -116,6 +125,7 @@ Confidence check at **0.4**:
 | Kev 0.8B | 48/55 · 1 · **6** (1🔒) | 45/55 · 5 · **5** (1🔒) | 41/55 · 9 · **5** (1🔒) | 38/55 · 14 · **3** (1🔒) | 36/55 · 16 · **3** (1🔒) | 32/55 · 22 · **1** |
 | Intern-Decision 0.8B | 50/55 · 1 · **4** (1🔒) | 48/55 · 3 · **4** (1🔒) | 45/55 · 7 · **3** (1🔒) | 40/55 · 13 · **2** (1🔒) | 33/55 · 21 · **1** (1🔒) | 28/55 · 27 · **0** |
 | Intern-Decision 2B | 52/55 · 1 · **2** (1🔒) | 52/55 · 1 · **2** (1🔒) | 52/55 · 1 · **2** (1🔒) | 52/55 · 1 · **2** (1🔒) | 51/55 · 3 · **1** (1🔒) | 49/55 · 5 · **1** (1🔒) |
+| H2O-Lightning 4B | 53/55 · 1 · **1** (1🔒) | 53/55 · 1 · **1** (1🔒) | 53/55 · 1 · **1** (1🔒) | 52/55 · 2 · **1** (1🔒) | 52/55 · 2 · **1** (1🔒) | 52/55 · 2 · **1** (1🔒) |
 
 ### Extra context for the model (no confidence check)
 
@@ -126,6 +136,7 @@ Confidence check at **0.4**:
 | Kev 0.8B | 48/55 · 1 · **6** (1🔒) | 46/55 · 1 · **8** (1🔒) | 48/55 · 1 · **6** (1🔒) | 44/55 · 1 · **10** (1🔒) | 44/55 · 1 · **10** (1🔒) |
 | Intern-Decision 0.8B | 50/55 · 1 · **4** (1🔒) | 50/55 · 1 · **4** (1🔒) | 50/55 · 1 · **4** (1🔒) | 49/55 · 1 · **5** (1🔒) | 48/55 · 1 · **6** (1🔒) |
 | Intern-Decision 2B | 52/55 · 1 · **2** (1🔒) | 53/55 · 1 · **1** (1🔒) | 52/55 · 1 · **2** (1🔒) | 51/55 · 1 · **3** (1🔒) | 52/55 · 1 · **2** (1🔒) |
+| H2O-Lightning 4B | 53/55 · 1 · **1** (1🔒) | 53/55 · 1 · **1** (1🔒) | 53/55 · 1 · **1** (1🔒) | 53/55 · 1 · **1** (1🔒) | 53/55 · 1 · **1** (1🔒) |
 
 ### The model-only tree, step by step
 
@@ -136,6 +147,7 @@ Confidence check at **0.4**:
 | Kev 0.8B | 12/32 | 20/32 (at 0.65) | 29/32 | 38/45 | 10/11 | 4/5 | 8/32 | 3 |
 | Intern-Decision 0.8B | 5/32 | 20/32 (at 0.60) | 28/32 | 38/45 | 11/11 | 1/5 | 3/32 | 7 |
 | Intern-Decision 2B | 26/32 | 28/32 (at 0.60) | 30/32 | 42/45 | 11/11 | 4/5 | 23/32 | 2 |
+| H2O-Lightning 4B | 28/32 | 28/32 (at 0.30) | 32/32 | 44/45 | 11/11 | 4/5 | 27/32 | 2 |
 
 ### Time per sentence (median)
 
@@ -146,6 +158,7 @@ Confidence check at **0.4**:
 | Kev 0.8B | 155 ms | 214 ms |
 | Intern-Decision 0.8B | 267 ms | 539 ms |
 | Intern-Decision 2B | 352 ms | 716 ms |
+| H2O-Lightning 4B | 698 ms | 1110 ms |
 
 ### Every mistake of the new approach (no confidence check)
 
@@ -192,6 +205,11 @@ Confidence check at **0.4**:
 - "sperr die Haustür ab": wanted front_door:lock, got front_door:unlock 🔒
 - "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:set_brightness=70, got living_room:set_temperature=70
 
+**H2O-Lightning 4B** (2)
+
+- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
+- "sperr die Haustür ab": wanted front_door:lock, got front_door:unlock 🔒
+
 
 ## What the mistakes have in common
 
@@ -202,8 +220,9 @@ Confidence check at **0.4**:
    Nothing in it matches a device or room name, and the test gives no speaker's room.
 3. **One sentence that turns one thing on and another off** ("turn on the kitchen light and turn off
    the hallway light", "Küchenlicht an und den Fernseher aus") still fails for Laya multilingual,
-   Kev and Intern-Decision 0.8B. Intern-Decision 2B gets both right.
-4. **"Mach es heller, 70 Prozent"** ("make it brighter, 70 percent") fails with every model that reads German. Intern-Decision 2B
+   Kev and Intern-Decision 0.8B. Intern-Decision 2B and H2O-Lightning 4B get both right.
+4. **"Mach es heller, 70 Prozent"** ("make it brighter, 70 percent") fails with every model that reads German except
+   H2O-Lightning 4B. Intern-Decision 2B
    chose to set the living room thermostat to 70 degrees. A range check in code (heating accepts
    5 to 35 °C) would refuse that. The real pipeline has such a check, but this benchmark does not
    apply it.
@@ -212,23 +231,25 @@ Confidence check at **0.4**:
 
 | | Fits a 4 GB card? | Right (of 55), no check | Notes |
 |---|---|---|---|
+| H2O-Lightning 4B | No, about 8.8 GB | 53 | Best answers. Slowest on the Mac. |
 | Intern-Decision 2B | No, unless compressed to 8-bit (untested) | 52 | Best answers. Runs well on the Mac. |
 | Intern-Decision 0.8B | Yes, about 2.3 GB | 50 | Needs a confidence setting of about 0.1 to 0.2 instead of 0.4. |
 | Kev 0.8B | Yes, about 2.3 GB | 48 | Trained on English only. It also needs a lower confidence setting. |
 | Laya multilingual | Yes, about 1.2 GB | 44 | Fastest, but makes the most mistakes. |
 
-On the Mac, the Qwen-based models (Kev and Intern-Decision) take 60 to 280 ms per question. Two
+On the Mac, the Qwen-based models (Kev, Intern-Decision and H2O-Lightning) take 60 to 370 ms per question. Two
 speed-up libraries (`flash-linear-attention`, `causal-conv1d`) only exist for NVIDIA cards, so on
 the Mac they run slow fallback code. On an NVIDIA card they should be much faster. Intern-Decision's
-model card reports 34 ms per question on an RTX 4090. That has not been measured here.
+model card reports 34 ms per question on an RTX 4090, and H2O-Lightning's reports 34 ms on a 32 GB
+RTX PRO 4500. Neither has been measured here.
 
 ## Limits of this benchmark
 
 - **55 sentences and one test home.** A difference of one or two sentences between models is noise.
 - **The confidence settings in the tables were tried on these same sentences.** A setting that looks
   best here needs confirming on new sentences before it goes into the configuration.
-- **Kev 0.8B was trained on English only.** Its German results are measured here, but its makers
-  don't claim German support.
+- **Kev 0.8B was trained on English only, and H2O-Lightning 4B was evaluated mostly in English.**
+  Their German results are measured here, but their makers don't claim German support.
 - **Time and memory were measured on the Mac only.** "Memory in use" is what the Apple graphics
   driver reports. "Peak RAM while loading" is the most memory the process used: Kev briefly needs
   more because it merges its add-on at full precision before shrinking.
@@ -242,10 +263,14 @@ model card reports 34 ms per question on an RTX 4090. That has not been measured
 | [Kev 0.8B](https://huggingface.co/jaredpalmer/kev-0.8b) | Jared Palmer | Qwen3.5-0.8B-Base + LoRA add-on + scoring head | Apache-2.0 |
 | [Intern-Decision 0.8B](https://huggingface.co/internlm/Intern-Decision-0.8B) | InternLM | Qwen3.5-0.8B | Apache-2.0 |
 | [Intern-Decision 2B](https://huggingface.co/internlm/Intern-Decision-2B) | InternLM | Qwen3.5-2B | Apache-2.0 |
+| [H2O-Lightning 4B](https://huggingface.co/h2oai/h2o-lightning-4b) | H2O.ai | Qwen3.5-4B | Apache-2.0 |
 
-Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`). For Kev
-and Intern-Decision, the server does not run any code from the download. It rebuilds the prompt
-format itself. The Kev version gives the same probabilities as Kev's own code to within 0.003.
+Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`). For Kev,
+Intern-Decision and H2O-Lightning, the server does not run any code from the download. It rebuilds the
+prompt format itself. The Kev version gives the same probabilities as Kev's own code to within 0.003.
+H2O-Lightning normally runs on vLLM behind a small server of its own. The provider here rebuilds that
+server's prompt in `transformers` instead, and it reproduces the model card's example answer to
+within 0.006.
 
 ## Repeat the benchmark
 
@@ -254,10 +279,10 @@ From the `server` folder:
 ```bash
 # answers for every sentence, saved to tests/eval/results/<model>.json (slow models: 5-15 minutes)
 uv run python tests/eval/probe_device_tree.py multilingual english kev-0.8b \
-    intern-decision-0.8b intern-decision-2b --tree --out=tests/eval/results
+    intern-decision-0.8b intern-decision-2b h2o-lightning-4b --tree --out=tests/eval/results
 
 # memory and speed, one process per model
-for m in multilingual english kev-0.8b intern-decision-0.8b intern-decision-2b; do
+for m in multilingual english kev-0.8b intern-decision-0.8b intern-decision-2b h2o-lightning-4b; do
     uv run python tests/eval/measure_memory.py $m --out=tests/eval/results
 done
 

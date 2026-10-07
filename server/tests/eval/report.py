@@ -8,13 +8,21 @@ import sys
 from pathlib import Path
 
 DIR = Path(sys.argv[1] if len(sys.argv) > 1 else "tests/eval/results")
-ORDER = ["multilingual", "english", "kev-0.8b", "intern-decision-0.8b", "intern-decision-2b"]
+ORDER = [
+    "multilingual",
+    "english",
+    "kev-0.8b",
+    "intern-decision-0.8b",
+    "intern-decision-2b",
+    "h2o-lightning-4b",
+]
 NAMES = {
     "multilingual": "Laya multilingual",
     "english": "Laya English",
     "kev-0.8b": "Kev 0.8B",
     "intern-decision-0.8b": "Intern-Decision 0.8B",
     "intern-decision-2b": "Intern-Decision 2B",
+    "h2o-lightning-4b": "H2O-Lightning 4B",
 }
 VARIANTS = {
     "mix": "plain",

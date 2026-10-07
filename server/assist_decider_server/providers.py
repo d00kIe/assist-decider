@@ -461,12 +461,128 @@ class KevProvider(_ScoringProvider):
         return self._answers(questions, probs)
 
 
-MODELS = sorted([*LAYA_CHECKPOINTS, *INTERN_CHECKPOINTS, *KEV_CHECKPOINTS])
+# name -> (Hugging Face repo, reviewed commit = tag v1.2.1). Temperature and noul floor from its
+# serve_config.json.
+H2O_CHECKPOINTS = {
+    "h2o-lightning-4b": ("h2oai/h2o-lightning-4b", "542e9eff5ce7e5d69eb457fbe54abb535992ab20"),
+}
+_H2O_SYSTEM = (
+    "You are a decision engine. You read a record and answer one question about it by choosing "
+    "exactly one option. Reply with a single letter."
+)
+_H2O_LABELS = _SYMBOLS[:52] + "αβγδεζηθικ"  # serve_config.json labels, first 62
+_H2O_TEMPERATURE = 0.8
+_H2O_NOUL_FLOOR = 0.801
+
+
+class H2OLightningProvider(_ScoringProvider):
+    """H2O-Lightning-4B (https://huggingface.co/h2oai/h2o-lightning-4b), text only.
+
+    Rebuilds h2o_lightning_shim.py's text path instead of running it behind vLLM: one prompt per
+    question (system, `record:/question:/options:` user turn, thinking off, "Answer:" prefill),
+    the label logits " A", " B"... read in fp32 (config.json head_dtype), softmax at T=0.8, then
+    the yes/no floor.
+    """
+
+    name = "h2o-lightning"
+    languages = ("en", "de")  # evaluated mostly in English; German is measured, not promised
+
+    def __init__(self, model: str, device: str = "auto") -> None:
+        if model not in H2O_CHECKPOINTS:
+            raise ValueError(f"Unknown model {model!r}, choose from {sorted(H2O_CHECKPOINTS)}")
+        self.model = model
+        self.device = device
+        self._repo, self._revision = H2O_CHECKPOINTS[model]
+
+    def load(self) -> None:
+        started = time.perf_counter()
+        torch, self.device, dtype = _torch_device(self.device)
+        from huggingface_hub import snapshot_download
+        from transformers import AutoTokenizer, Qwen3_5ForConditionalGeneration
+
+        path = snapshot_download(
+            self._repo,
+            revision=self._revision,
+            allow_patterns=["*.json", "*.jinja", "*.txt", "*.safetensors"],
+        )
+        self._torch = torch
+        self._tok = AutoTokenizer.from_pretrained(path, local_files_only=True)
+        self._label_ids = []
+        for s in _H2O_LABELS:  # the shim's check: " <label>" is one token at the answer slot
+            ids = self._tok.encode("Answer: " + s, add_special_tokens=False)
+            if ids[:-1] != self._tok.encode("Answer:", add_special_tokens=False):
+                raise ValueError(f"{self._repo}: label {s!r} is not one token")
+            self._label_ids.append(ids[-1])
+        self._model = (
+            Qwen3_5ForConditionalGeneration.from_pretrained(
+                path, dtype=dtype, local_files_only=True, attn_implementation="sdpa"
+            )
+            .to(self.device)
+            .eval()
+        )
+        self._head = self._model.get_output_embeddings().weight[self._label_ids].detach().float()
+        self._loaded(self._repo, self._revision, started)
+
+    def _tokens(self, text: str, **kw: Any) -> list[int]:
+        return self._tok(text, add_special_tokens=False, **kw)["input_ids"]
+
+    def score(self, state: Any, questions: dict[str, dict[str, Any]]) -> dict[str, dict]:
+        torch = self._torch
+        record = (
+            state
+            if isinstance(state, str)
+            else json.dumps(state, ensure_ascii=False, separators=(",", ":"))
+        )
+        probs = []
+        for q in questions.values():
+            opts = _raw_options(q)
+            if q["type"] == "noul":  # the shim asks [true, false]
+                opts = [
+                    ("true", opts[1][1] or "the statement holds"),
+                    ("false", opts[0][1] or "it does not"),
+                ]
+            descs = [
+                v if d is None else d if isinstance(d, str) else json.dumps(d, ensure_ascii=False)
+                for v, d in opts
+            ]
+            lines = "\n".join(
+                f"{s}) {v}: {d}" for s, (v, _), d in zip(_H2O_LABELS, opts, descs, strict=False)
+            )
+            instr = q.get("instructions") or "Answer the question below."
+            instr = instr if isinstance(instr, str) else json.dumps(instr, indent=1)
+            user = f"record: {record}\nquestion: {instr.lstrip()}\noptions:\n{lines}"
+            # caller text never becomes a special token (<|im_end|> in an utterance stays text)
+            ids = [
+                *self._tokens(f"<|im_start|>system\n{_H2O_SYSTEM}<|im_end|>\n<|im_start|>user\n"),
+                *self._tokens(user.strip(), split_special_tokens=True),
+                *self._tokens("<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nAnswer:"),
+            ]
+            with torch.inference_mode():
+                h = (
+                    self._model.model(
+                        input_ids=torch.tensor([ids], device=self.device), use_cache=False
+                    )
+                    .last_hidden_state[0, -1]
+                    .float()
+                )
+            p = torch.softmax(self._head[: len(opts)] @ h / _H2O_TEMPERATURE, -1).tolist()
+            if q["type"] == "noul":
+                y = p[0]
+                if max(y, 1 - y) < _H2O_NOUL_FLOOR:  # commit_noul: the answer never changes
+                    y = _H2O_NOUL_FLOOR if y >= 0.5 else 1 - _H2O_NOUL_FLOOR
+                p = [1 - y, y]  # back to _raw_options' [no, yes]
+            probs.append(p)
+        return self._answers(questions, probs)
+
+
+MODELS = sorted([*LAYA_CHECKPOINTS, *INTERN_CHECKPOINTS, *KEV_CHECKPOINTS, *H2O_CHECKPOINTS])
 
 
 def make_provider(model: str, device: str = "auto") -> DecisionProvider:
     if model in INTERN_CHECKPOINTS:
         return InternDecisionProvider(model, device)
+    if model in H2O_CHECKPOINTS:
+        return H2OLightningProvider(model, device)
     if model in KEV_CHECKPOINTS:
         return KevProvider(model, device)
     return LayaProvider(model, device)

@@ -258,7 +258,7 @@ def dname(eid: str, lang: str) -> str:
 
 
 def ask(p, state, qs, lang):
-    if hasattr(p, "score"):  # Intern-Decision
+    if hasattr(p, "score"):  # Intern-Decision, Kev, H2O-Lightning
         return p.score(state, qs)
     return p._agent.predict(state, qs, lang=lang)["answers"]
 
