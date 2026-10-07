@@ -10,11 +10,11 @@ import sys
 from . import __version__
 from .config import ConfigError, Settings, load_settings, require_token
 from .logbuf import BusHandler, EventBus, RedactFilter
-from .providers import LAYA_CHECKPOINTS, DecisionProvider, LayaProvider
+from .providers import MODELS, DecisionProvider, make_provider
 
 
 def build_provider(settings: Settings) -> DecisionProvider:
-    return LayaProvider(settings.model, settings.device)
+    return make_provider(settings.model, settings.device)
 
 
 def _setup_logging(settings: Settings, bus: EventBus | None) -> None:
@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--config", help="TOML config file (or ASSIST_DECIDER_CONFIG)")
     parser.add_argument("--host", help="bind address (default 127.0.0.1; 0.0.0.0 for the LAN)")
     parser.add_argument("--port", type=int, help="port (default 8765)")
-    parser.add_argument("--model", choices=sorted(LAYA_CHECKPOINTS), help="Laya checkpoint")
+    parser.add_argument("--model", choices=MODELS, help="decision model")
     parser.add_argument("--device", help="auto, cpu, cuda, cuda:N, mps or xpu")
     parser.add_argument("--log-level", help="DEBUG, INFO, WARNING or ERROR")
     parser.add_argument("--version", action="version", version=__version__)

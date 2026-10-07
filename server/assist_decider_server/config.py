@@ -10,7 +10,7 @@ from dataclasses import dataclass, fields, replace
 from pathlib import Path
 from typing import Any
 
-from .providers import LAYA_CHECKPOINTS
+from .providers import MODELS
 
 ENV_PREFIX = "ASSIST_DECIDER_"
 MIN_TOKEN_LENGTH = 32
@@ -90,8 +90,8 @@ def load_settings(config_file: str | None = None, **overrides: Any) -> Settings:
         except OSError as err:
             raise ConfigError(f"Cannot read token_file: {err}") from None
 
-    if settings.model not in LAYA_CHECKPOINTS:
-        raise ConfigError(f"model must be one of {', '.join(LAYA_CHECKPOINTS)}")
+    if settings.model not in MODELS:
+        raise ConfigError(f"model must be one of {', '.join(MODELS)}")
     if settings.device not in ("auto", "cpu", "mps", "xpu") and not settings.device.startswith(
         "cuda"
     ):
