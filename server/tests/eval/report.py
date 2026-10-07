@@ -31,6 +31,15 @@ VARIANTS = {
     "mix+split": "+ model splits sentence",
     "mix+desc+num+split": "all three",
 }
+ASKING = {
+    "mix": "plain",
+    "mix+near": "near",
+    "mix+fit": "fit",
+    "mix+near+fit": "near + fit",
+    "mix+qopt": "no command/question step",
+    "mix+flip": "options asked twice",
+}
+BEST = "mix+near+fit"
 
 results = {
     m: json.loads((DIR / f"{m}.json").read_text()) for m in ORDER if (DIR / f"{m}.json").exists()
@@ -101,39 +110,46 @@ print("### Whole sentences: today's pipeline against the new approach\n")
 for th in (0.0, 0.4):
     print(f"Confidence check at **{th}**:\n")
     table(
-        ["Model", "Today's pipeline", "New approach"],
+        ["Model", "Today's pipeline", "New approach", "Best approach"],
         [
-            [NAMES[m], cell(tally(r["today"], th)), cell(tally(r["mix"], th))]
+            [NAMES[m], *[cell(tally(r[a], th)) for a in ("today", "mix", BEST)]]
             for m, r in results.items()
         ],
     )
 
-print("### New approach by sentence type and language (no confidence check)\n")
+print("### Best approach by sentence type and language (no confidence check)\n")
 table(
     ["Model", "Device named", "Only a room / nothing", "English", "German"],
     [
         [
             NAMES[m],
-            cell(tally(r["mix"], kind="named")),
-            cell(tally(r["mix"], kind="room")),
-            cell(tally(r["mix"], lang="en")),
-            cell(tally(r["mix"], lang="de")),
+            cell(tally(r[BEST], kind="named")),
+            cell(tally(r[BEST], kind="room")),
+            cell(tally(r[BEST], lang="en")),
+            cell(tally(r[BEST], lang="de")),
         ]
         for m, r in results.items()
     ],
 )
 
-print("### Confidence check: what each setting does to the new approach\n")
 ths = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5)
-table(
-    ["Model", *[f"check {t}" for t in ths]],
-    [[NAMES[m], *[cell(tally(r["mix"], t)) for t in ths]] for m, r in results.items()],
-)
+for name, key in (("new approach", "mix"), ("best approach", BEST)):
+    print(f"### Confidence check: what each setting does to the {name}\n")
+    table(
+        ["Model", *[f"check {t}" for t in ths]],
+        [[NAMES[m], *[cell(tally(r[key], t)) for t in ths]] for m, r in results.items()],
+    )
 
 print("### Extra context for the model (no confidence check)\n")
 table(
     ["Model", *VARIANTS.values()],
     [[NAMES[m], *[cell(tally(r[v])) for v in VARIANTS]] for m, r in results.items()],
+)
+
+print("### Other ways of asking (no confidence check)\n")
+table(
+    ["Model", *ASKING.values()],
+    [[NAMES[m], *[cell(tally(r[v])) for v in ASKING]] for m, r in results.items()],
 )
 
 print("### The model-only tree, step by step\n")
@@ -187,20 +203,22 @@ table(
 
 print("### Time per sentence (median)\n")
 table(
-    ["Model", "Today's pipeline", "New approach"],
+    ["Model", "Today's pipeline", "New approach", "Best approach", "Options asked twice"],
     [
         [
             NAMES[m],
-            f"{sorted(x['ms'] for x in r['today'])[len(r['today']) // 2]:.0f} ms",
-            f"{sorted(x['ms'] for x in r['mix'])[len(r['mix']) // 2]:.0f} ms",
+            *[
+                f"{sorted(x['ms'] for x in r[a])[len(r[a]) // 2]:.0f} ms"
+                for a in ("today", "mix", BEST, "mix+flip")
+            ],
         ]
         for m, r in results.items()
     ],
 )
 
-print("### Every mistake of the new approach (no confidence check)\n")
+print("### Every mistake of the best approach (no confidence check)\n")
 for m, r in results.items():
-    bad = [x for x in r["mix"] if not x["ok"]]
+    bad = [x for x in r[BEST] if not x["ok"]]
     print(f"**{NAMES[m]}** ({len(bad)})\n")
     for x in bad:
         where = f" (speaker in {x['sat']})" if x["sat"] else ""

@@ -371,3 +371,18 @@ def test_memory_expires_and_is_per_context(monkeypatch):
 def test_sensor_named_temperature_is_a_state_question():
     response, *_ = run("what is the outdoor temperature?", home=SENSOR_HOME)
     assert acts(response) == [("HassGetState", {"name": "sensor.outdoor_temperature"})]
+
+
+def test_lock_words_replace_on_off_words_for_locks():
+    # "close"/"ab" mean off for lights but lock (HassTurnOn) for a lock, "open"/"auf" unlock.
+    for text, lang, want in [
+        ("sperr die Haustür ab", "de", "HassTurnOn"),
+        ("schließ die Haustür ab", "de", "HassTurnOn"),
+        ("sperr die Haustür auf", "de", "HassTurnOff"),
+        ("öffne die Haustür", "de", "HassTurnOff"),
+        ("open the front door", "en", "HassTurnOff"),
+        ("lock the front door", "en", "HassTurnOn"),
+    ]:
+        response, trace, _ = run(text, intent_rule(want), language=lang)
+        assert acts(response) == [(want, {"name": "lock.front_door"})], text
+        assert ("turn_off" if want == "HassTurnOn" else "turn_on") in masked(trace), text

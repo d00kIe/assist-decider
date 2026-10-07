@@ -60,6 +60,9 @@ class Lang:
     temperature_words: frozenset[str]
     stop_words: frozenset[str] = field(default_factory=frozenset)
     condition_words: frozenset[str] = field(default_factory=frozenset)  # "if": unsupported
+    # Replace on/off words when a lock is named: "close/zu/ab" lock it, "open/auf" unlock it.
+    lock_words: frozenset[str] = field(default_factory=frozenset)
+    unlock_words: frozenset[str] = field(default_factory=frozenset)
 
 
 EN = Lang(
@@ -193,6 +196,8 @@ EN = Lang(
         }
     ),
     condition_words=frozenset({"if", "when", "whenever"}),
+    lock_words=frozenset({"lock", "close", "shut"}),
+    unlock_words=frozenset({"unlock", "open"}),
 )
 
 DE = Lang(
@@ -367,6 +372,24 @@ DE = Lang(
         }
     ),
     condition_words=frozenset({"wenn", "falls", "sobald"}),
+    # "sperr"/"schliess" are neutral: the particle decides ("sperr ab" vs "sperr auf").
+    lock_words=frozenset(
+        {"ab", "zu", "zusperren", "absperren", "abschliessen", "verriegle", "verriegeln"}
+    ),
+    unlock_words=frozenset(
+        {
+            "auf",
+            "entsperre",
+            "entsperr",
+            "entsperren",
+            "aufsperren",
+            "aufschliessen",
+            "entriegle",
+            "entriegeln",
+            "oeffne",
+            "oeffnen",
+        }
+    ),
 )
 
 LANGS: dict[str, Lang] = {"en": EN, "de": DE}

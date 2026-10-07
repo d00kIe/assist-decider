@@ -341,7 +341,14 @@ class SegmentDecider:
         """(intents shown to the model, subset allowed by the lexical guards)."""
         lang, words = self.lang, set(seg.free)
         question = "?" in words or bool(seg.free and seg.free[0] in lang.question_words)
-        on, off = bool(words & lang.on_words), bool(words & lang.off_words)
+        on_words, off_words = lang.on_words, lang.off_words
+        if any(
+            kind == "entity" and self.index.entities[rid].domain == "lock"
+            for m in seg.mentions
+            for kind, rid in m.refs
+        ):  # HassTurnOn locks, HassTurnOff unlocks
+            on_words, off_words = lang.lock_words, lang.unlock_words
+        on, off = bool(words & on_words), bool(words & off_words)
         unit_value = any(n.unit in ("pct", "deg") for n in nums)
         dropped: dict[str, str] = {}
         shown, keep = [], []

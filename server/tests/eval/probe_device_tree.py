@@ -19,6 +19,7 @@ import sys
 import time
 import unicodedata
 
+from assist_decider_server import numbers
 from assist_decider_server.lang import LANGS, fold_with_map, tokenize
 from assist_decider_server.pipeline import (
     _confidence,
@@ -300,11 +301,16 @@ INDEX = build_index(HOME)
 
 
 CONFS: list[float] = []  # confidence of every choice in the current sentence
+FLIP = False  # ponytail: probe-only switch, set by mix() for the "flip" context
 
 
 def choose(p, text, lang, instructions, crit, allowed=None) -> str:
     q = {"type": "choice", "instructions": instructions, "criteria": crit}
     probs = ask(p, {"utterance": text}, {"q": q}, lang)["q"]["probabilities"]
+    if FLIP:  # the same question with the options reversed, averaged: less position bias
+        q["criteria"] = dict(reversed(crit.items()))
+        back = ask(p, {"utterance": text}, {"q": q}, lang)["q"]["probabilities"]
+        probs = {k: (probs[k] + back[k]) / 2 for k in probs}
     if allowed:
         total = sum(probs[k] for k in allowed) or 1.0
         probs = {k: probs[k] / total for k in allowed}
@@ -324,7 +330,13 @@ def mix(p, text, lang, sat=None, ctx=()) -> tuple[dict | None, float]:
       desc  - devices are described by what they do ("TV: plays music, video and sound")
       num   - spoken numbers go into the action options ("set the temperature to 24")
       split - the model picks where one command ends; each device only sees its own part
+      near  - on and off words both said: each device takes the one closest to its name
+      qopt  - no "command or question?" gate; "only asks" is one more action option
+      fit   - a room's devices that can't take the spoken number are not offered
+      flip  - every choice is asked twice, options reversed the second time, and averaged
     """
+    global FLIP
+    FLIP = "flip" in ctx
     CONFS.clear()
     try:
         out = _mix(p, text, lang, sat, ctx)
@@ -353,6 +365,37 @@ KIND_DESC = {
         "media_player": "Fernseher oder Lautsprecher: spielt Musik, Video und Ton",
     },
 }
+
+
+# action -> (units, lowest, highest) the device accepts
+RANGES = {
+    "set_brightness": ({"pct", ""}, 0, 100),
+    "set_temperature": ({"deg", ""}, 5, 35),
+    "set_position": ({"pct", ""}, 0, 100),
+}
+
+
+def fits(eid, nums) -> bool:
+    """Some valued action of the device takes some spoken number."""
+    return any(
+        n.unit in RANGES[a][0] and RANGES[a][1] <= n.value <= RANGES[a][2]
+        for a in ACTIONS[eid.split(".")[0]]
+        if a in VALUED
+        for n in nums
+    )
+
+
+def polarity(tokens, m, on_w, off_w) -> tuple[bool, bool]:
+    """(on, off) from the on/off word nearest to mention m; a tie keeps both."""
+
+    def dist(i):
+        return m.start - i if i < m.start else i - m.end + 1
+
+    on = [dist(i) for i, t in enumerate(tokens) if t in on_w and not m.start <= i < m.end]
+    off = [dist(i) for i, t in enumerate(tokens) if t in off_w and not m.start <= i < m.end]
+    if not on or not off:
+        return bool(on), bool(off)
+    return min(on) <= min(off), min(off) <= min(on)
 
 
 def kind_desc(eid, lang):
@@ -393,23 +436,28 @@ def _mix(p, text, lang, sat, ctx) -> dict | None:
     def seg_text(s):
         return text[spans[s[0]][0] : spans[s[1] - 1][1]]
 
-    targets = [(kind, rid, seg_of(m.start)) for m in mentions for kind, rid in m.refs]
+    targets = [(kind, rid, seg_of(m.start), m) for m in mentions for kind, rid in m.refs]
     if not targets and sat:
-        targets = [("area", sat, segs[0])]  # nothing named: the satellite's room
+        targets = [("area", sat, segs[0], None)]  # nothing named: the satellite's room
     if not targets:
         return None
-    question = choose(p, text, lang, T[lang]["kind"], T[lang]["kinds"]) == "question"
-    named = {rid for kind, rid, _ in targets if kind == "entity"}
+    question = None
+    if "qopt" not in ctx:
+        question = choose(p, text, lang, T[lang]["kind"], T[lang]["kinds"]) == "question"
+    named = {rid for kind, rid, _, _ in targets if kind == "entity"}
+    nums = numbers.extract(folded, lang)
     work = []
-    for kind, rid, seg in targets:
+    for kind, rid, seg, m in targets:
         if kind == "entity":
-            work.append((rid, seg))
+            work.append((rid, seg, m))
             continue
         inside = [e for e, r in INDEX.entities.items() if r.area_id == rid]
         if any(e in named for e in inside) or not inside:
             continue
+        if "fit" in ctx and nums:
+            inside = [e for e in inside if fits(e, nums)] or inside
         if len(inside) == 1:
-            work.append((inside[0], seg))
+            work.append((inside[0], seg, m))
             continue
         crit = {
             e: f"{dname(e, lang)}: {kind_desc(e, lang)}"
@@ -417,18 +465,24 @@ def _mix(p, text, lang, sat, ctx) -> dict | None:
             else entity_option(INDEX.entities[e], INDEX, LANGS[lang])
             for e in inside
         }
-        work.append((choose(p, seg_text(seg), lang, T[lang]["which"], crit), seg))
+        work.append((choose(p, seg_text(seg), lang, T[lang]["which"], crit), seg, m))
 
     out = {}
-    for eid, seg in work:
+    for eid, seg, m in work:
         st = seg_text(seg)
         words = set(tokens[seg[0] : seg[1]])
-        on, off = bool(words & LANGS[lang].on_words), bool(words & LANGS[lang].off_words)
         domain = eid.split(".")[0]
+        L = LANGS[lang]
+        on_w, off_w = (
+            (L.lock_words, L.unlock_words) if domain == "lock" else (L.on_words, L.off_words)
+        )
+        on, off = bool(words & on_w), bool(words & off_w)
+        if "near" in ctx and m and on and off:
+            on, off = polarity(tokens, m, on_w, off_w)
         acts = [
             a
             for a in ACTIONS[domain]
-            if (a == "query") == question
+            if (question is None or (a == "query") == question)
             and not (a in ON_ACTS and off and not on)
             and not (a in OFF_ACTS and on and not off)
         ]
@@ -550,7 +604,9 @@ def run(model: str, tree: bool) -> dict:
         res["tree"] = {"rows": rows, "vague_ok": vague}
 
     approaches = {"today": lambda lang, text, sat: today(p, text, lang, sat)}
-    for ctx in ((), ("desc",), ("num",), ("split",), ("desc", "num", "split")):
+    ctxs = [(), ("desc",), ("num",), ("split",), ("desc", "num", "split")]
+    ctxs += [("near",), ("fit",), ("qopt",), ("flip",), ("near", "fit")]
+    for ctx in ctxs:
         approaches["mix" + "".join(f"+{c}" for c in ctx)] = lambda lang, text, sat, ctx=ctx: mix(
             p, text, lang, sat, ctx
         )

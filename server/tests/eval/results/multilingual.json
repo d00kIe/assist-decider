@@ -35,7 +35,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 166.7455000570044
+    "ms": 899.9673330690712
    },
    {
     "text": "turn on the kitchen light",
@@ -61,7 +61,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 93.66345894522965
+    "ms": 330.1849579438567
    },
    {
     "text": "turn off the hallway light",
@@ -87,7 +87,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 83.66929111070931
+    "ms": 85.47475002706051
    },
    {
     "text": "turn on the kitchen light and turn off the hallway light",
@@ -115,7 +115,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 88.30462500918657
+    "ms": 212.173166917637
    },
    {
     "text": "turn off the kitchen and hallway lights",
@@ -143,7 +143,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 133.24612495489419
+    "ms": 315.2713340241462
    },
    {
     "text": "set the kitchen light to 40 percent",
@@ -171,7 +171,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 79.16670804843307
+    "ms": 215.44604189693928
    },
    {
     "text": "set the bathroom heating to 21 degrees",
@@ -199,7 +199,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 122.67766601871699
+    "ms": 191.5586250834167
    },
    {
     "text": "close the living room blinds",
@@ -225,7 +225,7 @@
     "value_ok": [],
     "e2e_ok": true,
     "e2e_unsafe": false,
-    "ms": 67.99879192840308
+    "ms": 69.49391693342477
    },
    {
     "text": "open the blinds to 30 percent",
@@ -253,7 +253,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 72.5872500333935
+    "ms": 265.77724993694574
    },
    {
     "text": "lock the front door",
@@ -279,7 +279,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 115.01141602639109
+    "ms": 119.95970900170505
    },
    {
     "text": "unlock the front door",
@@ -305,7 +305,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 90.8233750378713
+    "ms": 91.09466709196568
    },
    {
     "text": "start the coffee maker and turn off the tv",
@@ -333,7 +333,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 79.3112920364365
+    "ms": 82.7618750045076
    },
    {
     "text": "is the kitchen light on",
@@ -359,7 +359,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 92.0515829930082
+    "ms": 87.68616698216647
    },
    {
     "text": "what's the temperature in the bathroom",
@@ -385,7 +385,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 118.91341593582183
+    "ms": 347.7055000839755
    },
    {
     "text": "dim the desk lamp to 20 and close the garage door",
@@ -415,7 +415,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 132.1060829795897
+    "ms": 141.65770797990263
    },
    {
     "text": "switch off the tv, the floor lamp and the hallway light",
@@ -445,7 +445,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 135.76520804781467
+    "ms": 144.30908393114805
    },
    {
     "text": "set the thermostat to 22 degrees and the bathroom heating to 24",
@@ -476,7 +476,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 159.48462497908622
+    "ms": 195.6726670032367
    },
    {
     "text": "turn on the coffee maker",
@@ -502,7 +502,7 @@
     "value_ok": [],
     "e2e_ok": true,
     "e2e_unsafe": false,
-    "ms": 69.14483301807195
+    "ms": 71.4985829545185
    },
    {
     "text": "is the front door locked",
@@ -528,7 +528,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 81.17183402646333
+    "ms": 85.73924994561821
    },
    {
     "text": "turn the floor lamp off and open the garage door",
@@ -556,7 +556,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 86.5756249986589
+    "ms": 90.58887499850243
    },
    {
     "text": "schalte das Küchenlicht ein",
@@ -582,7 +582,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 166.2541669793427
+    "ms": 169.10258401185274
    },
    {
     "text": "mach das Licht im Flur aus",
@@ -608,7 +608,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 144.18941596522927
+    "ms": 143.70366604998708
    },
    {
     "text": "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
@@ -638,7 +638,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 204.95437504723668
+    "ms": 203.3532919595018
    },
    {
     "text": "mach das Küchenlicht an und den Fernseher aus",
@@ -666,7 +666,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 191.7674579890445
+    "ms": 193.59862490091473
    },
    {
     "text": "fahr den Rollladen Wohnzimmer auf 30 Prozent",
@@ -694,7 +694,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 82.45941705536097
+    "ms": 81.53058390598744
    },
    {
     "text": "schließ das Garagentor",
@@ -720,7 +720,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 93.39245897717774
+    "ms": 95.9764999570325
    },
    {
     "text": "sperr die Haustür ab",
@@ -746,7 +746,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 107.48174996115267
+    "ms": 110.52204098086804
    },
    {
     "text": "ist das Küchenlicht an",
@@ -772,7 +772,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 100.03779199905694
+    "ms": 100.76266701798886
    },
    {
     "text": "dimme die Schreibtischlampe auf 20 Prozent",
@@ -800,7 +800,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": true,
-    "ms": 213.1787498947233
+    "ms": 220.7088329596445
    },
    {
     "text": "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
@@ -830,7 +830,7 @@
     ],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 175.52637495100498
+    "ms": 178.93645900767297
    },
    {
     "text": "wie warm ist es im Bad",
@@ -856,7 +856,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 58.48579201847315
+    "ms": 59.28354093339294
    },
    {
     "text": "mach die Stehlampe und das Küchenlicht aus",
@@ -884,7 +884,7 @@
     "value_ok": [],
     "e2e_ok": false,
     "e2e_unsafe": false,
-    "ms": 178.90379100572318
+    "ms": 180.33829203341156
    }
   ],
   "vague_ok": [
@@ -907,7 +907,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 38.316666963510215
+   "ms": 39.517833036370575
   },
   {
    "set": "named",
@@ -920,7 +920,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 17.301165964454412
+   "ms": 17.589665949344635
   },
   {
    "set": "named",
@@ -933,7 +933,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.277583035640419
+   "ms": 15.521124936640263
   },
   {
    "set": "named",
@@ -946,7 +946,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 30.71358404122293
+   "ms": 30.857875011861324
   },
   {
    "set": "named",
@@ -959,7 +959,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.233916928991675
+   "ms": 15.736666973680258
   },
   {
    "set": "named",
@@ -972,7 +972,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 17.325750086456537
+   "ms": 18.93866597674787
   },
   {
    "set": "named",
@@ -985,7 +985,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.437916037626565
+   "ms": 15.247750096023083
   },
   {
    "set": "named",
@@ -998,7 +998,7 @@
    "handoff": true,
    "conf": 0.748,
    "unsafe": false,
-   "ms": 15.478417044505477
+   "ms": 15.535957994870842
   },
   {
    "set": "named",
@@ -1011,7 +1011,7 @@
    "handoff": false,
    "conf": 0.089,
    "unsafe": false,
-   "ms": 27.6606670813635
+   "ms": 28.934417059645057
   },
   {
    "set": "named",
@@ -1024,7 +1024,7 @@
    "handoff": false,
    "conf": 0.791,
    "unsafe": false,
-   "ms": 17.271917080506682
+   "ms": 17.935624928213656
   },
   {
    "set": "named",
@@ -1037,7 +1037,7 @@
    "handoff": false,
    "conf": 0.937,
    "unsafe": false,
-   "ms": 15.398375107906759
+   "ms": 15.5102499993518
   },
   {
    "set": "named",
@@ -1050,7 +1050,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 30.091417022049427
+   "ms": 30.82829201593995
   },
   {
    "set": "named",
@@ -1063,7 +1063,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.08504197467118502
+   "ms": 0.10066595859825611
   },
   {
    "set": "named",
@@ -1076,7 +1076,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.08854200132191181
+   "ms": 0.09116705041378736
   },
   {
    "set": "named",
@@ -1089,7 +1089,7 @@
    "handoff": true,
    "conf": 0.433,
    "unsafe": false,
-   "ms": 30.252333031967282
+   "ms": 30.503708054311574
   },
   {
    "set": "named",
@@ -1102,7 +1102,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 18.18562496919185
+   "ms": 18.736707977950573
   },
   {
    "set": "named",
@@ -1115,7 +1115,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 18.11324991285801
+   "ms": 19.857042003422976
   },
   {
    "set": "named",
@@ -1128,7 +1128,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.497874934226274
+   "ms": 15.681124990805984
   },
   {
    "set": "named",
@@ -1141,7 +1141,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.07320800796151161
+   "ms": 0.11716701555997133
   },
   {
    "set": "named",
@@ -1154,7 +1154,7 @@
    "handoff": false,
    "conf": 0.998,
    "unsafe": false,
-   "ms": 30.44641693122685
+   "ms": 30.64483404159546
   },
   {
    "set": "named",
@@ -1167,7 +1167,7 @@
    "handoff": false,
    "conf": 0.999,
    "unsafe": false,
-   "ms": 28.113917098380625
+   "ms": 25.40633291937411
   },
   {
    "set": "named",
@@ -1180,7 +1180,7 @@
    "handoff": false,
    "conf": 0.663,
    "unsafe": false,
-   "ms": 15.616249991580844
+   "ms": 15.888249967247248
   },
   {
    "set": "named",
@@ -1193,7 +1193,7 @@
    "handoff": false,
    "conf": 0.996,
    "unsafe": false,
-   "ms": 34.871250041760504
+   "ms": 37.08087501581758
   },
   {
    "set": "named",
@@ -1206,7 +1206,7 @@
    "handoff": false,
    "conf": 0.965,
    "unsafe": false,
-   "ms": 17.47145806439221
+   "ms": 18.191208015196025
   },
   {
    "set": "named",
@@ -1219,7 +1219,7 @@
    "handoff": false,
    "conf": 0.997,
    "unsafe": false,
-   "ms": 15.871583018451929
+   "ms": 15.957582974806428
   },
   {
    "set": "named",
@@ -1232,20 +1232,20 @@
    "handoff": false,
    "conf": 0.983,
    "unsafe": false,
-   "ms": 15.499542001634836
+   "ms": 16.093499958515167
   },
   {
    "set": "named",
    "lang": "de",
    "text": "sperr die Haustür ab",
    "sat": null,
-   "got": "front_door:unlock",
+   "got": "front_door:lock",
    "want": "front_door:lock",
-   "ok": false,
+   "ok": true,
    "handoff": false,
-   "conf": 0.954,
-   "unsafe": true,
-   "ms": 15.63566701952368
+   "conf": 0.939,
+   "unsafe": false,
+   "ms": 15.946708037517965
   },
   {
    "set": "named",
@@ -1258,7 +1258,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.06895896513015032
+   "ms": 0.08758297190070152
   },
   {
    "set": "named",
@@ -1271,7 +1271,7 @@
    "handoff": false,
    "conf": 0.998,
    "unsafe": false,
-   "ms": 15.65604202914983
+   "ms": 15.605957945808768
   },
   {
    "set": "named",
@@ -1284,7 +1284,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 31.91129199694842
+   "ms": 31.206542043946683
   },
   {
    "set": "named",
@@ -1297,7 +1297,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.10175001807510853
+   "ms": 0.14066696166992188
   },
   {
    "set": "named",
@@ -1310,7 +1310,7 @@
    "handoff": false,
    "conf": 0.846,
    "unsafe": false,
-   "ms": 15.830292017199099
+   "ms": 15.973208006471395
   },
   {
    "set": "room",
@@ -1323,7 +1323,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.206375042907894
+   "ms": 15.332167036831379
   },
   {
    "set": "room",
@@ -1336,7 +1336,7 @@
    "handoff": false,
    "conf": 0.986,
    "unsafe": false,
-   "ms": 14.883333002217114
+   "ms": 15.334083931520581
   },
   {
    "set": "room",
@@ -1349,7 +1349,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 14.919750043191016
+   "ms": 15.410082996822894
   },
   {
    "set": "room",
@@ -1362,7 +1362,7 @@
    "handoff": false,
    "conf": 0.997,
    "unsafe": false,
-   "ms": 15.018666977994144
+   "ms": 15.331915928982198
   },
   {
    "set": "room",
@@ -1375,7 +1375,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.333542018197477
+   "ms": 15.465041040442884
   },
   {
    "set": "room",
@@ -1388,7 +1388,7 @@
    "handoff": true,
    "conf": 0.718,
    "unsafe": false,
-   "ms": 17.67612504772842
+   "ms": 18.71999993454665
   },
   {
    "set": "room",
@@ -1401,7 +1401,7 @@
    "handoff": false,
    "conf": 0.998,
    "unsafe": false,
-   "ms": 15.545291011221707
+   "ms": 15.73674997780472
   },
   {
    "set": "room",
@@ -1414,7 +1414,7 @@
    "handoff": false,
    "conf": 0.94,
    "unsafe": false,
-   "ms": 26.764374924823642
+   "ms": 30.79095797147602
   },
   {
    "set": "room",
@@ -1427,7 +1427,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.146584017202258
+   "ms": 16.091874917037785
   },
   {
    "set": "room",
@@ -1440,7 +1440,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 14.945958973839879
+   "ms": 15.445124940015376
   },
   {
    "set": "room",
@@ -1453,7 +1453,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.11274998541921377
+   "ms": 0.14162505976855755
   },
   {
    "set": "room",
@@ -1466,7 +1466,7 @@
    "handoff": false,
    "conf": 0.479,
    "unsafe": false,
-   "ms": 12.837167014367878
+   "ms": 13.092292007058859
   },
   {
    "set": "room",
@@ -1479,7 +1479,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.35504194907844
+   "ms": 18.286333070136607
   },
   {
    "set": "room",
@@ -1492,7 +1492,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 15.429374994710088
+   "ms": 15.61804092489183
   },
   {
    "set": "room",
@@ -1505,7 +1505,7 @@
    "handoff": false,
    "conf": 0.995,
    "unsafe": false,
-   "ms": 15.18670900259167
+   "ms": 16.005125013180077
   },
   {
    "set": "room",
@@ -1518,7 +1518,7 @@
    "handoff": false,
    "conf": 0.289,
    "unsafe": false,
-   "ms": 15.717166941612959
+   "ms": 16.25441701617092
   },
   {
    "set": "room",
@@ -1531,7 +1531,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 23.836374981328845
+   "ms": 18.82095797918737
   },
   {
    "set": "room",
@@ -1544,7 +1544,7 @@
    "handoff": true,
    "conf": 0.367,
    "unsafe": false,
-   "ms": 15.2024170383811
+   "ms": 15.742208925075829
   },
   {
    "set": "room",
@@ -1557,7 +1557,7 @@
    "handoff": false,
    "conf": 0.999,
    "unsafe": false,
-   "ms": 15.694458037614822
+   "ms": 15.968082938343287
   },
   {
    "set": "room",
@@ -1570,7 +1570,7 @@
    "handoff": false,
    "conf": 0.996,
    "unsafe": false,
-   "ms": 15.485333045944571
+   "ms": 15.7623749691993
   },
   {
    "set": "room",
@@ -1583,7 +1583,7 @@
    "handoff": false,
    "conf": 0.531,
    "unsafe": false,
-   "ms": 15.305500011891127
+   "ms": 15.958792064338923
   },
   {
    "set": "room",
@@ -1596,7 +1596,7 @@
    "handoff": false,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.0990420812740922
+   "ms": 0.11674989946186543
   },
   {
    "set": "room",
@@ -1609,7 +1609,7 @@
    "handoff": true,
    "conf": 0.534,
    "unsafe": false,
-   "ms": 15.38737490773201
+   "ms": 15.712249907664955
   }
  ],
  "mix": [
@@ -1624,7 +1624,7 @@
    "handoff": false,
    "conf": 0.998,
    "unsafe": false,
-   "ms": 68.96329193841666
+   "ms": 68.34083399735391
   },
   {
    "set": "named",
@@ -1637,7 +1637,7 @@
    "handoff": false,
    "conf": 0.9982,
    "unsafe": false,
-   "ms": 25.681834085844457
+   "ms": 26.13908296916634
   },
   {
    "set": "named",
@@ -1650,7 +1650,7 @@
    "handoff": false,
    "conf": 0.9994000000000001,
    "unsafe": false,
-   "ms": 24.343417026102543
+   "ms": 25.585709023289382
   },
   {
    "set": "named",
@@ -1663,7 +1663,7 @@
    "handoff": false,
    "conf": 0.35148514851485146,
    "unsafe": false,
-   "ms": 39.614708977751434
+   "ms": 42.306582909077406
   },
   {
    "set": "named",
@@ -1676,7 +1676,7 @@
    "handoff": false,
    "conf": 0.9523999999999999,
    "unsafe": false,
-   "ms": 49.525541020557284
+   "ms": 51.571042044088244
   },
   {
    "set": "named",
@@ -1689,7 +1689,7 @@
    "handoff": false,
    "conf": 0.9938,
    "unsafe": false,
-   "ms": 37.51924994867295
+   "ms": 44.586166040971875
   },
   {
    "set": "named",
@@ -1702,7 +1702,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 35.197499906644225
+   "ms": 36.535417078994215
   },
   {
    "set": "named",
@@ -1715,7 +1715,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 23.008457967080176
+   "ms": 24.938791058957577
   },
   {
    "set": "named",
@@ -1728,7 +1728,7 @@
    "handoff": true,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.026249908842146397
+   "ms": 0.03208301495760679
   },
   {
    "set": "named",
@@ -1741,7 +1741,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.23375002015382
+   "ms": 24.742625071667135
   },
   {
    "set": "named",
@@ -1754,7 +1754,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 21.84120798483491
+   "ms": 22.354458924382925
   },
   {
    "set": "named",
@@ -1767,7 +1767,7 @@
    "handoff": false,
    "conf": 0.6544280815009078,
    "unsafe": false,
-   "ms": 37.98979101702571
+   "ms": 39.832083974033594
   },
   {
    "set": "named",
@@ -1780,7 +1780,7 @@
    "handoff": false,
    "conf": 0.986,
    "unsafe": false,
-   "ms": 24.959833011962473
+   "ms": 26.05487499386072
   },
   {
    "set": "named",
@@ -1793,7 +1793,7 @@
    "handoff": false,
    "conf": 0.9536,
    "unsafe": false,
-   "ms": 23.782707983627915
+   "ms": 23.801750037819147
   },
   {
    "set": "named",
@@ -1806,7 +1806,7 @@
    "handoff": false,
    "conf": 0.8725606469002694,
    "unsafe": false,
-   "ms": 40.01587501261383
+   "ms": 43.02129102870822
   },
   {
    "set": "named",
@@ -1819,7 +1819,7 @@
    "handoff": false,
    "conf": 0.9823999999999999,
    "unsafe": false,
-   "ms": 53.10120794456452
+   "ms": 55.963083053939044
   },
   {
    "set": "named",
@@ -1832,7 +1832,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 66.54270796570927
+   "ms": 70.7077089464292
   },
   {
    "set": "named",
@@ -1845,7 +1845,7 @@
    "handoff": false,
    "conf": 0.9958,
    "unsafe": false,
-   "ms": 22.73154107388109
+   "ms": 22.741790977306664
   },
   {
    "set": "named",
@@ -1858,7 +1858,7 @@
    "handoff": false,
    "conf": 0.9912000000000001,
    "unsafe": false,
-   "ms": 24.32754193432629
+   "ms": 23.04629096761346
   },
   {
    "set": "named",
@@ -1871,7 +1871,7 @@
    "handoff": false,
    "conf": 0.9990000000000001,
    "unsafe": false,
-   "ms": 37.720374995842576
+   "ms": 38.19833300076425
   },
   {
    "set": "named",
@@ -1884,7 +1884,7 @@
    "handoff": false,
    "conf": 0.9904,
    "unsafe": false,
-   "ms": 25.409042020328343
+   "ms": 25.832457933574915
   },
   {
    "set": "named",
@@ -1897,7 +1897,7 @@
    "handoff": false,
    "conf": 0.9710144927536231,
    "unsafe": false,
-   "ms": 24.91054206620902
+   "ms": 27.044499991461635
   },
   {
    "set": "named",
@@ -1910,7 +1910,7 @@
    "handoff": false,
    "conf": 0.9017149734229264,
    "unsafe": false,
-   "ms": 51.39312497340143
+   "ms": 51.681207958608866
   },
   {
    "set": "named",
@@ -1923,7 +1923,7 @@
    "handoff": false,
    "conf": 0.9135752957689993,
    "unsafe": false,
-   "ms": 42.893375037238
+   "ms": 40.194832952693105
   },
   {
    "set": "named",
@@ -1936,7 +1936,7 @@
    "handoff": false,
    "conf": 0.9865894544346234,
    "unsafe": false,
-   "ms": 34.9649169947952
+   "ms": 35.842834040522575
   },
   {
    "set": "named",
@@ -1949,20 +1949,20 @@
    "handoff": false,
    "conf": 0.9914000000000001,
    "unsafe": false,
-   "ms": 23.456083028577268
+   "ms": 23.343041073530912
   },
   {
    "set": "named",
    "lang": "de",
    "text": "sperr die Haustür ab",
    "sat": null,
-   "got": "front_door:unlock",
+   "got": "front_door:lock",
    "want": "front_door:lock",
-   "ok": false,
+   "ok": true,
    "handoff": false,
    "conf": 0.9902,
-   "unsafe": true,
-   "ms": 22.684500087052584
+   "unsafe": false,
+   "ms": 23.58204103074968
   },
   {
    "set": "named",
@@ -1975,7 +1975,7 @@
    "handoff": false,
    "conf": 0.9388000000000001,
    "unsafe": false,
-   "ms": 24.394291103817523
+   "ms": 25.853291037492454
   },
   {
    "set": "named",
@@ -1988,7 +1988,7 @@
    "handoff": false,
    "conf": 0.40350511162111413,
    "unsafe": false,
-   "ms": 39.718833984807134
+   "ms": 40.40599998552352
   },
   {
    "set": "named",
@@ -2001,7 +2001,7 @@
    "handoff": false,
    "conf": 0.940516723412778,
    "unsafe": false,
-   "ms": 50.825165933929384
+   "ms": 51.80045810993761
   },
   {
    "set": "named",
@@ -2014,7 +2014,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 24.197749909944832
+   "ms": 25.153417023830116
   },
   {
    "set": "named",
@@ -2027,7 +2027,7 @@
    "handoff": false,
    "conf": 0.9947906231216188,
    "unsafe": false,
-   "ms": 36.828999989666045
+   "ms": 38.32554095424712
   },
   {
    "set": "room",
@@ -2040,7 +2040,7 @@
    "handoff": false,
    "conf": 0.9945999999999999,
    "unsafe": false,
-   "ms": 36.87420894857496
+   "ms": 37.08695899695158
   },
   {
    "set": "room",
@@ -2053,7 +2053,7 @@
    "handoff": false,
    "conf": 0.9694666666666666,
    "unsafe": false,
-   "ms": 41.45729192532599
+   "ms": 43.95145794842392
   },
   {
    "set": "room",
@@ -2066,7 +2066,7 @@
    "handoff": false,
    "conf": 0.9922,
    "unsafe": false,
-   "ms": 37.25712501909584
+   "ms": 39.23933394253254
   },
   {
    "set": "room",
@@ -2079,7 +2079,7 @@
    "handoff": false,
    "conf": 0.9945999999999999,
    "unsafe": false,
-   "ms": 50.793665926903486
+   "ms": 53.12966706696898
   },
   {
    "set": "room",
@@ -2092,7 +2092,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.808666970580816
+   "ms": 24.82145803514868
   },
   {
    "set": "room",
@@ -2105,7 +2105,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 42.879332904703915
+   "ms": 45.15658295713365
   },
   {
    "set": "room",
@@ -2118,7 +2118,7 @@
    "handoff": false,
    "conf": 0.8996087967857898,
    "unsafe": false,
-   "ms": 49.722000025212765
+   "ms": 51.19279189966619
   },
   {
    "set": "room",
@@ -2131,7 +2131,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 34.28716701455414
+   "ms": 36.2913750577718
   },
   {
    "set": "room",
@@ -2144,7 +2144,7 @@
    "handoff": false,
    "conf": 0.9936,
    "unsafe": false,
-   "ms": 24.385249940678477
+   "ms": 25.032332981936634
   },
   {
    "set": "room",
@@ -2157,7 +2157,7 @@
    "handoff": false,
    "conf": 0.9523999999999999,
    "unsafe": false,
-   "ms": 49.007958034053445
+   "ms": 49.984333920292556
   },
   {
    "set": "room",
@@ -2170,7 +2170,7 @@
    "handoff": false,
    "conf": 0.8916,
    "unsafe": false,
-   "ms": 23.933666991069913
+   "ms": 26.074792025610805
   },
   {
    "set": "room",
@@ -2183,7 +2183,7 @@
    "handoff": false,
    "conf": 0.2966,
    "unsafe": false,
-   "ms": 36.228332901373506
+   "ms": 37.98816597554833
   },
   {
    "set": "room",
@@ -2196,7 +2196,7 @@
    "handoff": false,
    "conf": 0.9956,
    "unsafe": false,
-   "ms": 27.084582950919867
+   "ms": 24.06533306930214
   },
   {
    "set": "room",
@@ -2209,7 +2209,7 @@
    "handoff": false,
    "conf": 0.5157333333333334,
    "unsafe": false,
-   "ms": 42.76487499009818
+   "ms": 41.59258306026459
   },
   {
    "set": "room",
@@ -2222,7 +2222,7 @@
    "handoff": false,
    "conf": 0.9884,
    "unsafe": false,
-   "ms": 37.1155000757426
+   "ms": 41.033374960534275
   },
   {
    "set": "room",
@@ -2235,7 +2235,7 @@
    "handoff": false,
    "conf": 0.7710666666666667,
    "unsafe": false,
-   "ms": 45.95358297228813
+   "ms": 44.52925000805408
   },
   {
    "set": "room",
@@ -2248,7 +2248,7 @@
    "handoff": false,
    "conf": 0.9867999999999999,
    "unsafe": false,
-   "ms": 37.01108298264444
+   "ms": 38.820625049993396
   },
   {
    "set": "room",
@@ -2261,7 +2261,7 @@
    "handoff": false,
    "conf": 0.39959999999999996,
    "unsafe": false,
-   "ms": 27.523791999556124
+   "ms": 29.895707964897156
   },
   {
    "set": "room",
@@ -2274,7 +2274,7 @@
    "handoff": false,
    "conf": 0.6551999999999999,
    "unsafe": false,
-   "ms": 40.989624918438494
+   "ms": 42.913165991194546
   },
   {
    "set": "room",
@@ -2287,7 +2287,7 @@
    "handoff": false,
    "conf": 0.9970000000000001,
    "unsafe": false,
-   "ms": 24.077000096440315
+   "ms": 24.92499991785735
   },
   {
    "set": "room",
@@ -2300,7 +2300,7 @@
    "handoff": false,
    "conf": 0.9433962264150944,
    "unsafe": false,
-   "ms": 23.676833021454513
+   "ms": 24.97520809993148
   },
   {
    "set": "room",
@@ -2313,7 +2313,7 @@
    "handoff": false,
    "conf": 0.9756,
    "unsafe": false,
-   "ms": 24.66545905917883
+   "ms": 26.115292101167142
   },
   {
    "set": "room",
@@ -2326,7 +2326,7 @@
    "handoff": false,
    "conf": 0.2216174183514774,
    "unsafe": false,
-   "ms": 52.361999987624586
+   "ms": 54.503874969668686
   }
  ],
  "mix+desc": [
@@ -2341,7 +2341,7 @@
    "handoff": false,
    "conf": 0.27079999999999993,
    "unsafe": false,
-   "ms": 69.88212501164526
+   "ms": 68.42716597020626
   },
   {
    "set": "named",
@@ -2354,7 +2354,7 @@
    "handoff": false,
    "conf": 0.9982,
    "unsafe": false,
-   "ms": 26.137459091842175
+   "ms": 25.941333966329694
   },
   {
    "set": "named",
@@ -2367,7 +2367,7 @@
    "handoff": false,
    "conf": 0.9994000000000001,
    "unsafe": false,
-   "ms": 27.877541026100516
+   "ms": 29.919167049229145
   },
   {
    "set": "named",
@@ -2380,7 +2380,7 @@
    "handoff": false,
    "conf": 0.94705,
    "unsafe": false,
-   "ms": 46.119250007905066
+   "ms": 45.10979203041643
   },
   {
    "set": "named",
@@ -2393,7 +2393,7 @@
    "handoff": false,
    "conf": 0.8196000000000001,
    "unsafe": false,
-   "ms": 53.442582953721285
+   "ms": 55.83816603757441
   },
   {
    "set": "named",
@@ -2406,7 +2406,7 @@
    "handoff": false,
    "conf": 0.9938,
    "unsafe": false,
-   "ms": 38.56454195920378
+   "ms": 39.0971249435097
   },
   {
    "set": "named",
@@ -2419,7 +2419,7 @@
    "handoff": false,
    "conf": 0.9987993996998499,
    "unsafe": false,
-   "ms": 36.48629202507436
+   "ms": 42.75800008326769
   },
   {
    "set": "named",
@@ -2432,7 +2432,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 23.79512507468462
+   "ms": 24.221708066761494
   },
   {
    "set": "named",
@@ -2445,7 +2445,7 @@
    "handoff": true,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.02450007013976574
+   "ms": 0.030957977287471294
   },
   {
    "set": "named",
@@ -2458,7 +2458,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.879334097728133
+   "ms": 25.67754208575934
   },
   {
    "set": "named",
@@ -2471,7 +2471,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 22.401792113669217
+   "ms": 22.760916966944933
   },
   {
    "set": "named",
@@ -2484,7 +2484,7 @@
    "handoff": false,
    "conf": 0.7228978276686415,
    "unsafe": false,
-   "ms": 38.68816595058888
+   "ms": 40.13433295767754
   },
   {
    "set": "named",
@@ -2497,7 +2497,7 @@
    "handoff": false,
    "conf": 0.986,
    "unsafe": false,
-   "ms": 24.193999939598143
+   "ms": 25.14066605363041
   },
   {
    "set": "named",
@@ -2510,7 +2510,7 @@
    "handoff": false,
    "conf": 0.9536,
    "unsafe": false,
-   "ms": 25.006292038597167
+   "ms": 26.552417082712054
   },
   {
    "set": "named",
@@ -2523,7 +2523,7 @@
    "handoff": false,
    "conf": 0.19424952935136042,
    "unsafe": false,
-   "ms": 40.342708001844585
+   "ms": 40.274666040204465
   },
   {
    "set": "named",
@@ -2536,7 +2536,7 @@
    "handoff": false,
    "conf": 0.9823999999999999,
    "unsafe": false,
-   "ms": 54.6209579333663
+   "ms": 59.254958061501384
   },
   {
    "set": "named",
@@ -2549,7 +2549,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 64.99337498098612
+   "ms": 67.27095902897418
   },
   {
    "set": "named",
@@ -2562,7 +2562,7 @@
    "handoff": false,
    "conf": 0.9958,
    "unsafe": false,
-   "ms": 25.758333038538694
+   "ms": 26.5196249820292
   },
   {
    "set": "named",
@@ -2575,7 +2575,7 @@
    "handoff": false,
    "conf": 0.9912000000000001,
    "unsafe": false,
-   "ms": 23.597459075972438
+   "ms": 23.778958013281226
   },
   {
    "set": "named",
@@ -2588,7 +2588,7 @@
    "handoff": false,
    "conf": 0.9956250628582923,
    "unsafe": false,
-   "ms": 52.67179093789309
+   "ms": 44.62229204364121
   },
   {
    "set": "named",
@@ -2601,7 +2601,7 @@
    "handoff": false,
    "conf": 0.9904,
    "unsafe": false,
-   "ms": 25.865667033940554
+   "ms": 28.30150001682341
   },
   {
    "set": "named",
@@ -2614,7 +2614,7 @@
    "handoff": false,
    "conf": 0.9424920127795526,
    "unsafe": false,
-   "ms": 25.243167066946626
+   "ms": 27.728082961402833
   },
   {
    "set": "named",
@@ -2627,7 +2627,7 @@
    "handoff": false,
    "conf": 0.2535953007899534,
    "unsafe": false,
-   "ms": 51.29887501243502
+   "ms": 52.66716692131013
   },
   {
    "set": "named",
@@ -2640,7 +2640,7 @@
    "handoff": false,
    "conf": 0.9541128143472597,
    "unsafe": false,
-   "ms": 43.865124927833676
+   "ms": 44.403416104614735
   },
   {
    "set": "named",
@@ -2653,7 +2653,7 @@
    "handoff": false,
    "conf": 0.8907495091811988,
    "unsafe": false,
-   "ms": 37.5197499524802
+   "ms": 37.37433301284909
   },
   {
    "set": "named",
@@ -2666,20 +2666,20 @@
    "handoff": false,
    "conf": 0.9914000000000001,
    "unsafe": false,
-   "ms": 24.69808398745954
+   "ms": 24.52366694342345
   },
   {
    "set": "named",
    "lang": "de",
    "text": "sperr die Haustür ab",
    "sat": null,
-   "got": "front_door:unlock",
+   "got": "front_door:lock",
    "want": "front_door:lock",
-   "ok": false,
+   "ok": true,
    "handoff": false,
    "conf": 0.9902,
-   "unsafe": true,
-   "ms": 24.044624995440245
+   "unsafe": false,
+   "ms": 23.843291914090514
   },
   {
    "set": "named",
@@ -2692,7 +2692,7 @@
    "handoff": false,
    "conf": 0.9388000000000001,
    "unsafe": false,
-   "ms": 26.38033393304795
+   "ms": 25.625125039368868
   },
   {
    "set": "named",
@@ -2705,7 +2705,7 @@
    "handoff": false,
    "conf": 0.4544539506794163,
    "unsafe": false,
-   "ms": 26.089416001923382
+   "ms": 26.163416914641857
   },
   {
    "set": "named",
@@ -2718,7 +2718,7 @@
    "handoff": false,
    "conf": 0.6047239325729283,
    "unsafe": false,
-   "ms": 41.18974995799363
+   "ms": 41.39208304695785
   },
   {
    "set": "named",
@@ -2731,7 +2731,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 25.704249972477555
+   "ms": 25.0054580392316
   },
   {
    "set": "named",
@@ -2744,7 +2744,7 @@
    "handoff": false,
    "conf": 0.9952238805970148,
    "unsafe": false,
-   "ms": 39.82104198075831
+   "ms": 39.61745789274573
   },
   {
    "set": "room",
@@ -2757,7 +2757,7 @@
    "handoff": false,
    "conf": 0.03479999999999994,
    "unsafe": false,
-   "ms": 37.8927499987185
+   "ms": 38.03775005508214
   },
   {
    "set": "room",
@@ -2770,7 +2770,7 @@
    "handoff": false,
    "conf": 0.37893333333333334,
    "unsafe": false,
-   "ms": 44.09245902206749
+   "ms": 78.9044169941917
   },
   {
    "set": "room",
@@ -2783,7 +2783,7 @@
    "handoff": false,
    "conf": 0.9922,
    "unsafe": false,
-   "ms": 35.93412507325411
+   "ms": 35.70533404126763
   },
   {
    "set": "room",
@@ -2796,7 +2796,7 @@
    "handoff": false,
    "conf": 0.9737333333333332,
    "unsafe": false,
-   "ms": 50.77816697303206
+   "ms": 50.137082929722965
   },
   {
    "set": "room",
@@ -2809,7 +2809,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.998874938115478
+   "ms": 23.673207964748144
   },
   {
    "set": "room",
@@ -2822,7 +2822,7 @@
    "handoff": false,
    "conf": 0.4181333333333333,
    "unsafe": false,
-   "ms": 48.27662499155849
+   "ms": 107.37966699525714
   },
   {
    "set": "room",
@@ -2835,7 +2835,7 @@
    "handoff": false,
    "conf": 0.8769927931862853,
    "unsafe": false,
-   "ms": 52.10337496828288
+   "ms": 54.61600003764033
   },
   {
    "set": "room",
@@ -2848,7 +2848,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 42.8600839804858
+   "ms": 38.32133300602436
   },
   {
    "set": "room",
@@ -2861,7 +2861,7 @@
    "handoff": false,
    "conf": 0.9936,
    "unsafe": false,
-   "ms": 25.445083039812744
+   "ms": 27.125374996103346
   },
   {
    "set": "room",
@@ -2874,7 +2874,7 @@
    "handoff": false,
    "conf": 0.8196000000000001,
    "unsafe": false,
-   "ms": 52.35424998681992
+   "ms": 53.91808308195323
   },
   {
    "set": "room",
@@ -2887,7 +2887,7 @@
    "handoff": false,
    "conf": 0.8916,
    "unsafe": false,
-   "ms": 25.006833020597696
+   "ms": 25.277832988649607
   },
   {
    "set": "room",
@@ -2900,7 +2900,7 @@
    "handoff": false,
    "conf": 0.2966,
    "unsafe": false,
-   "ms": 36.15912504028529
+   "ms": 37.05954097677022
   },
   {
    "set": "room",
@@ -2913,7 +2913,7 @@
    "handoff": false,
    "conf": 0.9956,
    "unsafe": false,
-   "ms": 24.054208071902394
+   "ms": 24.036791059188545
   },
   {
    "set": "room",
@@ -2926,7 +2926,7 @@
    "handoff": false,
    "conf": 0.3341333333333334,
    "unsafe": false,
-   "ms": 42.651333031244576
+   "ms": 44.25020795315504
   },
   {
    "set": "room",
@@ -2939,7 +2939,7 @@
    "handoff": false,
    "conf": 0.8026,
    "unsafe": false,
-   "ms": 38.159584044478834
+   "ms": 38.87866600416601
   },
   {
    "set": "room",
@@ -2952,7 +2952,7 @@
    "handoff": false,
    "conf": 0.3013333333333333,
    "unsafe": false,
-   "ms": 44.51387492008507
+   "ms": 45.66658299881965
   },
   {
    "set": "room",
@@ -2965,7 +2965,7 @@
    "handoff": false,
    "conf": 0.982962517538585,
    "unsafe": false,
-   "ms": 36.970040993765
+   "ms": 39.212082978338
   },
   {
    "set": "room",
@@ -2978,7 +2978,7 @@
    "handoff": false,
    "conf": 0.39959999999999996,
    "unsafe": false,
-   "ms": 25.94299998600036
+   "ms": 26.67958289384842
   },
   {
    "set": "room",
@@ -2991,7 +2991,7 @@
    "handoff": false,
    "conf": 0.18320000000000003,
    "unsafe": false,
-   "ms": 44.934208039194345
+   "ms": 46.04875005315989
   },
   {
    "set": "room",
@@ -3004,7 +3004,7 @@
    "handoff": false,
    "conf": 0.9970000000000001,
    "unsafe": false,
-   "ms": 24.149375036358833
+   "ms": 25.04416706506163
   },
   {
    "set": "room",
@@ -3017,7 +3017,7 @@
    "handoff": false,
    "conf": 0.8629032258064515,
    "unsafe": false,
-   "ms": 24.117416935041547
+   "ms": 25.294666993431747
   },
   {
    "set": "room",
@@ -3030,7 +3030,7 @@
    "handoff": false,
    "conf": 0.9756,
    "unsafe": false,
-   "ms": 25.409167050383985
+   "ms": 26.2507910374552
   },
   {
    "set": "room",
@@ -3043,7 +3043,7 @@
    "handoff": false,
    "conf": 0.8662000000000001,
    "unsafe": false,
-   "ms": 49.403500044718385
+   "ms": 49.82729197945446
   }
  ],
  "mix+num": [
@@ -3058,7 +3058,7 @@
    "handoff": false,
    "conf": 0.0205061518455536,
    "unsafe": false,
-   "ms": 54.8081670422107
+   "ms": 55.508250021375716
   },
   {
    "set": "named",
@@ -3071,7 +3071,7 @@
    "handoff": false,
    "conf": 0.9982,
    "unsafe": false,
-   "ms": 23.893624893389642
+   "ms": 24.347125086933374
   },
   {
    "set": "named",
@@ -3084,7 +3084,7 @@
    "handoff": false,
    "conf": 0.9994000000000001,
    "unsafe": false,
-   "ms": 23.14312499947846
+   "ms": 22.347666905261576
   },
   {
    "set": "named",
@@ -3097,7 +3097,7 @@
    "handoff": false,
    "conf": 0.860344137655062,
    "unsafe": false,
-   "ms": 45.53612507879734
+   "ms": 42.91637509595603
   },
   {
    "set": "named",
@@ -3110,7 +3110,7 @@
    "handoff": false,
    "conf": 0.9523999999999999,
    "unsafe": false,
-   "ms": 56.582207907922566
+   "ms": 55.86683307774365
   },
   {
    "set": "named",
@@ -3123,7 +3123,7 @@
    "handoff": false,
    "conf": 0.9938,
    "unsafe": false,
-   "ms": 26.594500057399273
+   "ms": 27.79199997894466
   },
   {
    "set": "named",
@@ -3136,7 +3136,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 25.197249953635037
+   "ms": 25.28033300768584
   },
   {
    "set": "named",
@@ -3149,7 +3149,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 22.078500012867153
+   "ms": 24.087083991616964
   },
   {
    "set": "named",
@@ -3162,7 +3162,7 @@
    "handoff": true,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.025415909476578236
+   "ms": 0.03783300053328276
   },
   {
    "set": "named",
@@ -3175,7 +3175,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 22.52433297690004
+   "ms": 23.415250005200505
   },
   {
    "set": "named",
@@ -3188,7 +3188,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 21.620457991957664
+   "ms": 21.740500000305474
   },
   {
    "set": "named",
@@ -3201,7 +3201,7 @@
    "handoff": false,
    "conf": 0.6544280815009078,
    "unsafe": false,
-   "ms": 37.693875026889145
+   "ms": 40.397124947048724
   },
   {
    "set": "named",
@@ -3214,7 +3214,7 @@
    "handoff": false,
    "conf": 0.986,
    "unsafe": false,
-   "ms": 22.379082976840436
+   "ms": 22.712750011123717
   },
   {
    "set": "named",
@@ -3227,7 +3227,7 @@
    "handoff": false,
    "conf": 0.9536,
    "unsafe": false,
-   "ms": 24.583708960562944
+   "ms": 27.77629205957055
   },
   {
    "set": "named",
@@ -3240,7 +3240,7 @@
    "handoff": false,
    "conf": 0.8267970561548543,
    "unsafe": false,
-   "ms": 46.66650004219264
+   "ms": 41.31604195572436
   },
   {
    "set": "named",
@@ -3253,7 +3253,7 @@
    "handoff": false,
    "conf": 0.9823999999999999,
    "unsafe": false,
-   "ms": 53.16283309366554
+   "ms": 52.66699998173863
   },
   {
    "set": "named",
@@ -3266,7 +3266,7 @@
    "handoff": false,
    "conf": 0.9863877489740767,
    "unsafe": false,
-   "ms": 51.21075001079589
+   "ms": 50.24616594891995
   },
   {
    "set": "named",
@@ -3279,7 +3279,7 @@
    "handoff": false,
    "conf": 0.9958,
    "unsafe": false,
-   "ms": 24.52937501948327
+   "ms": 23.65729201119393
   },
   {
    "set": "named",
@@ -3292,7 +3292,7 @@
    "handoff": false,
    "conf": 0.9912000000000001,
    "unsafe": false,
-   "ms": 22.45495794340968
+   "ms": 23.270708043128252
   },
   {
    "set": "named",
@@ -3305,7 +3305,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 39.96329102665186
+   "ms": 37.878707982599735
   },
   {
    "set": "named",
@@ -3318,7 +3318,7 @@
    "handoff": false,
    "conf": 0.9904,
    "unsafe": false,
-   "ms": 23.55541696306318
+   "ms": 23.755916976369917
   },
   {
    "set": "named",
@@ -3331,7 +3331,7 @@
    "handoff": false,
    "conf": 0.9947999999999999,
    "unsafe": false,
-   "ms": 23.90354103408754
+   "ms": 23.54358392767608
   },
   {
    "set": "named",
@@ -3344,7 +3344,7 @@
    "handoff": false,
    "conf": 0.7019182484684143,
    "unsafe": false,
-   "ms": 39.911040919832885
+   "ms": 39.98670796863735
   },
   {
    "set": "named",
@@ -3357,7 +3357,7 @@
    "handoff": false,
    "conf": 0.9135752957689993,
    "unsafe": false,
-   "ms": 37.3386659193784
+   "ms": 37.338958005420864
   },
   {
    "set": "named",
@@ -3370,7 +3370,7 @@
    "handoff": false,
    "conf": 0.9635774989882637,
    "unsafe": false,
-   "ms": 25.492583983577788
+   "ms": 24.55158403608948
   },
   {
    "set": "named",
@@ -3383,20 +3383,20 @@
    "handoff": false,
    "conf": 0.9914000000000001,
    "unsafe": false,
-   "ms": 22.11899997200817
+   "ms": 22.196499980054796
   },
   {
    "set": "named",
    "lang": "de",
    "text": "sperr die Haustür ab",
    "sat": null,
-   "got": "front_door:unlock",
+   "got": "front_door:lock",
    "want": "front_door:lock",
-   "ok": false,
+   "ok": true,
    "handoff": false,
    "conf": 0.9902,
-   "unsafe": true,
-   "ms": 24.150124983862042
+   "unsafe": false,
+   "ms": 23.961792001500726
   },
   {
    "set": "named",
@@ -3409,7 +3409,7 @@
    "handoff": false,
    "conf": 0.9388000000000001,
    "unsafe": false,
-   "ms": 23.125417064875364
+   "ms": 23.528292076662183
   },
   {
    "set": "named",
@@ -3422,7 +3422,7 @@
    "handoff": false,
    "conf": 0.37372924006039243,
    "unsafe": false,
-   "ms": 26.72245795838535
+   "ms": 33.51108299102634
   },
   {
    "set": "named",
@@ -3435,7 +3435,7 @@
    "handoff": false,
    "conf": 0.9917860362616449,
    "unsafe": false,
-   "ms": 40.486291982233524
+   "ms": 40.389625006355345
   },
   {
    "set": "named",
@@ -3448,7 +3448,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.276458028703928
+   "ms": 23.527208948507905
   },
   {
    "set": "named",
@@ -3461,7 +3461,7 @@
    "handoff": false,
    "conf": 0.9956,
    "unsafe": false,
-   "ms": 36.99891595169902
+   "ms": 36.57562495209277
   },
   {
    "set": "room",
@@ -3474,7 +3474,7 @@
    "handoff": false,
    "conf": 0.9945999999999999,
    "unsafe": false,
-   "ms": 34.722000011242926
+   "ms": 34.45512498728931
   },
   {
    "set": "room",
@@ -3487,7 +3487,7 @@
    "handoff": false,
    "conf": 0.9694666666666666,
    "unsafe": false,
-   "ms": 38.52474992163479
+   "ms": 39.306833990849555
   },
   {
    "set": "room",
@@ -3500,7 +3500,7 @@
    "handoff": false,
    "conf": 0.9922,
    "unsafe": false,
-   "ms": 25.663791922852397
+   "ms": 26.025291997939348
   },
   {
    "set": "room",
@@ -3513,7 +3513,7 @@
    "handoff": false,
    "conf": 0.9945999999999999,
    "unsafe": false,
-   "ms": 39.04820897150785
+   "ms": 40.47920799348503
   },
   {
    "set": "room",
@@ -3526,7 +3526,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 21.96133299730718
+   "ms": 23.240749957039952
   },
   {
    "set": "room",
@@ -3539,7 +3539,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 40.79758294392377
+   "ms": 38.105666055344045
   },
   {
    "set": "room",
@@ -3552,7 +3552,7 @@
    "handoff": false,
    "conf": 0.9523999999999999,
    "unsafe": false,
-   "ms": 40.0043340632692
+   "ms": 39.32375006843358
   },
   {
    "set": "room",
@@ -3565,7 +3565,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 35.694582969881594
+   "ms": 35.713582998141646
   },
   {
    "set": "room",
@@ -3578,7 +3578,7 @@
    "handoff": false,
    "conf": 0.9936,
    "unsafe": false,
-   "ms": 26.305750012397766
+   "ms": 26.095916982740164
   },
   {
    "set": "room",
@@ -3591,7 +3591,7 @@
    "handoff": false,
    "conf": 0.9523999999999999,
    "unsafe": false,
-   "ms": 51.43933405634016
+   "ms": 51.98954197112471
   },
   {
    "set": "room",
@@ -3604,7 +3604,7 @@
    "handoff": false,
    "conf": 0.8916,
    "unsafe": false,
-   "ms": 23.965457919985056
+   "ms": 25.221209041774273
   },
   {
    "set": "room",
@@ -3617,7 +3617,7 @@
    "handoff": false,
    "conf": 0.2966,
    "unsafe": false,
-   "ms": 34.911333001218736
+   "ms": 35.03575001377612
   },
   {
    "set": "room",
@@ -3630,7 +3630,7 @@
    "handoff": false,
    "conf": 0.9956,
    "unsafe": false,
-   "ms": 25.12033295352012
+   "ms": 23.890709038823843
   },
   {
    "set": "room",
@@ -3643,7 +3643,7 @@
    "handoff": false,
    "conf": 0.5157333333333334,
    "unsafe": false,
-   "ms": 37.80370904132724
+   "ms": 37.46454103384167
   },
   {
    "set": "room",
@@ -3656,7 +3656,7 @@
    "handoff": false,
    "conf": 0.9884,
    "unsafe": false,
-   "ms": 35.09504196699709
+   "ms": 34.411708009429276
   },
   {
    "set": "room",
@@ -3669,7 +3669,7 @@
    "handoff": false,
    "conf": 0.7710666666666667,
    "unsafe": false,
-   "ms": 45.60025001410395
+   "ms": 41.79333301726729
   },
   {
    "set": "room",
@@ -3682,7 +3682,7 @@
    "handoff": false,
    "conf": 0.06847389558232941,
    "unsafe": false,
-   "ms": 25.904209003783762
+   "ms": 26.667000027373433
   },
   {
    "set": "room",
@@ -3695,7 +3695,7 @@
    "handoff": false,
    "conf": 0.39959999999999996,
    "unsafe": false,
-   "ms": 28.045541024766862
+   "ms": 24.552333052270114
   },
   {
    "set": "room",
@@ -3708,7 +3708,7 @@
    "handoff": false,
    "conf": 0.6551999999999999,
    "unsafe": false,
-   "ms": 39.5213330630213
+   "ms": 37.6829169690609
   },
   {
    "set": "room",
@@ -3721,7 +3721,7 @@
    "handoff": false,
    "conf": 0.9970000000000001,
    "unsafe": false,
-   "ms": 24.143957998603582
+   "ms": 24.920416995882988
   },
   {
    "set": "room",
@@ -3734,7 +3734,7 @@
    "handoff": false,
    "conf": 0.9876,
    "unsafe": false,
-   "ms": 23.291332996450365
+   "ms": 22.705124923959374
   },
   {
    "set": "room",
@@ -3747,7 +3747,7 @@
    "handoff": false,
    "conf": 0.9756,
    "unsafe": false,
-   "ms": 22.34324999153614
+   "ms": 21.91612496972084
   },
   {
    "set": "room",
@@ -3760,7 +3760,7 @@
    "handoff": false,
    "conf": 0.8504268437277687,
    "unsafe": false,
-   "ms": 37.62254200410098
+   "ms": 37.72041597403586
   }
  ],
  "mix+split": [
@@ -3775,7 +3775,7 @@
    "handoff": false,
    "conf": 0.11156363636363635,
    "unsafe": false,
-   "ms": 90.3224169742316
+   "ms": 139.8268750635907
   },
   {
    "set": "named",
@@ -3788,7 +3788,7 @@
    "handoff": false,
    "conf": 0.9982,
    "unsafe": false,
-   "ms": 25.06462496239692
+   "ms": 27.012916980311275
   },
   {
    "set": "named",
@@ -3801,7 +3801,7 @@
    "handoff": false,
    "conf": 0.9994000000000001,
    "unsafe": false,
-   "ms": 24.49412492569536
+   "ms": 26.000915910117328
   },
   {
    "set": "named",
@@ -3814,7 +3814,7 @@
    "handoff": false,
    "conf": 0.35148514851485146,
    "unsafe": false,
-   "ms": 57.65641701873392
+   "ms": 127.03162501566112
   },
   {
    "set": "named",
@@ -3827,7 +3827,7 @@
    "handoff": false,
    "conf": 0.35965,
    "unsafe": false,
-   "ms": 63.69633297435939
+   "ms": 66.51987507939339
   },
   {
    "set": "named",
@@ -3840,7 +3840,7 @@
    "handoff": false,
    "conf": 0.9938,
    "unsafe": false,
-   "ms": 37.32929204124957
+   "ms": 40.66108400002122
   },
   {
    "set": "named",
@@ -3853,7 +3853,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 34.959625103510916
+   "ms": 37.17233403585851
   },
   {
    "set": "named",
@@ -3866,7 +3866,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 22.902791970409453
+   "ms": 24.86524998676032
   },
   {
    "set": "named",
@@ -3879,7 +3879,7 @@
    "handoff": true,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.027084024623036385
+   "ms": 0.029082992114126682
   },
   {
    "set": "named",
@@ -3892,7 +3892,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.34308298304677
+   "ms": 24.339499999769032
   },
   {
    "set": "named",
@@ -3905,7 +3905,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 20.99854196421802
+   "ms": 22.08004193380475
   },
   {
    "set": "named",
@@ -3918,7 +3918,7 @@
    "handoff": false,
    "conf": 0.16983999999999994,
    "unsafe": false,
-   "ms": 50.031708902679384
+   "ms": 54.070667014457285
   },
   {
    "set": "named",
@@ -3931,7 +3931,7 @@
    "handoff": false,
    "conf": 0.986,
    "unsafe": false,
-   "ms": 29.100000043399632
+   "ms": 26.447750045917928
   },
   {
    "set": "named",
@@ -3944,7 +3944,7 @@
    "handoff": false,
    "conf": 0.9536,
    "unsafe": false,
-   "ms": 23.988625034689903
+   "ms": 25.36724996753037
   },
   {
    "set": "named",
@@ -3957,7 +3957,7 @@
    "handoff": false,
    "conf": 0.5551499999999999,
    "unsafe": false,
-   "ms": 60.987040982581675
+   "ms": 153.26454199384898
   },
   {
    "set": "named",
@@ -3970,7 +3970,7 @@
    "handoff": false,
    "conf": 0.31896551724137945,
    "unsafe": false,
-   "ms": 84.48483294341713
+   "ms": 91.5006659924984
   },
   {
    "set": "named",
@@ -3983,7 +3983,7 @@
    "handoff": false,
    "conf": 0.4174833333333334,
    "unsafe": false,
-   "ms": 86.18554100394249
+   "ms": 95.68487503565848
   },
   {
    "set": "named",
@@ -3996,7 +3996,7 @@
    "handoff": false,
    "conf": 0.9958,
    "unsafe": false,
-   "ms": 22.83154195174575
+   "ms": 23.009959026239812
   },
   {
    "set": "named",
@@ -4009,7 +4009,7 @@
    "handoff": false,
    "conf": 0.9912000000000001,
    "unsafe": false,
-   "ms": 22.436833009123802
+   "ms": 23.901875014416873
   },
   {
    "set": "named",
@@ -4022,7 +4022,7 @@
    "handoff": false,
    "conf": 0.42424,
    "unsafe": false,
-   "ms": 55.882624932564795
+   "ms": 55.59100001119077
   },
   {
    "set": "named",
@@ -4035,7 +4035,7 @@
    "handoff": false,
    "conf": 0.9904,
    "unsafe": false,
-   "ms": 32.169083948247135
+   "ms": 25.907499948516488
   },
   {
    "set": "named",
@@ -4048,7 +4048,7 @@
    "handoff": false,
    "conf": 0.9710144927536231,
    "unsafe": false,
-   "ms": 27.549583930522203
+   "ms": 25.376625009812415
   },
   {
    "set": "named",
@@ -4061,7 +4061,7 @@
    "handoff": false,
    "conf": 0.43097142857142856,
    "unsafe": false,
-   "ms": 76.22366596478969
+   "ms": 131.69483293313533
   },
   {
    "set": "named",
@@ -4074,7 +4074,7 @@
    "handoff": false,
    "conf": 0.48849999999999993,
    "unsafe": false,
-   "ms": 55.44125009328127
+   "ms": 57.744250050745904
   },
   {
    "set": "named",
@@ -4087,7 +4087,7 @@
    "handoff": false,
    "conf": 0.9865894544346234,
    "unsafe": false,
-   "ms": 36.360332975164056
+   "ms": 36.728624952957034
   },
   {
    "set": "named",
@@ -4100,20 +4100,20 @@
    "handoff": false,
    "conf": 0.9914000000000001,
    "unsafe": false,
-   "ms": 23.687749984674156
+   "ms": 23.956957971677184
   },
   {
    "set": "named",
    "lang": "de",
    "text": "sperr die Haustür ab",
    "sat": null,
-   "got": "front_door:unlock",
+   "got": "front_door:lock",
    "want": "front_door:lock",
-   "ok": false,
+   "ok": true,
    "handoff": false,
    "conf": 0.9902,
-   "unsafe": true,
-   "ms": 22.766167065128684
+   "unsafe": false,
+   "ms": 22.80658297240734
   },
   {
    "set": "named",
@@ -4126,7 +4126,7 @@
    "handoff": false,
    "conf": 0.9388000000000001,
    "unsafe": false,
-   "ms": 24.837458040565252
+   "ms": 28.211791068315506
   },
   {
    "set": "named",
@@ -4139,7 +4139,7 @@
    "handoff": false,
    "conf": 0.40350511162111413,
    "unsafe": false,
-   "ms": 37.954083061777055
+   "ms": 39.621375035494566
   },
   {
    "set": "named",
@@ -4152,7 +4152,7 @@
    "handoff": false,
    "conf": 0.26080000000000003,
    "unsafe": false,
-   "ms": 75.33029199112207
+   "ms": 82.83829095307738
   },
   {
    "set": "named",
@@ -4165,7 +4165,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 25.080833001993597
+   "ms": 25.667542009614408
   },
   {
    "set": "named",
@@ -4178,7 +4178,7 @@
    "handoff": false,
    "conf": 0.6033333333333334,
    "unsafe": false,
-   "ms": 53.91333298757672
+   "ms": 55.32466701697558
   },
   {
    "set": "room",
@@ -4191,7 +4191,7 @@
    "handoff": false,
    "conf": 0.9945999999999999,
    "unsafe": false,
-   "ms": 37.93904196936637
+   "ms": 38.68962498381734
   },
   {
    "set": "room",
@@ -4204,7 +4204,7 @@
    "handoff": false,
    "conf": 0.9694666666666666,
    "unsafe": false,
-   "ms": 38.66000007838011
+   "ms": 38.96504198201001
   },
   {
    "set": "room",
@@ -4217,7 +4217,7 @@
    "handoff": false,
    "conf": 0.9922,
    "unsafe": false,
-   "ms": 37.08179097156972
+   "ms": 39.97779206838459
   },
   {
    "set": "room",
@@ -4230,7 +4230,7 @@
    "handoff": false,
    "conf": 0.9945999999999999,
    "unsafe": false,
-   "ms": 50.72262499015778
+   "ms": 51.721832947805524
   },
   {
    "set": "room",
@@ -4243,7 +4243,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 23.86924996972084
+   "ms": 24.71595793031156
   },
   {
    "set": "room",
@@ -4256,7 +4256,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 38.36912498809397
+   "ms": 46.27637506928295
   },
   {
    "set": "room",
@@ -4269,7 +4269,7 @@
    "handoff": false,
    "conf": 0.8996087967857898,
    "unsafe": false,
-   "ms": 49.405082943849266
+   "ms": 49.99391594901681
   },
   {
    "set": "room",
@@ -4282,7 +4282,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 33.229292021133006
+   "ms": 33.937125001102686
   },
   {
    "set": "room",
@@ -4295,7 +4295,7 @@
    "handoff": false,
    "conf": 0.9936,
    "unsafe": false,
-   "ms": 23.84050004184246
+   "ms": 24.95374996215105
   },
   {
    "set": "room",
@@ -4308,7 +4308,7 @@
    "handoff": false,
    "conf": 0.35965,
    "unsafe": false,
-   "ms": 64.16133395396173
+   "ms": 66.32837501820177
   },
   {
    "set": "room",
@@ -4321,7 +4321,7 @@
    "handoff": false,
    "conf": 0.8916,
    "unsafe": false,
-   "ms": 23.9551670383662
+   "ms": 24.746083072386682
   },
   {
    "set": "room",
@@ -4334,7 +4334,7 @@
    "handoff": false,
    "conf": 0.2966,
    "unsafe": false,
-   "ms": 34.68579100444913
+   "ms": 36.001832922920585
   },
   {
    "set": "room",
@@ -4347,7 +4347,7 @@
    "handoff": false,
    "conf": 0.9956,
    "unsafe": false,
-   "ms": 23.220165981911123
+   "ms": 23.90904095955193
   },
   {
    "set": "room",
@@ -4360,7 +4360,7 @@
    "handoff": false,
    "conf": 0.5157333333333334,
    "unsafe": false,
-   "ms": 37.39174990914762
+   "ms": 41.12829198129475
   },
   {
    "set": "room",
@@ -4373,7 +4373,7 @@
    "handoff": false,
    "conf": 0.9884,
    "unsafe": false,
-   "ms": 36.553625017404556
+   "ms": 43.28241595067084
   },
   {
    "set": "room",
@@ -4386,7 +4386,7 @@
    "handoff": false,
    "conf": 0.7710666666666667,
    "unsafe": false,
-   "ms": 40.21829192060977
+   "ms": 40.94166692811996
   },
   {
    "set": "room",
@@ -4399,7 +4399,7 @@
    "handoff": false,
    "conf": 0.9867999999999999,
    "unsafe": false,
-   "ms": 37.83574991393834
+   "ms": 37.18341700732708
   },
   {
    "set": "room",
@@ -4412,7 +4412,7 @@
    "handoff": false,
    "conf": 0.39959999999999996,
    "unsafe": false,
-   "ms": 24.955375003628433
+   "ms": 25.616166996769607
   },
   {
    "set": "room",
@@ -4425,7 +4425,7 @@
    "handoff": false,
    "conf": 0.6551999999999999,
    "unsafe": false,
-   "ms": 38.360957987606525
+   "ms": 39.0896670287475
   },
   {
    "set": "room",
@@ -4438,7 +4438,7 @@
    "handoff": false,
    "conf": 0.9970000000000001,
    "unsafe": false,
-   "ms": 24.514832999557257
+   "ms": 24.438707972876728
   },
   {
    "set": "room",
@@ -4451,7 +4451,7 @@
    "handoff": false,
    "conf": 0.9433962264150944,
    "unsafe": false,
-   "ms": 23.730291984975338
+   "ms": 24.787375004962087
   },
   {
    "set": "room",
@@ -4464,7 +4464,7 @@
    "handoff": false,
    "conf": 0.9756,
    "unsafe": false,
-   "ms": 38.670500041916966
+   "ms": 25.959208025597036
   },
   {
    "set": "room",
@@ -4477,7 +4477,7 @@
    "handoff": false,
    "conf": 0.2216174183514774,
    "unsafe": false,
-   "ms": 53.70795796625316
+   "ms": 50.79387500882149
   }
  ],
  "mix+desc+num+split": [
@@ -4492,7 +4492,7 @@
    "handoff": false,
    "conf": 0.11156363636363635,
    "unsafe": false,
-   "ms": 87.47333392966539
+   "ms": 85.43195796664804
   },
   {
    "set": "named",
@@ -4505,7 +4505,7 @@
    "handoff": false,
    "conf": 0.9982,
    "unsafe": false,
-   "ms": 27.491040993481874
+   "ms": 35.32475000247359
   },
   {
    "set": "named",
@@ -4518,7 +4518,7 @@
    "handoff": false,
    "conf": 0.9994000000000001,
    "unsafe": false,
-   "ms": 24.829459027387202
+   "ms": 26.024583028629422
   },
   {
    "set": "named",
@@ -4531,7 +4531,7 @@
    "handoff": false,
    "conf": 0.5546800000000001,
    "unsafe": false,
-   "ms": 60.75066700577736
+   "ms": 59.97275002300739
   },
   {
    "set": "named",
@@ -4544,7 +4544,7 @@
    "handoff": false,
    "conf": 0.35965,
    "unsafe": false,
-   "ms": 71.97920908220112
+   "ms": 66.79095793515444
   },
   {
    "set": "named",
@@ -4557,7 +4557,7 @@
    "handoff": false,
    "conf": 0.9938,
    "unsafe": false,
-   "ms": 27.821874944493175
+   "ms": 26.74358303193003
   },
   {
    "set": "named",
@@ -4570,7 +4570,7 @@
    "handoff": false,
    "conf": 0.9987999999999999,
    "unsafe": false,
-   "ms": 27.38370804581791
+   "ms": 26.27650008071214
   },
   {
    "set": "named",
@@ -4583,7 +4583,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 24.323374964296818
+   "ms": 24.017165997065604
   },
   {
    "set": "named",
@@ -4596,7 +4596,7 @@
    "handoff": true,
    "conf": 1.0,
    "unsafe": false,
-   "ms": 0.0351249473169446
+   "ms": 0.024417066015303135
   },
   {
    "set": "named",
@@ -4609,7 +4609,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 25.063208071514964
+   "ms": 23.949333932250738
   },
   {
    "set": "named",
@@ -4622,7 +4622,7 @@
    "handoff": false,
    "conf": 0.9965999999999999,
    "unsafe": false,
-   "ms": 22.797707933932543
+   "ms": 22.282166057266295
   },
   {
    "set": "named",
@@ -4635,7 +4635,7 @@
    "handoff": false,
    "conf": 0.16983999999999994,
    "unsafe": false,
-   "ms": 57.51425004564226
+   "ms": 61.682790983468294
   },
   {
    "set": "named",
@@ -4648,7 +4648,7 @@
    "handoff": false,
    "conf": 0.986,
    "unsafe": false,
-   "ms": 26.66462492197752
+   "ms": 25.70849994663149
   },
   {
    "set": "named",
@@ -4661,7 +4661,7 @@
    "handoff": false,
    "conf": 0.9536,
    "unsafe": false,
-   "ms": 25.69562499411404
+   "ms": 25.319291977211833
   },
   {
    "set": "named",
@@ -4674,7 +4674,7 @@
    "handoff": false,
    "conf": 0.14001530221882152,
    "unsafe": true,
-   "ms": 61.49925000499934
+   "ms": 67.50700005795807
   },
   {
    "set": "named",
@@ -4687,7 +4687,7 @@
    "handoff": false,
    "conf": 0.07988980716253447,
    "unsafe": false,
-   "ms": 85.87279205676168
+   "ms": 90.04350006580353
   },
   {
    "set": "named",
@@ -4700,7 +4700,7 @@
    "handoff": false,
    "conf": 0.4174833333333334,
    "unsafe": false,
-   "ms": 66.90279103349894
+   "ms": 72.1073750173673
   },
   {
    "set": "named",
@@ -4713,7 +4713,7 @@
    "handoff": false,
    "conf": 0.9958,
    "unsafe": false,
-   "ms": 24.383374955505133
+   "ms": 25.277249980717897
   },
   {
    "set": "named",
@@ -4726,7 +4726,7 @@
    "handoff": false,
    "conf": 0.9912000000000001,
    "unsafe": false,
-   "ms": 24.17158300522715
+   "ms": 26.605832972563803
   },
   {
    "set": "named",
@@ -4739,7 +4739,7 @@
    "handoff": false,
    "conf": 0.42424,
    "unsafe": false,
-   "ms": 55.51375006325543
+   "ms": 59.94304094929248
   },
   {
    "set": "named",
@@ -4752,7 +4752,7 @@
    "handoff": false,
    "conf": 0.9904,
    "unsafe": false,
-   "ms": 30.62887501437217
+   "ms": 27.399249956943095
   },
   {
    "set": "named",
@@ -4765,7 +4765,7 @@
    "handoff": false,
    "conf": 0.9947999999999999,
    "unsafe": false,
-   "ms": 24.76112509611994
+   "ms": 27.0207499852404
   },
   {
    "set": "named",
@@ -4778,7 +4778,7 @@
    "handoff": false,
    "conf": 0.21398262275207114,
    "unsafe": false,
-   "ms": 72.24050001241267
+   "ms": 72.56133295595646
   },
   {
    "set": "named",
@@ -4791,7 +4791,7 @@
    "handoff": false,
    "conf": 0.48849999999999993,
    "unsafe": false,
-   "ms": 55.98745902534574
+   "ms": 56.92816595546901
   },
   {
    "set": "named",
@@ -4804,7 +4804,7 @@
    "handoff": false,
    "conf": 0.4240310963759002,
    "unsafe": false,
-   "ms": 25.842875009402633
+   "ms": 26.078499970026314
   },
   {
    "set": "named",
@@ -4817,20 +4817,20 @@
    "handoff": false,
    "conf": 0.9914000000000001,
    "unsafe": false,
-   "ms": 27.835375047288835
+   "ms": 23.498459020629525
   },
   {
    "set": "named",
    "lang": "de",
    "text": "sperr die Haustür ab",
    "sat": null,
-   "got": "front_door:unlock",
+   "got": "front_door:lock",
    "want": "front_door:lock",
-   "ok": false,
+   "ok": true,
    "handoff": false,
    "conf": 0.9902,
-   "unsafe": true,
-   "ms": 24.764542002230883
+   "unsafe": false,
+   "ms": 24.989792029373348
   },
   {
    "set": "named",
@@ -4843,7 +4843,7 @@
    "handoff": false,
    "conf": 0.9388000000000001,
    "unsafe": false,
-   "ms": 28.305458021350205
+   "ms": 25.473125046119094
   },
   {
    "set": "named",
@@ -4856,7 +4856,7 @@
    "handoff": false,
    "conf": 0.6772002058672155,
    "unsafe": false,
-   "ms": 25.944250053726137
+   "ms": 28.790166950784624
   },
   {
    "set": "named",
@@ -4869,7 +4869,7 @@
    "handoff": false,
    "conf": 0.26080000000000003,
    "unsafe": false,
-   "ms": 63.86345799546689
+   "ms": 63.651249976828694
   },
   {
    "set": "named",
@@ -4882,7 +4882,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 25.22820804733783
+   "ms": 25.713459006510675
   },
   {
    "set": "named",
@@ -4895,7 +4895,7 @@
    "handoff": false,
    "conf": 0.6033333333333334,
    "unsafe": false,
-   "ms": 55.20591698586941
+   "ms": 57.83129099290818
   },
   {
    "set": "room",
@@ -4908,7 +4908,7 @@
    "handoff": false,
    "conf": 0.03479999999999994,
    "unsafe": false,
-   "ms": 35.73266707826406
+   "ms": 38.11437508556992
   },
   {
    "set": "room",
@@ -4921,7 +4921,7 @@
    "handoff": false,
    "conf": 0.21582080516597713,
    "unsafe": false,
-   "ms": 41.927415993995965
+   "ms": 44.265041942708194
   },
   {
    "set": "room",
@@ -4934,7 +4934,7 @@
    "handoff": false,
    "conf": 0.9922,
    "unsafe": false,
-   "ms": 25.331417098641396
+   "ms": 32.916416064836085
   },
   {
    "set": "room",
@@ -4947,7 +4947,7 @@
    "handoff": false,
    "conf": 0.9737333333333332,
    "unsafe": false,
-   "ms": 39.43737503141165
+   "ms": 41.494624922052026
   },
   {
    "set": "room",
@@ -4960,7 +4960,7 @@
    "handoff": false,
    "conf": 0.9978,
    "unsafe": false,
-   "ms": 24.153291014954448
+   "ms": 25.18324996344745
   },
   {
    "set": "room",
@@ -4973,7 +4973,7 @@
    "handoff": false,
    "conf": 0.4181333333333333,
    "unsafe": false,
-   "ms": 41.28891706932336
+   "ms": 44.88425003364682
   },
   {
    "set": "room",
@@ -4986,7 +4986,7 @@
    "handoff": false,
    "conf": 0.922,
    "unsafe": false,
-   "ms": 41.44037503283471
+   "ms": 43.42291702050716
   },
   {
    "set": "room",
@@ -4999,7 +4999,7 @@
    "handoff": false,
    "conf": 0.9950000000000001,
    "unsafe": false,
-   "ms": 42.09708399139345
+   "ms": 38.16895792260766
   },
   {
    "set": "room",
@@ -5012,7 +5012,7 @@
    "handoff": false,
    "conf": 0.9936,
    "unsafe": false,
-   "ms": 27.946416987106204
+   "ms": 27.649792027659714
   },
   {
    "set": "room",
@@ -5025,7 +5025,7 @@
    "handoff": false,
    "conf": 0.35965,
    "unsafe": false,
-   "ms": 69.0370419761166
+   "ms": 67.98762502148747
   },
   {
    "set": "room",
@@ -5038,7 +5038,7 @@
    "handoff": false,
    "conf": 0.8916,
    "unsafe": false,
-   "ms": 24.843125022016466
+   "ms": 26.401542010717094
   },
   {
    "set": "room",
@@ -5051,7 +5051,7 @@
    "handoff": false,
    "conf": 0.2966,
    "unsafe": false,
-   "ms": 37.023167009465396
+   "ms": 36.92241606768221
   },
   {
    "set": "room",
@@ -5064,7 +5064,7 @@
    "handoff": false,
    "conf": 0.9956,
    "unsafe": false,
-   "ms": 26.209666044451296
+   "ms": 24.487708928063512
   },
   {
    "set": "room",
@@ -5077,7 +5077,7 @@
    "handoff": false,
    "conf": 0.3341333333333334,
    "unsafe": false,
-   "ms": 41.56916600186378
+   "ms": 40.446292026899755
   },
   {
    "set": "room",
@@ -5090,7 +5090,7 @@
    "handoff": false,
    "conf": 0.8026,
    "unsafe": false,
-   "ms": 38.82129199337214
+   "ms": 39.565375074744225
   },
   {
    "set": "room",
@@ -5103,7 +5103,7 @@
    "handoff": false,
    "conf": 0.3013333333333333,
    "unsafe": false,
-   "ms": 43.751792050898075
+   "ms": 49.29137497674674
   },
   {
    "set": "room",
@@ -5116,7 +5116,7 @@
    "handoff": false,
    "conf": 0.007135575942915473,
    "unsafe": false,
-   "ms": 26.63662494160235
+   "ms": 36.056125070899725
   },
   {
    "set": "room",
@@ -5129,7 +5129,7 @@
    "handoff": false,
    "conf": 0.39959999999999996,
    "unsafe": false,
-   "ms": 25.069833965972066
+   "ms": 33.79337501246482
   },
   {
    "set": "room",
@@ -5142,7 +5142,7 @@
    "handoff": false,
    "conf": 0.18320000000000003,
    "unsafe": false,
-   "ms": 42.35966701526195
+   "ms": 50.4976250231266
   },
   {
    "set": "room",
@@ -5155,7 +5155,7 @@
    "handoff": false,
    "conf": 0.9970000000000001,
    "unsafe": false,
-   "ms": 25.608291965909302
+   "ms": 29.61104200221598
   },
   {
    "set": "room",
@@ -5168,7 +5168,7 @@
    "handoff": false,
    "conf": 0.9876,
    "unsafe": false,
-   "ms": 24.627542006783187
+   "ms": 27.66525000333786
   },
   {
    "set": "room",
@@ -5181,7 +5181,7 @@
    "handoff": false,
    "conf": 0.9756,
    "unsafe": false,
-   "ms": 25.75858309864998
+   "ms": 31.754208030179143
   },
   {
    "set": "room",
@@ -5194,7 +5194,3592 @@
    "handoff": false,
    "conf": 0.8203556716567868,
    "unsafe": false,
-   "ms": 42.22579195629805
+   "ms": 45.01058300957084
+  }
+ ],
+ "mix+near": [
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 23 degrees and turn on the light in the kitchen",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.998,
+   "unsafe": false,
+   "ms": 74.82495799195021
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9982,
+   "unsafe": false,
+   "ms": 27.013124898076057
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the hallway light",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9994000000000001,
+   "unsafe": false,
+   "ms": 24.502958985976875
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light and turn off the hallway light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9994000000000001,
+   "unsafe": false,
+   "ms": 47.8984999936074
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 51.97445803787559
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the kitchen light to 40 percent",
+   "sat": null,
+   "got": "kitchen_ceiling:set_brightness=40",
+   "want": "kitchen_ceiling:set_brightness=40",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9938,
+   "unsafe": false,
+   "ms": 38.339917082339525
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the bathroom heating to 21 degrees",
+   "sat": null,
+   "got": "bathroom:set_temperature=21",
+   "want": "bathroom:set_temperature=21",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9987999999999999,
+   "unsafe": false,
+   "ms": 35.86875007022172
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "close the living room blinds",
+   "sat": null,
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965999999999999,
+   "unsafe": false,
+   "ms": 24.293750058859587
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": null,
+   "got": null,
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": true,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 0.02850010059773922
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "lock the front door",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 22.80279202386737
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "unlock the front door",
+   "sat": null,
+   "got": "front_door:unlock",
+   "want": "front_door:unlock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965999999999999,
+   "unsafe": false,
+   "ms": 21.878959028981626
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "start the coffee maker and turn off the tv",
+   "sat": null,
+   "got": "coffee_maker:turn_on, tv:turn_off",
+   "want": "coffee_maker:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9798,
+   "unsafe": false,
+   "ms": 45.47062504570931
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the kitchen light on",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.986,
+   "unsafe": false,
+   "ms": 24.34987504966557
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "what's the temperature in the bathroom",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9536,
+   "unsafe": false,
+   "ms": 25.962541927583516
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "dim the desk lamp to 20 and close the garage door",
+   "sat": null,
+   "got": "desk_lamp:turn_off, garage_door:close",
+   "want": "desk_lamp:set_brightness=20, garage_door:close",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8725606469002694,
+   "unsafe": false,
+   "ms": 40.27445800602436
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "switch off the tv, the floor lamp and the hallway light",
+   "sat": null,
+   "got": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "want": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9823999999999999,
+   "unsafe": false,
+   "ms": 54.75075007416308
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 22 degrees and the bathroom heating to 24",
+   "sat": null,
+   "got": "living_room:set_temperature=22, bathroom:set_temperature=22",
+   "want": "living_room:set_temperature=22, bathroom:set_temperature=24",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9987999999999999,
+   "unsafe": false,
+   "ms": 65.9181660739705
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the coffee maker",
+   "sat": null,
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9958,
+   "unsafe": false,
+   "ms": 23.237708024680614
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the front door locked",
+   "sat": null,
+   "got": "front_door:query",
+   "want": "front_door:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9912000000000001,
+   "unsafe": false,
+   "ms": 23.225000011734664
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn the floor lamp off and open the garage door",
+   "sat": null,
+   "got": "living_room_floor:turn_off, garage_door:open",
+   "want": "living_room_floor:turn_off, garage_door:open",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9990000000000001,
+   "unsafe": false,
+   "ms": 38.87825005222112
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schalte das Küchenlicht ein",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9904,
+   "unsafe": false,
+   "ms": 25.985624990426004
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Licht im Flur aus",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9710144927536231,
+   "unsafe": false,
+   "ms": 26.062041986733675
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9017149734229264,
+   "unsafe": false,
+   "ms": 52.4416669504717
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Küchenlicht an und den Fernseher aus",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, tv:turn_off",
+   "want": "kitchen_ceiling:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9922,
+   "unsafe": false,
+   "ms": 40.391291957348585
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "fahr den Rollladen Wohnzimmer auf 30 Prozent",
+   "sat": null,
+   "got": "living_room_blinds:set_position=30",
+   "want": "living_room_blinds:set_position=30",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9865894544346234,
+   "unsafe": false,
+   "ms": 36.66037495713681
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schließ das Garagentor",
+   "sat": null,
+   "got": "garage_door:close",
+   "want": "garage_door:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9914000000000001,
+   "unsafe": false,
+   "ms": 24.329832987859845
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "sperr die Haustür ab",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9902,
+   "unsafe": false,
+   "ms": 23.375125019811094
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "ist das Küchenlicht an",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9388000000000001,
+   "unsafe": false,
+   "ms": 26.32354199886322
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "dimme die Schreibtischlampe auf 20 Prozent",
+   "sat": null,
+   "got": "desk_lamp:set_brightness=20",
+   "want": "desk_lamp:set_brightness=20",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.40350511162111413,
+   "unsafe": false,
+   "ms": 41.94741591345519
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
+   "sat": null,
+   "got": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "want": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.940516723412778,
+   "unsafe": false,
+   "ms": 53.387624910101295
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "wie warm ist es im Bad",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 25.209125014953315
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach die Stehlampe und das Küchenlicht aus",
+   "sat": null,
+   "got": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "want": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9947906231216188,
+   "unsafe": false,
+   "ms": 39.8502079769969
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the light",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 37.08716598339379
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9694666666666666,
+   "unsafe": false,
+   "ms": 39.742000051774085
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "set the temperature to 22 degrees",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9922,
+   "unsafe": false,
+   "ms": 38.33879204466939
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "make it 23 degrees in here",
+   "sat": "living_room",
+   "got": "living_room:set_temperature=23",
+   "want": "living_room:set_temperature=23",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 52.19883308745921
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the lights",
+   "sat": "bedroom",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 24.373042047955096
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "close the blinds",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950000000000001,
+   "unsafe": false,
+   "ms": 38.56187500059605
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "dim the light to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_floor:set_brightness",
+   "want": "living_room_floor:set_brightness=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8996087967857898,
+   "unsafe": false,
+   "ms": 51.497209002263844
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the coffee",
+   "sat": "kitchen",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950000000000001,
+   "unsafe": false,
+   "ms": 35.391791025176644
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "switch off the light in the bedroom",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9936,
+   "unsafe": false,
+   "ms": 24.43062502425164
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 49.481541966088116
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "what's the temperature in here",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.8916,
+   "unsafe": false,
+   "ms": 23.1851659482345
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "is the light on",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.2966,
+   "unsafe": false,
+   "ms": 38.609915995039046
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the tv",
+   "sat": "kitchen",
+   "got": "tv:turn_off",
+   "want": "tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9956,
+   "unsafe": false,
+   "ms": 24.538416997529566
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the music",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "tv:turn_on",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5157333333333334,
+   "unsafe": false,
+   "ms": 38.54537499137223
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht an",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9884,
+   "unsafe": false,
+   "ms": 38.34237495902926
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "fahr die Rollos auf 30 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.7710666666666667,
+   "unsafe": false,
+   "ms": 41.904666111804545
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "stell die Heizung auf 22 Grad",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9867999999999999,
+   "unsafe": false,
+   "ms": 38.44274999573827
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "Licht aus",
+   "sat": "bedroom",
+   "got": "desk_lamp:query",
+   "want": "desk_lamp:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.39959999999999996,
+   "unsafe": false,
+   "ms": 26.560749975033104
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "schließ die Rollläden",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6551999999999999,
+   "unsafe": false,
+   "ms": 39.9651249172166
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach die Kaffeemaschine an",
+   "sat": "hallway",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9970000000000001,
+   "unsafe": false,
+   "ms": 26.07274998445064
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht im Schlafzimmer aus",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9433962264150944,
+   "unsafe": false,
+   "ms": 24.4578750571236
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "wie warm ist es hier",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9756,
+   "unsafe": false,
+   "ms": 25.38204099982977
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach es heller, 70 Prozent",
+   "sat": "living_room",
+   "got": "living_room_blinds:set_position",
+   "want": "living_room_floor:set_brightness=70",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.2216174183514774,
+   "unsafe": false,
+   "ms": 49.62187504861504
+  }
+ ],
+ "mix+fit": [
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 23 degrees and turn on the light in the kitchen",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.998,
+   "unsafe": false,
+   "ms": 66.7778750648722
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9982,
+   "unsafe": false,
+   "ms": 25.597875006496906
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the hallway light",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9994000000000001,
+   "unsafe": false,
+   "ms": 24.852999951690435
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light and turn off the hallway light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.35148514851485146,
+   "unsafe": false,
+   "ms": 41.87308403197676
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 51.42341600731015
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the kitchen light to 40 percent",
+   "sat": null,
+   "got": "kitchen_ceiling:set_brightness=40",
+   "want": "kitchen_ceiling:set_brightness=40",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9938,
+   "unsafe": false,
+   "ms": 38.92741701565683
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the bathroom heating to 21 degrees",
+   "sat": null,
+   "got": "bathroom:set_temperature=21",
+   "want": "bathroom:set_temperature=21",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9987999999999999,
+   "unsafe": false,
+   "ms": 36.47166700102389
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "close the living room blinds",
+   "sat": null,
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965999999999999,
+   "unsafe": false,
+   "ms": 24.106165976263583
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": null,
+   "got": null,
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": true,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 0.024292035959661007
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "lock the front door",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 22.68349996302277
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "unlock the front door",
+   "sat": null,
+   "got": "front_door:unlock",
+   "want": "front_door:unlock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965999999999999,
+   "unsafe": false,
+   "ms": 21.766750025562942
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "start the coffee maker and turn off the tv",
+   "sat": null,
+   "got": "coffee_maker:turn_on, tv:turn_off",
+   "want": "coffee_maker:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6544280815009078,
+   "unsafe": false,
+   "ms": 39.785708067938685
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the kitchen light on",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.986,
+   "unsafe": false,
+   "ms": 25.50466696266085
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "what's the temperature in the bathroom",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9536,
+   "unsafe": false,
+   "ms": 24.962915922515094
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "dim the desk lamp to 20 and close the garage door",
+   "sat": null,
+   "got": "desk_lamp:turn_off, garage_door:close",
+   "want": "desk_lamp:set_brightness=20, garage_door:close",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8725606469002694,
+   "unsafe": false,
+   "ms": 38.410541019402444
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "switch off the tv, the floor lamp and the hallway light",
+   "sat": null,
+   "got": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "want": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9823999999999999,
+   "unsafe": false,
+   "ms": 58.273417060263455
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 22 degrees and the bathroom heating to 24",
+   "sat": null,
+   "got": "living_room:set_temperature=22, bathroom:set_temperature=22",
+   "want": "living_room:set_temperature=22, bathroom:set_temperature=24",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9987999999999999,
+   "unsafe": false,
+   "ms": 66.09124992974102
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the coffee maker",
+   "sat": null,
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9958,
+   "unsafe": false,
+   "ms": 22.164709051139653
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the front door locked",
+   "sat": null,
+   "got": "front_door:query",
+   "want": "front_door:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9912000000000001,
+   "unsafe": false,
+   "ms": 21.74841600935906
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn the floor lamp off and open the garage door",
+   "sat": null,
+   "got": "living_room_floor:turn_off, garage_door:open",
+   "want": "living_room_floor:turn_off, garage_door:open",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9990000000000001,
+   "unsafe": false,
+   "ms": 36.80500003974885
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schalte das Küchenlicht ein",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9904,
+   "unsafe": false,
+   "ms": 24.247666937299073
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Licht im Flur aus",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9710144927536231,
+   "unsafe": false,
+   "ms": 31.51862497907132
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9017149734229264,
+   "unsafe": false,
+   "ms": 49.750707927159965
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Küchenlicht an und den Fernseher aus",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, tv:turn_on",
+   "want": "kitchen_ceiling:turn_on, tv:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9135752957689993,
+   "unsafe": false,
+   "ms": 39.56000006292015
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "fahr den Rollladen Wohnzimmer auf 30 Prozent",
+   "sat": null,
+   "got": "living_room_blinds:set_position=30",
+   "want": "living_room_blinds:set_position=30",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9865894544346234,
+   "unsafe": false,
+   "ms": 35.10920808184892
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schließ das Garagentor",
+   "sat": null,
+   "got": "garage_door:close",
+   "want": "garage_door:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9914000000000001,
+   "unsafe": false,
+   "ms": 23.016875027678907
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "sperr die Haustür ab",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9902,
+   "unsafe": false,
+   "ms": 22.081624949350953
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "ist das Küchenlicht an",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9388000000000001,
+   "unsafe": false,
+   "ms": 24.2994170403108
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "dimme die Schreibtischlampe auf 20 Prozent",
+   "sat": null,
+   "got": "desk_lamp:set_brightness=20",
+   "want": "desk_lamp:set_brightness=20",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.40350511162111413,
+   "unsafe": false,
+   "ms": 38.80304202903062
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
+   "sat": null,
+   "got": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "want": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.940516723412778,
+   "unsafe": false,
+   "ms": 54.59341697860509
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "wie warm ist es im Bad",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 25.272666942328215
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach die Stehlampe und das Küchenlicht aus",
+   "sat": null,
+   "got": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "want": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9947906231216188,
+   "unsafe": false,
+   "ms": 38.0256250500679
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the light",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 37.58016601204872
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9836,
+   "unsafe": false,
+   "ms": 37.30070905294269
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "set the temperature to 22 degrees",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9922,
+   "unsafe": false,
+   "ms": 37.500916980206966
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "make it 23 degrees in here",
+   "sat": "living_room",
+   "got": "living_room:set_temperature=23",
+   "want": "living_room:set_temperature=23",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 37.284792051650584
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the lights",
+   "sat": "bedroom",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 23.943332955241203
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "close the blinds",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950000000000001,
+   "unsafe": false,
+   "ms": 38.86104200500995
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "dim the light to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_floor:set_brightness",
+   "want": "living_room_floor:set_brightness=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8996087967857898,
+   "unsafe": false,
+   "ms": 48.15366701222956
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the coffee",
+   "sat": "kitchen",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950000000000001,
+   "unsafe": false,
+   "ms": 34.90104200318456
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "switch off the light in the bedroom",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9936,
+   "unsafe": false,
+   "ms": 24.604542064480484
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 49.80666609480977
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "what's the temperature in here",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.8916,
+   "unsafe": false,
+   "ms": 23.851166013628244
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "is the light on",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.2966,
+   "unsafe": false,
+   "ms": 36.904542008414865
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the tv",
+   "sat": "kitchen",
+   "got": "tv:turn_off",
+   "want": "tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9956,
+   "unsafe": false,
+   "ms": 24.188666022382677
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the music",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "tv:turn_on",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5157333333333334,
+   "unsafe": false,
+   "ms": 38.59304101206362
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht an",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9884,
+   "unsafe": false,
+   "ms": 37.713667028583586
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "fahr die Rollos auf 30 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.32820000000000005,
+   "unsafe": false,
+   "ms": 39.86916702706367
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "stell die Heizung auf 22 Grad",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9867999999999999,
+   "unsafe": false,
+   "ms": 37.83775004558265
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "Licht aus",
+   "sat": "bedroom",
+   "got": "desk_lamp:query",
+   "want": "desk_lamp:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.39959999999999996,
+   "unsafe": false,
+   "ms": 25.27041605208069
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "schließ die Rollläden",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6551999999999999,
+   "unsafe": false,
+   "ms": 39.08387501724064
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach die Kaffeemaschine an",
+   "sat": "hallway",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9970000000000001,
+   "unsafe": false,
+   "ms": 23.747291998006403
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht im Schlafzimmer aus",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9433962264150944,
+   "unsafe": false,
+   "ms": 23.54270895011723
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "wie warm ist es hier",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9756,
+   "unsafe": false,
+   "ms": 25.275625055655837
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach es heller, 70 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_floor:set_brightness=70",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.18480000000000008,
+   "unsafe": false,
+   "ms": 40.04500003065914
+  }
+ ],
+ "mix+qopt": [
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 23 degrees and turn on the light in the kitchen",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.998,
+   "unsafe": false,
+   "ms": 53.353041992522776
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 13.86108307633549
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the hallway light",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 13.455791980959475
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light and turn off the hallway light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.42346666666666666,
+   "unsafe": false,
+   "ms": 28.47383392509073
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 38.92891702707857
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the kitchen light to 40 percent",
+   "sat": null,
+   "got": "kitchen_ceiling:set_brightness=40",
+   "want": "kitchen_ceiling:set_brightness=40",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9973333333333333,
+   "unsafe": false,
+   "ms": 28.002957929857075
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the bathroom heating to 21 degrees",
+   "sat": null,
+   "got": "bathroom:set_temperature=21",
+   "want": "bathroom:set_temperature=21",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 25.554458028636873
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "close the living room blinds",
+   "sat": null,
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 12.146707973442972
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": null,
+   "got": null,
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": true,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 0.036415993236005306
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "lock the front door",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 12.585208984091878
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "unlock the front door",
+   "sat": null,
+   "got": "front_door:unlock",
+   "want": "front_door:unlock",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 11.669000028632581
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "start the coffee maker and turn off the tv",
+   "sat": null,
+   "got": "coffee_maker:turn_on, tv:turn_off",
+   "want": "coffee_maker:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.7301500000000001,
+   "unsafe": false,
+   "ms": 28.695833985693753
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the kitchen light on",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 14.174332958646119
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "what's the temperature in the bathroom",
+   "sat": null,
+   "got": "bathroom:set_temperature",
+   "want": "bathroom:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.7641333333333334,
+   "unsafe": false,
+   "ms": 26.468583033420146
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "dim the desk lamp to 20 and close the garage door",
+   "sat": null,
+   "got": "desk_lamp:turn_off, garage_door:close",
+   "want": "desk_lamp:set_brightness=20, garage_door:close",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8066506169124286,
+   "unsafe": false,
+   "ms": 28.99737493135035
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "switch off the tv, the floor lamp and the hallway light",
+   "sat": null,
+   "got": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "want": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9998,
+   "unsafe": false,
+   "ms": 41.70762503053993
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 22 degrees and the bathroom heating to 24",
+   "sat": null,
+   "got": "living_room:set_temperature=22, bathroom:set_temperature=22",
+   "want": "living_room:set_temperature=22, bathroom:set_temperature=24",
+   "ok": false,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 54.37595897819847
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the coffee maker",
+   "sat": null,
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 12.867791927419603
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the front door locked",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9941499999999999,
+   "unsafe": true,
+   "ms": 12.461457983590662
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn the floor lamp off and open the garage door",
+   "sat": null,
+   "got": "living_room_floor:turn_off, garage_door:open",
+   "want": "living_room_floor:turn_off, garage_door:open",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9994666666666667,
+   "unsafe": false,
+   "ms": 26.913749985396862
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schalte das Küchenlicht ein",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9998499699939989,
+   "unsafe": false,
+   "ms": 14.314291067421436
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Licht im Flur aus",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.971153846153846,
+   "unsafe": false,
+   "ms": 14.11279197782278
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9181346095102332,
+   "unsafe": false,
+   "ms": 42.11691708769649
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Küchenlicht an und den Fernseher aus",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, tv:turn_on",
+   "want": "kitchen_ceiling:turn_on, tv:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9314500000000001,
+   "unsafe": false,
+   "ms": 26.827832916751504
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "fahr den Rollladen Wohnzimmer auf 30 Prozent",
+   "sat": null,
+   "got": "living_room_blinds:set_position=30",
+   "want": "living_room_blinds:set_position=30",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9762935373464867,
+   "unsafe": false,
+   "ms": 23.986667045392096
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schließ das Garagentor",
+   "sat": null,
+   "got": "garage_door:close",
+   "want": "garage_door:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 13.007417088374496
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "sperr die Haustür ab",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9809976247030878,
+   "unsafe": false,
+   "ms": 12.2862079879269
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "ist das Küchenlicht an",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9885207934749773,
+   "unsafe": false,
+   "ms": 14.432916999794543
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "dimme die Schreibtischlampe auf 20 Prozent",
+   "sat": null,
+   "got": "desk_lamp:set_brightness=20",
+   "want": "desk_lamp:set_brightness=20",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.5520800750703785,
+   "unsafe": false,
+   "ms": 28.242166968993843
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
+   "sat": null,
+   "got": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "want": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9552418143586663,
+   "unsafe": false,
+   "ms": 40.577667066827416
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "wie warm ist es im Bad",
+   "sat": null,
+   "got": "bathroom:set_temperature",
+   "want": "bathroom:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5981333333333333,
+   "unsafe": false,
+   "ms": 26.117792003788054
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach die Stehlampe und das Küchenlicht aus",
+   "sat": null,
+   "got": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "want": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.994894894894895,
+   "unsafe": false,
+   "ms": 26.82095894124359
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the light",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 25.004375027492642
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9694666666666666,
+   "unsafe": false,
+   "ms": 27.89462497457862
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "set the temperature to 22 degrees",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 26.196499937213957
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "make it 23 degrees in here",
+   "sat": "living_room",
+   "got": "living_room:set_temperature=23",
+   "want": "living_room:set_temperature=23",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978666666666666,
+   "unsafe": false,
+   "ms": 39.61608302779496
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the lights",
+   "sat": "bedroom",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 13.302666018716991
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "close the blinds",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9996,
+   "unsafe": false,
+   "ms": 26.522167026996613
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "dim the light to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_floor:set_brightness",
+   "want": "living_room_floor:set_brightness=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8434510117678435,
+   "unsafe": false,
+   "ms": 37.344375043176115
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the coffee",
+   "sat": "kitchen",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 22.63454208150506
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "switch off the light in the bedroom",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 12.725917040370405
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 37.31058293487877
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "what's the temperature in here",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature",
+   "want": "bathroom:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.4304763809714305,
+   "unsafe": false,
+   "ms": 24.679875001311302
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "is the light on",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:query",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9998,
+   "unsafe": false,
+   "ms": 25.878916960209608
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the tv",
+   "sat": "kitchen",
+   "got": "tv:turn_off",
+   "want": "tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 12.087667011655867
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the music",
+   "sat": "living_room",
+   "got": "living_room_blinds:query",
+   "want": "tv:turn_on",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5157333333333334,
+   "unsafe": false,
+   "ms": 27.578291948884726
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht an",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9906231094978826,
+   "unsafe": false,
+   "ms": 25.674832984805107
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "fahr die Rollos auf 30 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.7710666666666667,
+   "unsafe": false,
+   "ms": 27.13166701141745
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "stell die Heizung auf 22 Grad",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9993999399939995,
+   "unsafe": false,
+   "ms": 24.77433392778039
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "Licht aus",
+   "sat": "bedroom",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.5653409090909092,
+   "unsafe": false,
+   "ms": 13.176749926060438
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "schließ die Rollläden",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6551999999999999,
+   "unsafe": false,
+   "ms": 25.664207991212606
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach die Kaffeemaschine an",
+   "sat": "hallway",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9927463227886357,
+   "unsafe": false,
+   "ms": 20.081624970771372
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht im Schlafzimmer aus",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.94392523364486,
+   "unsafe": false,
+   "ms": 13.223875081166625
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "wie warm ist es hier",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.5390666666666667,
+   "unsafe": false,
+   "ms": 12.839959003031254
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach es heller, 70 Prozent",
+   "sat": "living_room",
+   "got": "living_room_blinds:query",
+   "want": "living_room_floor:set_brightness=70",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.7428,
+   "unsafe": false,
+   "ms": 25.884208036586642
+  }
+ ],
+ "mix+flip": [
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 23 degrees and turn on the light in the kitchen",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9283000000000001,
+   "unsafe": false,
+   "ms": 116.97387497406453
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9983,
+   "unsafe": false,
+   "ms": 47.91337507776916
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the hallway light",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9988999999999999,
+   "unsafe": false,
+   "ms": 47.376667032949626
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light and turn off the hallway light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.613505675283764,
+   "unsafe": false,
+   "ms": 80.67212498281151
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.5981000000000001,
+   "unsafe": false,
+   "ms": 101.74933297093958
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the kitchen light to 40 percent",
+   "sat": null,
+   "got": "kitchen_ceiling:set_brightness=40",
+   "want": "kitchen_ceiling:set_brightness=40",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9941,
+   "unsafe": false,
+   "ms": 65.00233395490795
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the bathroom heating to 21 degrees",
+   "sat": null,
+   "got": "bathroom:set_temperature=21",
+   "want": "bathroom:set_temperature=21",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9979,
+   "unsafe": false,
+   "ms": 60.92316610738635
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "close the living room blinds",
+   "sat": null,
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9952000000000001,
+   "unsafe": false,
+   "ms": 54.30379102472216
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": null,
+   "got": null,
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": true,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 0.03483402542769909
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "lock the front door",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9967999999999999,
+   "unsafe": false,
+   "ms": 44.95141701772809
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "unlock the front door",
+   "sat": null,
+   "got": "front_door:unlock",
+   "want": "front_door:unlock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.996,
+   "unsafe": false,
+   "ms": 44.769124942831695
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "start the coffee maker and turn off the tv",
+   "sat": null,
+   "got": "coffee_maker:turn_on, tv:turn_off",
+   "want": "coffee_maker:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.13160706109782772,
+   "unsafe": false,
+   "ms": 78.61349999438971
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the kitchen light on",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9872999999999998,
+   "unsafe": false,
+   "ms": 48.659375053830445
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "what's the temperature in the bathroom",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9699,
+   "unsafe": false,
+   "ms": 49.113792018033564
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "dim the desk lamp to 20 and close the garage door",
+   "sat": null,
+   "got": "desk_lamp:turn_off, garage_door:close",
+   "want": "desk_lamp:set_brightness=20, garage_door:close",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9345809089479478,
+   "unsafe": false,
+   "ms": 79.69887496437877
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "switch off the tv, the floor lamp and the hallway light",
+   "sat": null,
+   "got": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "want": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9775,
+   "unsafe": false,
+   "ms": 107.87245794199407
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 22 degrees and the bathroom heating to 24",
+   "sat": null,
+   "got": "living_room:set_temperature=22, bathroom:set_temperature=22",
+   "want": "living_room:set_temperature=22, bathroom:set_temperature=24",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9975999999999998,
+   "unsafe": false,
+   "ms": 107.47766704298556
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the coffee maker",
+   "sat": null,
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965000000000002,
+   "unsafe": false,
+   "ms": 45.797083992511034
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the front door locked",
+   "sat": null,
+   "got": "front_door:query",
+   "want": "front_door:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9921000000000002,
+   "unsafe": false,
+   "ms": 44.78629201184958
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn the floor lamp off and open the garage door",
+   "sat": null,
+   "got": "living_room_floor:turn_off, garage_door:open",
+   "want": "living_room_floor:turn_off, garage_door:open",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9988999999999999,
+   "unsafe": false,
+   "ms": 75.10404207278043
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schalte das Küchenlicht ein",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9935999999999998,
+   "unsafe": false,
+   "ms": 51.175083965063095
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Licht im Flur aus",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9500624219725342,
+   "unsafe": false,
+   "ms": 50.86454108823091
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6599324903017785,
+   "unsafe": false,
+   "ms": 91.43008396495134
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Küchenlicht an und den Fernseher aus",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, tv:turn_on",
+   "want": "kitchen_ceiling:turn_on, tv:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8097910507591322,
+   "unsafe": false,
+   "ms": 78.66300002206117
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "fahr den Rollladen Wohnzimmer auf 30 Prozent",
+   "sat": null,
+   "got": "living_room_blinds:set_position=30",
+   "want": "living_room_blinds:set_position=30",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9874999999999998,
+   "unsafe": false,
+   "ms": 58.797832927666605
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schließ das Garagentor",
+   "sat": null,
+   "got": "garage_door:close",
+   "want": "garage_door:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9937,
+   "unsafe": false,
+   "ms": 46.87004198785871
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "sperr die Haustür ab",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9925999999999999,
+   "unsafe": false,
+   "ms": 45.32037500757724
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "ist das Küchenlicht an",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.8988,
+   "unsafe": false,
+   "ms": 49.71983307041228
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "dimme die Schreibtischlampe auf 20 Prozent",
+   "sat": null,
+   "got": "desk_lamp:set_brightness=20",
+   "want": "desk_lamp:set_brightness=20",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6892279336473481,
+   "unsafe": false,
+   "ms": 62.591791967861354
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
+   "sat": null,
+   "got": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "want": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.18739601714141685,
+   "unsafe": false,
+   "ms": 91.61333402153105
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "wie warm ist es im Bad",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9983,
+   "unsafe": false,
+   "ms": 47.69074998330325
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach die Stehlampe und das Küchenlicht aus",
+   "sat": null,
+   "got": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "want": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.995972781558117,
+   "unsafe": false,
+   "ms": 77.0517090568319
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the light",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9843,
+   "unsafe": false,
+   "ms": 71.64595904760063
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9245333333333333,
+   "unsafe": false,
+   "ms": 75.96470799762756
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "set the temperature to 22 degrees",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9910000000000001,
+   "unsafe": false,
+   "ms": 62.38933396525681
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "make it 23 degrees in here",
+   "sat": "living_room",
+   "got": "living_room:set_temperature=23",
+   "want": "living_room:set_temperature=23",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9943,
+   "unsafe": false,
+   "ms": 89.6565830335021
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the lights",
+   "sat": "bedroom",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 48.506875056773424
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "close the blinds",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9158,
+   "unsafe": false,
+   "ms": 75.59687504544854
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "dim the light to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_floor:set_brightness",
+   "want": "living_room_floor:set_brightness=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5543239035911749,
+   "unsafe": false,
+   "ms": 88.1622500019148
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the coffee",
+   "sat": "kitchen",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965000000000002,
+   "unsafe": false,
+   "ms": 70.04004099871963
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "switch off the light in the bedroom",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9937,
+   "unsafe": false,
+   "ms": 48.38829091750085
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.5981000000000001,
+   "unsafe": false,
+   "ms": 99.52012507710606
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "what's the temperature in here",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.8980999999999999,
+   "unsafe": false,
+   "ms": 48.08237496763468
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "is the light on",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.4575,
+   "unsafe": false,
+   "ms": 72.33016600366682
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the tv",
+   "sat": "kitchen",
+   "got": "tv:turn_off",
+   "want": "tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950999999999999,
+   "unsafe": false,
+   "ms": 45.91520794201642
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the music",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "tv:turn_on",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.6773333333333333,
+   "unsafe": false,
+   "ms": 74.37841594219208
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht an",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9512687282449679,
+   "unsafe": false,
+   "ms": 73.59479204751551
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "fahr die Rollos auf 30 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5198,
+   "unsafe": false,
+   "ms": 79.87200003117323
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "stell die Heizung auf 22 Grad",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9872000000000001,
+   "unsafe": false,
+   "ms": 61.83483393397182
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "Licht aus",
+   "sat": "bedroom",
+   "got": "desk_lamp:query",
+   "want": "desk_lamp:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.17179999999999995,
+   "unsafe": false,
+   "ms": 48.73087501619011
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "schließ die Rollläden",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.49166666666666653,
+   "unsafe": false,
+   "ms": 80.64704202115536
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach die Kaffeemaschine an",
+   "sat": "hallway",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9959,
+   "unsafe": false,
+   "ms": 46.963625005446374
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht im Schlafzimmer aus",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.8200836820083683,
+   "unsafe": false,
+   "ms": 49.21629198361188
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "wie warm ist es hier",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9748000000000001,
+   "unsafe": false,
+   "ms": 49.694166984409094
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach es heller, 70 Prozent",
+   "sat": "living_room",
+   "got": "living_room_blinds:set_position",
+   "want": "living_room_floor:set_brightness=70",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.3222,
+   "unsafe": false,
+   "ms": 86.30904101300985
+  }
+ ],
+ "mix+near+fit": [
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 23 degrees and turn on the light in the kitchen",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.998,
+   "unsafe": false,
+   "ms": 66.60370796453208
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9982,
+   "unsafe": false,
+   "ms": 25.679999962449074
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the hallway light",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9994000000000001,
+   "unsafe": false,
+   "ms": 25.04708303604275
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the kitchen light and turn off the hallway light",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_on, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9994000000000001,
+   "unsafe": false,
+   "ms": 40.55933398194611
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 52.09616606589407
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the kitchen light to 40 percent",
+   "sat": null,
+   "got": "kitchen_ceiling:set_brightness=40",
+   "want": "kitchen_ceiling:set_brightness=40",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9938,
+   "unsafe": false,
+   "ms": 38.26779196970165
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the bathroom heating to 21 degrees",
+   "sat": null,
+   "got": "bathroom:set_temperature=21",
+   "want": "bathroom:set_temperature=21",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9987999999999999,
+   "unsafe": false,
+   "ms": 35.78558296430856
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "close the living room blinds",
+   "sat": null,
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965999999999999,
+   "unsafe": false,
+   "ms": 24.20112502295524
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": null,
+   "got": null,
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": true,
+   "conf": 1.0,
+   "unsafe": false,
+   "ms": 0.025250017642974854
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "lock the front door",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 22.919500013813376
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "unlock the front door",
+   "sat": null,
+   "got": "front_door:unlock",
+   "want": "front_door:unlock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9965999999999999,
+   "unsafe": false,
+   "ms": 22.113208076916635
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "start the coffee maker and turn off the tv",
+   "sat": null,
+   "got": "coffee_maker:turn_on, tv:turn_off",
+   "want": "coffee_maker:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9798,
+   "unsafe": false,
+   "ms": 38.95099996589124
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the kitchen light on",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.986,
+   "unsafe": false,
+   "ms": 28.434625011868775
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "what's the temperature in the bathroom",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9536,
+   "unsafe": false,
+   "ms": 24.805207969620824
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "dim the desk lamp to 20 and close the garage door",
+   "sat": null,
+   "got": "desk_lamp:turn_off, garage_door:close",
+   "want": "desk_lamp:set_brightness=20, garage_door:close",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8725606469002694,
+   "unsafe": false,
+   "ms": 40.802165982313454
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "switch off the tv, the floor lamp and the hallway light",
+   "sat": null,
+   "got": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "want": "tv:turn_off, living_room_floor:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9823999999999999,
+   "unsafe": false,
+   "ms": 54.254750022664666
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "set the thermostat to 22 degrees and the bathroom heating to 24",
+   "sat": null,
+   "got": "living_room:set_temperature=22, bathroom:set_temperature=22",
+   "want": "living_room:set_temperature=22, bathroom:set_temperature=24",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9987999999999999,
+   "unsafe": false,
+   "ms": 66.88770896289498
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn on the coffee maker",
+   "sat": null,
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9958,
+   "unsafe": false,
+   "ms": 22.454915917478502
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "is the front door locked",
+   "sat": null,
+   "got": "front_door:query",
+   "want": "front_door:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9912000000000001,
+   "unsafe": false,
+   "ms": 23.14329205546528
+  },
+  {
+   "set": "named",
+   "lang": "en",
+   "text": "turn the floor lamp off and open the garage door",
+   "sat": null,
+   "got": "living_room_floor:turn_off, garage_door:open",
+   "want": "living_room_floor:turn_off, garage_door:open",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9990000000000001,
+   "unsafe": false,
+   "ms": 38.214500062167645
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schalte das Küchenlicht ein",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9904,
+   "unsafe": false,
+   "ms": 25.392415933310986
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Licht im Flur aus",
+   "sat": null,
+   "got": "hallway:turn_off",
+   "want": "hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9710144927536231,
+   "unsafe": false,
+   "ms": 24.954834021627903
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
+   "sat": null,
+   "got": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "want": "living_room:set_temperature=23, kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9017149734229264,
+   "unsafe": false,
+   "ms": 52.91620804928243
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach das Küchenlicht an und den Fernseher aus",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_on, tv:turn_off",
+   "want": "kitchen_ceiling:turn_on, tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9922,
+   "unsafe": false,
+   "ms": 39.67695799656212
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "fahr den Rollladen Wohnzimmer auf 30 Prozent",
+   "sat": null,
+   "got": "living_room_blinds:set_position=30",
+   "want": "living_room_blinds:set_position=30",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9865894544346234,
+   "unsafe": false,
+   "ms": 35.61500005889684
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "schließ das Garagentor",
+   "sat": null,
+   "got": "garage_door:close",
+   "want": "garage_door:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9914000000000001,
+   "unsafe": false,
+   "ms": 23.815124994143844
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "sperr die Haustür ab",
+   "sat": null,
+   "got": "front_door:lock",
+   "want": "front_door:lock",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9902,
+   "unsafe": false,
+   "ms": 22.993375081568956
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "ist das Küchenlicht an",
+   "sat": null,
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9388000000000001,
+   "unsafe": false,
+   "ms": 25.097499950788915
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "dimme die Schreibtischlampe auf 20 Prozent",
+   "sat": null,
+   "got": "desk_lamp:set_brightness=20",
+   "want": "desk_lamp:set_brightness=20",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.40350511162111413,
+   "unsafe": false,
+   "ms": 38.37579197715968
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
+   "sat": null,
+   "got": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "want": "bathroom:set_temperature=22, coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.940516723412778,
+   "unsafe": false,
+   "ms": 51.78429093211889
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "wie warm ist es im Bad",
+   "sat": null,
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 24.58316704723984
+  },
+  {
+   "set": "named",
+   "lang": "de",
+   "text": "mach die Stehlampe und das Küchenlicht aus",
+   "sat": null,
+   "got": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "want": "living_room_floor:turn_off, kitchen_ceiling:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9947906231216188,
+   "unsafe": false,
+   "ms": 37.6212919363752
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the light",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 36.57066693995148
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "open the blinds to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.9836,
+   "unsafe": false,
+   "ms": 37.298375042155385
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "set the temperature to 22 degrees",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9922,
+   "unsafe": false,
+   "ms": 37.57491707801819
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "make it 23 degrees in here",
+   "sat": "living_room",
+   "got": "living_room:set_temperature=23",
+   "want": "living_room:set_temperature=23",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9945999999999999,
+   "unsafe": false,
+   "ms": 36.398124997504056
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the lights",
+   "sat": "bedroom",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9978,
+   "unsafe": false,
+   "ms": 23.490166990086436
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "close the blinds",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950000000000001,
+   "unsafe": false,
+   "ms": 37.70170803181827
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "dim the light to 30 percent",
+   "sat": "living_room",
+   "got": "living_room_floor:set_brightness",
+   "want": "living_room_floor:set_brightness=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.8996087967857898,
+   "unsafe": false,
+   "ms": 47.210457967594266
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the coffee",
+   "sat": "kitchen",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9950000000000001,
+   "unsafe": false,
+   "ms": 41.041749995201826
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "switch off the light in the bedroom",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9936,
+   "unsafe": false,
+   "ms": 24.166459101252258
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the kitchen and hallway lights",
+   "sat": null,
+   "got": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "want": "kitchen_ceiling:turn_off, hallway:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9523999999999999,
+   "unsafe": false,
+   "ms": 49.18958304915577
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "what's the temperature in here",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.8916,
+   "unsafe": false,
+   "ms": 24.22170899808407
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "is the light on",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:query",
+   "want": "kitchen_ceiling:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.2966,
+   "unsafe": false,
+   "ms": 36.41816705930978
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn off the tv",
+   "sat": "kitchen",
+   "got": "tv:turn_off",
+   "want": "tv:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9956,
+   "unsafe": false,
+   "ms": 23.29058398026973
+  },
+  {
+   "set": "room",
+   "lang": "en",
+   "text": "turn on the music",
+   "sat": "living_room",
+   "got": "living_room_blinds:open",
+   "want": "tv:turn_on",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.5157333333333334,
+   "unsafe": false,
+   "ms": 39.13725004531443
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht an",
+   "sat": "kitchen",
+   "got": "kitchen_ceiling:turn_on",
+   "want": "kitchen_ceiling:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9884,
+   "unsafe": false,
+   "ms": 41.42112494446337
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "fahr die Rollos auf 30 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_blinds:set_position=30",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.32820000000000005,
+   "unsafe": false,
+   "ms": 40.403083083219826
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "stell die Heizung auf 22 Grad",
+   "sat": "bathroom",
+   "got": "bathroom:set_temperature=22",
+   "want": "bathroom:set_temperature=22",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9867999999999999,
+   "unsafe": false,
+   "ms": 37.79129090253264
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "Licht aus",
+   "sat": "bedroom",
+   "got": "desk_lamp:query",
+   "want": "desk_lamp:turn_off",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.39959999999999996,
+   "unsafe": false,
+   "ms": 26.477125007659197
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "schließ die Rollläden",
+   "sat": "living_room",
+   "got": "living_room_blinds:close",
+   "want": "living_room_blinds:close",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.6551999999999999,
+   "unsafe": false,
+   "ms": 39.78875000029802
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach die Kaffeemaschine an",
+   "sat": "hallway",
+   "got": "coffee_maker:turn_on",
+   "want": "coffee_maker:turn_on",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9970000000000001,
+   "unsafe": false,
+   "ms": 24.338999995961785
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach das Licht im Schlafzimmer aus",
+   "sat": "kitchen",
+   "got": "desk_lamp:turn_off",
+   "want": "desk_lamp:turn_off",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9433962264150944,
+   "unsafe": false,
+   "ms": 24.383582989685237
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "wie warm ist es hier",
+   "sat": "bathroom",
+   "got": "bathroom:query",
+   "want": "bathroom:query",
+   "ok": true,
+   "handoff": false,
+   "conf": 0.9756,
+   "unsafe": false,
+   "ms": 24.303624988533556
+  },
+  {
+   "set": "room",
+   "lang": "de",
+   "text": "mach es heller, 70 Prozent",
+   "sat": "living_room",
+   "got": "living_room_floor:turn_on",
+   "want": "living_room_floor:set_brightness=70",
+   "ok": false,
+   "handoff": false,
+   "conf": 0.18480000000000008,
+   "unsafe": false,
+   "ms": 39.16587505955249
   }
  ]
 }
