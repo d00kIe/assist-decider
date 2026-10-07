@@ -13,17 +13,24 @@ Run: uv run python tests/eval/probe_device_tree.py [multilingual] [english] [int
      [--tree]
 """
 
+import json
 import re
 import sys
 import time
 import unicodedata
 
 from assist_decider_server.lang import LANGS, fold_with_map, tokenize
-from assist_decider_server.pipeline import _confidence, build_index, entity_option, find_mentions
+from assist_decider_server.pipeline import (
+    _confidence,
+    build_index,
+    decide,
+    entity_option,
+    find_mentions,
+)
 from assist_decider_server.providers import make_provider
 
 sys.path.insert(0, "tests")
-from conftest import HOME  # noqa: E402
+from conftest import HOME, make_request  # noqa: E402
 
 T = {
     "en": {
@@ -34,8 +41,10 @@ T = {
         "vague": "How should the {d} change?",
         "levels": ["much lower", "a bit lower", "unchanged", "a bit higher", "much higher"],
         "kind": "Is the user giving a command or asking a question?",
-        "kinds": {"command": "a command to do something",
-                  "question": "a question about how something is"},
+        "kinds": {
+            "command": "a command to do something",
+            "question": "a question about how something is",
+        },
         "which": "Which device does the user mean?",
         "split": "Where does the first command end and the next one begin?",
         "same": "nowhere: it is one command, the second part only names more devices",
@@ -118,50 +127,86 @@ TH, BH, BL, GD, FD, CM, TV = (
 )
 # text -> {device: (action, value)}   ("?" left out: STT often drops it)
 CASES = [
-    ("en", "set the thermostat to 23 degrees and turn on the light in the kitchen",
-     {TH: ("set_temperature", 23), KL: ("turn_on", None)}),
+    (
+        "en",
+        "set the thermostat to 23 degrees and turn on the light in the kitchen",
+        {TH: ("set_temperature", 23), KL: ("turn_on", None)},
+    ),
     ("en", "turn on the kitchen light", {KL: ("turn_on", None)}),
     ("en", "turn off the hallway light", {HL: ("turn_off", None)}),
-    ("en", "turn on the kitchen light and turn off the hallway light",
-     {KL: ("turn_on", None), HL: ("turn_off", None)}),
-    ("en", "turn off the kitchen and hallway lights",
-     {KL: ("turn_off", None), HL: ("turn_off", None)}),
+    (
+        "en",
+        "turn on the kitchen light and turn off the hallway light",
+        {KL: ("turn_on", None), HL: ("turn_off", None)},
+    ),
+    (
+        "en",
+        "turn off the kitchen and hallway lights",
+        {KL: ("turn_off", None), HL: ("turn_off", None)},
+    ),
     ("en", "set the kitchen light to 40 percent", {KL: ("set_brightness", 40)}),
     ("en", "set the bathroom heating to 21 degrees", {BH: ("set_temperature", 21)}),
     ("en", "close the living room blinds", {BL: ("close", None)}),
     ("en", "open the blinds to 30 percent", {BL: ("set_position", 30)}),
     ("en", "lock the front door", {FD: ("lock", None)}),
     ("en", "unlock the front door", {FD: ("unlock", None)}),
-    ("en", "start the coffee maker and turn off the tv",
-     {CM: ("turn_on", None), TV: ("turn_off", None)}),
+    (
+        "en",
+        "start the coffee maker and turn off the tv",
+        {CM: ("turn_on", None), TV: ("turn_off", None)},
+    ),
     ("en", "is the kitchen light on", {KL: ("query", None)}),
     ("en", "what's the temperature in the bathroom", {BH: ("query", None)}),
-    ("en", "dim the desk lamp to 20 and close the garage door",
-     {DL: ("set_brightness", 20), GD: ("close", None)}),
-    ("en", "switch off the tv, the floor lamp and the hallway light",
-     {TV: ("turn_off", None), FL: ("turn_off", None), HL: ("turn_off", None)}),
-    ("en", "set the thermostat to 22 degrees and the bathroom heating to 24",
-     {TH: ("set_temperature", 22), BH: ("set_temperature", 24)}),
+    (
+        "en",
+        "dim the desk lamp to 20 and close the garage door",
+        {DL: ("set_brightness", 20), GD: ("close", None)},
+    ),
+    (
+        "en",
+        "switch off the tv, the floor lamp and the hallway light",
+        {TV: ("turn_off", None), FL: ("turn_off", None), HL: ("turn_off", None)},
+    ),
+    (
+        "en",
+        "set the thermostat to 22 degrees and the bathroom heating to 24",
+        {TH: ("set_temperature", 22), BH: ("set_temperature", 24)},
+    ),
     ("en", "turn on the coffee maker", {CM: ("turn_on", None)}),
     ("en", "is the front door locked", {FD: ("query", None)}),
-    ("en", "turn the floor lamp off and open the garage door",
-     {FL: ("turn_off", None), GD: ("open", None)}),
+    (
+        "en",
+        "turn the floor lamp off and open the garage door",
+        {FL: ("turn_off", None), GD: ("open", None)},
+    ),
     ("de", "schalte das Küchenlicht ein", {KL: ("turn_on", None)}),
     ("de", "mach das Licht im Flur aus", {HL: ("turn_off", None)}),
-    ("de", "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
-     {TH: ("set_temperature", 23), KL: ("turn_on", None)}),
-    ("de", "mach das Küchenlicht an und den Fernseher aus",
-     {KL: ("turn_on", None), TV: ("turn_off", None)}),
+    (
+        "de",
+        "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an",
+        {TH: ("set_temperature", 23), KL: ("turn_on", None)},
+    ),
+    (
+        "de",
+        "mach das Küchenlicht an und den Fernseher aus",
+        {KL: ("turn_on", None), TV: ("turn_off", None)},
+    ),
     ("de", "fahr den Rollladen Wohnzimmer auf 30 Prozent", {BL: ("set_position", 30)}),
     ("de", "schließ das Garagentor", {GD: ("close", None)}),
     ("de", "sperr die Haustür ab", {FD: ("lock", None)}),
     ("de", "ist das Küchenlicht an", {KL: ("query", None)}),
     ("de", "dimme die Schreibtischlampe auf 20 Prozent", {DL: ("set_brightness", 20)}),
-    ("de", "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
-     {BH: ("set_temperature", 22), CM: ("turn_on", None)}),
+    (
+        "de",
+        "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein",
+        {BH: ("set_temperature", 22), CM: ("turn_on", None)},
+    ),
     ("de", "wie warm ist es im Bad", {BH: ("query", None)}),
-    ("de", "mach die Stehlampe und das Küchenlicht aus",
-     {FL: ("turn_off", None), KL: ("turn_off", None)}),
+    (
+        "de",
+        "mach die Stehlampe und das Küchenlicht aus",
+        {FL: ("turn_off", None), KL: ("turn_off", None)},
+    ),
 ]
 # lang, text, satellite room, gold: nothing or only a room named
 ROOM_CASES = [
@@ -174,8 +219,12 @@ ROOM_CASES = [
     ("en", "dim the light to 30 percent", "living_room", {FL: ("set_brightness", 30)}),
     ("en", "turn on the coffee", "kitchen", {CM: ("turn_on", None)}),
     ("en", "switch off the light in the bedroom", "kitchen", {DL: ("turn_off", None)}),
-    ("en", "turn off the kitchen and hallway lights", None,
-     {KL: ("turn_off", None), HL: ("turn_off", None)}),
+    (
+        "en",
+        "turn off the kitchen and hallway lights",
+        None,
+        {KL: ("turn_off", None), HL: ("turn_off", None)},
+    ),
     ("en", "what's the temperature in here", "bathroom", {BH: ("query", None)}),
     ("en", "is the light on", "kitchen", {KL: ("query", None)}),
     ("en", "turn off the tv", "kitchen", {TV: ("turn_off", None)}),
@@ -226,8 +275,11 @@ def involved(p, text, lang) -> dict[str, float]:
 def action(p, text, eid, lang, in_state: bool) -> str:
     d = dname(eid, lang)
     acts = ACTIONS[eid.split(".")[0]]
-    q = {"type": "choice", "instructions": T[lang]["action"].format(d=d),
-         "criteria": {k: T[lang]["acts"][k] for k in acts}}
+    q = {
+        "type": "choice",
+        "instructions": T[lang]["action"].format(d=d),
+        "criteria": {k: T[lang]["acts"][k] for k in acts},
+    }
     state = {"utterance": text, "device": d} if in_state else {"utterance": text}
     return ask(p, state, {"a": q}, lang)["a"]["choice"]
 
@@ -235,8 +287,11 @@ def action(p, text, eid, lang, in_state: bool) -> str:
 def value(p, text, eid, lang):
     nums = NUM.findall(text)
     crit = {n: n for n in nums} | {"none": T[lang]["none"]}
-    q = {"type": "choice", "instructions": T[lang]["value"].format(d=dname(eid, lang)),
-         "criteria": crit}
+    q = {
+        "type": "choice",
+        "instructions": T[lang]["value"].format(d=dname(eid, lang)),
+        "criteria": crit,
+    }
     c = ask(p, {"utterance": text}, {"v": q}, lang)["v"]["choice"]
     return None if c == "none" else float(c.replace(",", "."))
 
@@ -244,11 +299,7 @@ def value(p, text, eid, lang):
 INDEX = build_index(HOME)
 
 
-THRESHOLD = 0.4  # the server's default confidence_threshold
-
-
-class Unsure(Exception):
-    pass
+CONFS: list[float] = []  # confidence of every choice in the current sentence
 
 
 def choose(p, text, lang, instructions, crit, allowed=None) -> str:
@@ -258,22 +309,28 @@ def choose(p, text, lang, instructions, crit, allowed=None) -> str:
         total = sum(probs[k] for k in allowed) or 1.0
         probs = {k: probs[k] / total for k in allowed}
     best = max(probs, key=probs.__getitem__)
-    if GATE and _confidence(probs, best) < THRESHOLD:
-        raise Unsure(instructions)
+    CONFS.append(_confidence(probs, best))
     return best
 
 
-def mix(p, text, lang, sat=None, ctx=()) -> dict | None:
-    """None: hand the request to Home Assistant (nothing named and no satellite room,
-    or Laya unsure). ctx switches on extra context for Laya:
+class Unsure(Exception):
+    pass
+
+
+def mix(p, text, lang, sat=None, ctx=()) -> tuple[dict | None, float]:
+    """-> (answer, lowest confidence of its choices). None: hand the request to Home Assistant
+    (nothing named and no satellite room). The confidence check is applied afterwards, so one
+    run gives the results for every threshold. ctx switches on extra context:
       desc  - devices are described by what they do ("TV: plays music, video and sound")
       num   - spoken numbers go into the action options ("set the temperature to 24")
-      split - Laya picks where one command ends; each device only sees its own part
+      split - the model picks where one command ends; each device only sees its own part
     """
+    CONFS.clear()
     try:
-        return _mix(p, text, lang, sat, ctx)
+        out = _mix(p, text, lang, sat, ctx)
     except Unsure:
-        return None
+        out = None
+    return out, min(CONFS, default=1.0)
 
 
 KIND_DESC = {
@@ -310,7 +367,7 @@ def clauses(p, text, lang, mentions, spans, n_tokens) -> list[tuple[int, int]]:
         opts = {}
         for k in range(a.end, b.start + 1):
             left = text[spans[bounds[-1]][0] : spans[k - 1][1]]
-            opts[str(k)] = f'"{left}" | "{text[spans[k][0]:]}"'
+            opts[str(k)] = f'"{left}" | "{text[spans[k][0] :]}"'
         opts["same"] = T[lang]["same"]
         cut = choose(p, text, lang, T[lang]["split"], opts)
         if cut != "same":
@@ -355,7 +412,8 @@ def _mix(p, text, lang, sat, ctx) -> dict | None:
             work.append((inside[0], seg))
             continue
         crit = {
-            e: f"{dname(e, lang)}: {kind_desc(e, lang)}" if "desc" in ctx
+            e: f"{dname(e, lang)}: {kind_desc(e, lang)}"
+            if "desc" in ctx
             else entity_option(INDEX.entities[e], INDEX, LANGS[lang])
             for e in inside
         }
@@ -367,9 +425,13 @@ def _mix(p, text, lang, sat, ctx) -> dict | None:
         words = set(tokens[seg[0] : seg[1]])
         on, off = bool(words & LANGS[lang].on_words), bool(words & LANGS[lang].off_words)
         domain = eid.split(".")[0]
-        acts = [a for a in ACTIONS[domain] if (a == "query") == question
-                and not (a in ON_ACTS and off and not on)
-                and not (a in OFF_ACTS and on and not off)]
+        acts = [
+            a
+            for a in ACTIONS[domain]
+            if (a == "query") == question
+            and not (a in ON_ACTS and off and not on)
+            and not (a in OFF_ACTS and on and not off)
+        ]
         d = dname(eid, lang) + (f" ({kind_desc(eid, lang)})" if "desc" in ctx else "")
         if "num" in ctx:
             crit = {}
@@ -391,122 +453,171 @@ def _mix(p, text, lang, sat, ctx) -> dict | None:
     return out
 
 
-def action_from(p, text, eid, lang, allowed) -> str:
-    d = dname(eid, lang)
-    crit = {k: T[lang]["acts"][k] for k in ACTIONS[eid.split(".")[0]]}
-    return choose(p, text, lang, T[lang]["action"].format(d=d), crit, allowed)
-
-
 def fmt(d: dict) -> str:
-    return ", ".join(f"{k.split('.')[1]}:{a}{'' if v is None else f'={v:g}'}"
-                     for k, (a, v) in d.items())
+    return ", ".join(
+        f"{k.split('.')[1]}:{a}{'' if v is None else f'={v:g}'}" for k, (a, v) in d.items()
+    )
 
 
-GATE = False
-TREE = "--tree" in sys.argv  # the Laya-only tree (slow, already measured)
-for model in [a for a in sys.argv[1:] if not a.startswith("-")] or ["multilingual"]:
+TODAY_ACTION = {  # today's pipeline intents -> (action per domain, value slot)
+    "HassTurnOn": ({"cover": "open", "lock": "lock"}, "turn_on", None),
+    "HassTurnOff": ({"cover": "close", "lock": "unlock"}, "turn_off", None),
+    "HassLightSet": ({}, "set_brightness", "brightness"),
+    "HassClimateSetTemperature": ({}, "set_temperature", "temperature"),
+    "HassSetPosition": ({}, "set_position", "position"),
+    "HassGetState": ({}, "query", None),
+    "HassClimateGetTemperature": ({}, "query", None),
+}
+
+
+def today(p, text, lang, sat) -> tuple[dict | None, float]:
+    """Today's pipeline (word lists + one model) on the sentence, in the same shape as mix()."""
+    extra = {"satellite_area_id": sat} if sat else {}
+    # the confidence check is applied afterwards, like for mix()
+    req = make_request(text, lang, options={"confidence_threshold": 0.0}, **extra)
+    resp, trace = decide(req, p)
+    confs = [q["confidence"] for seg in trace["segments"] for q in seg.get("questions", [])]
+    if resp.status == "escalate":
+        return None, min(confs, default=1.0)
+    out = {}
+    for a in resp.actions:
+        s = a.slots
+        if "name" in s:
+            ids = [s["name"]]
+        else:
+            ids = [
+                e
+                for e, r in ENT.items()
+                if r.area_id == s.get("area")
+                and (not s.get("domain") or e.split(".")[0] in s["domain"])
+            ]
+            if a.intent.startswith("HassClimate"):
+                ids = [e for e in ids if e.startswith("climate.")]
+        by_domain, default, slot = TODAY_ACTION[a.intent]
+        for e in ids:
+            out[e] = (by_domain.get(e.split(".")[0], default), s.get(slot) if slot else None)
+    return out, min(confs, default=1.0)
+
+
+ALL_CASES = [("named", lg, t, None, g) for lg, t, g in CASES] + [
+    ("room", lg, t, sat, g) for lg, t, sat, g in ROOM_CASES
+]
+THRESHOLDS = (0.0, 0.2, 0.3, 0.4, 0.5)
+
+
+def run(model: str, tree: bool) -> dict:
     p = make_provider(model)
     p.load()
-    n = dev_thr = dev_rank = e2e_a = e2e_b = unsafe = 0
-    act_ok = {"A": 0, "B": 0}
-    acts_n = val_ok = vals_n = 0
-    ms = []
-    for lang, text, gold in CASES if TREE else []:
-        if lang not in p.languages:
-            continue
-        n += 1
-        t0 = time.perf_counter()
-        probs = involved(p, text, lang)
-        picked = {e for e, pr in probs.items() if pr >= 0.5}
-        top = set(sorted(probs, key=probs.__getitem__, reverse=True)[: len(gold)])
-        dev_thr += picked == set(gold)
-        dev_rank += top == set(gold)
+    res: dict = {"model": model, "device": p.device, "languages": list(p.languages)}
+    if tree:
+        rows = []
+        for lang, text, gold in CASES:
+            if lang not in p.languages:
+                continue
+            t0 = time.perf_counter()
+            probs = involved(p, text, lang)
+            acts = {e: action(p, text, e, lang, False) for e in gold}
+            vals = {e: value(p, text, e, lang) for e, (_, v) in gold.items() if v is not None}
+            picked = {e for e, pr in probs.items() if pr >= 0.5}
+            e2e = {}
+            for e in sorted(picked):
+                a = action(p, text, e, lang, False)
+                e2e[e] = (a, value(p, text, e, lang) if a in VALUED else None)
+            rows.append(
+                {
+                    "text": text,
+                    "yesno": probs,
+                    "gold": sorted(gold),
+                    "action_ok": [acts[e] == g for e, (g, _) in gold.items()],
+                    "value_ok": [vals[e] == v for e, (_, v) in gold.items() if v is not None],
+                    "e2e_ok": e2e == gold,
+                    "e2e_unsafe": any(
+                        e in e2e and e2e[e][0] != "query" and e2e[e] != gold.get(e)
+                        for e in SENSITIVE
+                    ),
+                    "ms": (time.perf_counter() - t0) * 1000,
+                }
+            )
+        vague = []
+        for lang, text, eid, g in VAGUE:
+            if lang in p.languages:
+                q = {
+                    "type": "score",
+                    "instructions": T[lang]["vague"].format(d=dname(eid, lang)),
+                    "criteria": T[lang]["levels"],
+                }
+                vague.append(round(ask(p, {"utterance": text}, {"s": q}, lang)["s"]["score"]) == g)
+        res["tree"] = {"rows": rows, "vague_ok": vague}
 
-        # Steps 2 and 3 on the gold devices: each step measured on its own.
-        for eid, (g_act, g_val) in gold.items():
-            acts_n += 1
-            for var in ("A", "B"):
-                got = action(p, text, eid, lang, var == "B")
-                act_ok[var] += got == g_act
-                if got != g_act:
-                    print(f"     step 2 {var}: {eid} got {got}, want {g_act}")
-            if g_val is not None:
-                vals_n += 1
-                val_ok += value(p, text, eid, lang) == g_val
-
-        # Start to end: devices from step 1, then actions and values.
-        out = {"A": {}, "B": {}}
-        for var in out:
-            for eid in sorted(picked):
-                a = action(p, text, eid, lang, var == "B")
-                out[var][eid] = (a, value(p, text, eid, lang) if a in VALUED else None)
-        ms.append((time.perf_counter() - t0) * 1000)
-        e2e_a += out["A"] == gold
-        e2e_b += out["B"] == gold
-        best = out["B"] if out["B"] == gold else out["A"]
-        bad = [e for e in SENSITIVE if e in best and best[e][0] != "query"
-               and best[e] != gold.get(e)]
-        unsafe += bool(bad)
-        mark = "  " if best == gold else "✗ "
-        print(f"{mark}{text}")
-        if best != gold:
-            print(f"     want {fmt(gold)}")
-            print(f"     got  A {fmt(out['A'])} | B {fmt(out['B'])}")
-            print("     yes/no " + ", ".join(
-                f"{e.split('.')[1]}={pr:.2f}" for e, pr in
-                sorted(probs.items(), key=lambda kv: -kv[1])[:4]))
-        if bad:
-            print(f"     !! unsafe: {bad}")
-
-    vague_ok = vague_n = 0
-    for lang, text, eid, g in VAGUE if TREE else []:
-        if lang not in p.languages:
-            continue
-        vague_n += 1
-        q = {"type": "score", "instructions": T[lang]["vague"].format(d=dname(eid, lang)),
-             "criteria": T[lang]["levels"]}
-        s = ask(p, {"utterance": text}, {"s": q}, lang)["s"]["score"]
-        vague_ok += round(s) == g
-        print(f"{'  ' if round(s) == g else '✗ '}{text}: score {s:.2f} (want {g})")
-
-    GATE = "--no-check" not in sys.argv
-    mix_res = {}
+    approaches = {"today": lambda lang, text, sat: today(p, text, lang, sat)}
     for ctx in ((), ("desc",), ("num",), ("split",), ("desc", "num", "split")):
-        label = "+".join(ctx) or "base"
-        for name, cases in (("named", [(lg, t, None, g) for lg, t, g in CASES]),
-                            ("room", ROOM_CASES)):
-            ok = handoff = unsafe_n = total = 0
-            for lang, text, sat, gold in cases:
-                if lang not in p.languages:
-                    continue
-                total += 1
-                got = mix(p, text, lang, sat, ctx)
-                if got is None:
-                    handoff += 1
-                    print(f"↑ mix/{label}: {text} [{sat}]: handed to Home Assistant")
-                    continue
-                ok += got == gold
-                bad = [e for e in SENSITIVE
-                       if e in got and got[e][0] != "query" and got[e] != gold.get(e)]
-                unsafe_n += bool(bad)
-                if got != gold:
-                    print(f"✗ mix/{label}: {text} [{sat}]\n     want {fmt(gold)}\n"
-                          f"     got  {fmt(got)}")
-            mix_res[label, name] = (ok, total, handoff, total - ok - handoff, unsafe_n)
-
-    print(f"\n== {model}")
-    if TREE:
-        ms.sort()
-        print(
-            f"  step 1 devices, yes/no >= 0.5     {dev_thr}/{n}\n"
-            f"  step 1 devices, top-k (k known)   {dev_rank}/{n}\n"
-            f"  step 2 action per device  A {act_ok['A']}/{acts_n}  B {act_ok['B']}/{acts_n}\n"
-            f"  step 3 value per device           {val_ok}/{vals_n}\n"
-            f"  vague change (score)              {vague_ok}/{vague_n}\n"
-            f"  start to end              A {e2e_a}/{n}  B {e2e_b}/{n}\n"
-            f"  wrong action on lock/garage       {unsafe}\n"
-            f"  time per sentence p50={ms[len(ms) // 2]:.0f}ms max={ms[-1]:.0f}ms"
+        approaches["mix" + "".join(f"+{c}" for c in ctx)] = lambda lang, text, sat, ctx=ctx: mix(
+            p, text, lang, sat, ctx
         )
-    for (label, name), (ok, total, handoff, wrong, unsafe_n) in mix_res.items():
-        print(f"  MIX {label:16s} {name:5s}  right {ok:2d}/{total}  handed off {handoff}"
-              f"  wrong {wrong}  (lock/garage {unsafe_n})")
+    for name, fn in approaches.items():
+        rows = []
+        for kind, lang, text, sat, gold in ALL_CASES:
+            if lang not in p.languages:
+                continue
+            t0 = time.perf_counter()
+            got, conf = fn(lang, text, sat)
+            ms = (time.perf_counter() - t0) * 1000
+            unsafe = got is not None and any(
+                e in got and got[e][0] != "query" and got[e] != gold.get(e) for e in SENSITIVE
+            )
+            rows.append(
+                {
+                    "set": kind,
+                    "lang": lang,
+                    "text": text,
+                    "sat": sat,
+                    "got": None if got is None else fmt(got),
+                    "want": fmt(gold),
+                    "ok": got == gold,
+                    "handoff": got is None,
+                    "conf": conf,
+                    "unsafe": unsafe,
+                    "ms": ms,
+                }
+            )
+            if got != gold:
+                print(
+                    f"{'↑' if got is None else '✗'} {name}: {text} [{sat}] "
+                    f"want {fmt(gold)} | got {'-' if got is None else fmt(got)} ({conf:.2f})"
+                )
+        res[name] = rows
+    return res
+
+
+def tally(rows, threshold) -> dict:
+    """right / handed off / wrong / wrong on lock or garage, with the confidence check at
+    threshold."""
+    t = {"n": len(rows), "right": 0, "handoff": 0, "wrong": 0, "unsafe": 0}
+    for r in rows:
+        if r["handoff"] or r["conf"] < threshold:
+            t["handoff"] += 1
+        elif r["ok"]:
+            t["right"] += 1
+        else:
+            t["wrong"] += 1
+            t["unsafe"] += r["unsafe"]
+    return t
+
+
+if __name__ == "__main__":
+    out_dir = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--out=")), None)
+    for model in [a for a in sys.argv[1:] if not a.startswith("-")] or ["multilingual"]:
+        res = run(model, "--tree" in sys.argv)
+        print(f"\n== {model} on {res['device']}")
+        for name, rows in res.items():
+            if isinstance(rows, list) and rows and "conf" in rows[0]:
+                for th in (0.0, 0.4):
+                    t = tally(rows, th)
+                    print(
+                        f"  {name:20s} check {th:.1f}: right {t['right']}/{t['n']}  "
+                        f"handed off {t['handoff']}  wrong {t['wrong']} "
+                        f"(lock/garage {t['unsafe']})"
+                    )
+        if out_dir:
+            with open(f"{out_dir}/{model}.json", "w") as f:
+                json.dump(res, f, ensure_ascii=False, indent=1)

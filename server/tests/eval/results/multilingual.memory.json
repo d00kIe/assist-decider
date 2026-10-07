@@ -1,0 +1,10 @@
+{
+ "model": "multilingual",
+ "device": "mps",
+ "params_m": 322,
+ "weights_gib": 1.2,
+ "peak_rss_gib": 2.51,
+ "load_s": 2.8,
+ "question_ms_p50": 13,
+ "mps_driver_gib": 1.25
+}

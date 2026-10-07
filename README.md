@@ -366,6 +366,7 @@ uv sync --python 3.14 && uv run pytest tests
   and messages in the integration's `const.py`, `strings.json` and translations.
 
 Project status and next steps: [PLAN.md](PLAN.md).
+Which decision model to use, with accuracy, memory and speed: [BENCHMARK.md](BENCHMARK.md).
 
 ## Credits and license
 

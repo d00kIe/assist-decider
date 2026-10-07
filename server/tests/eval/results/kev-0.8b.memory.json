@@ -1,0 +1,10 @@
+{
+ "model": "kev-0.8b",
+ "device": "mps",
+ "params_m": 752,
+ "weights_gib": 1.4,
+ "peak_rss_gib": 5.29,
+ "load_s": 2.7,
+ "question_ms_p50": 60,
+ "mps_driver_gib": 2.26
+}
