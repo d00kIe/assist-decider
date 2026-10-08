@@ -5,8 +5,8 @@ add measurements and decisions so the next session can pick up without re-resear
 
 ## Goal
 
-A Home Assistant voice-command agent powered by Laya (and later other "choice" models),
-running on a separate machine. It needs to be:
+A Home Assistant voice-command agent powered by small "choice" models (Laya,
+Intern-Decision, Kev, H2O-Lightning), running on a separate machine. It needs to be:
 
 - fast and resident in memory
 - English and German
@@ -20,16 +20,20 @@ running on a separate machine. It needs to be:
 ## Architecture (decided)
 
 - **Server** (`server/`, Python ≥3.11, FastAPI):
-  - Holds one Laya checkpoint (`english` | `multilingual`), resident and warmed up.
-  - The pipeline turns text into ordered intent calls with IDs: fold → mentions → "if"
-    guard → split → lexical guards → Laya intent question → targets (exact names →
-    previous turn → single device → satellite area → Laya target question) → confidence
-    gate → slots.
+  - Holds one decision model (see BENCHMARK.md), resident and warmed up.
+  - The pipeline is BENCHMARK.md's "best approach" (2026-10-07): devices from exact names
+    (room named → its devices; nothing named → previous command's devices, else satellite
+    room) → model: command or question → model: which device in a room (only devices that
+    fit the spoken number; never locks/garage doors) → model per device: action, from what
+    its kind supports, on/off words masking the opposite (nearest word wins when both are
+    said) → model: which number → any answer below the threshold hands the whole sentence
+    off. One action per device, always `name` slots.
   - Conditions: removed (2026-10-06, protocol v3). An "if/wenn …" utterance escalates as
     a whole (`conditional`) so it never runs unguarded. HA sends no states at all.
-  - Follow-ups: the last command per `context_id` (hashed satellite device or conversation
-    id), for `memory_seconds` (default 60). A clause without a verb reuses the previous
-    intent; a command that names no device reuses the previous targets.
+  - Follow-ups: the last command's devices per `context_id` (hashed satellite device or
+    conversation id), for `memory_seconds` (default 60). A sentence that names nothing and
+    says no kind of device ("turn it off") reuses them. Verb-less follow-ups ("and the
+    kitchen too") are no longer supported.
   - Live log: in-memory ring buffer, server-sent events (SSE) over an authenticated
     `fetch`, and a static UI.
 - **Integration** (`custom_components/assist_decider/`, no pip requirements):
@@ -106,7 +110,8 @@ fallback/error wording).
 ### M2: Language and coverage (next)
 
 - [ ] **Yes/no state answers**: send a `state` slot ("an"/"on" → `on`) and use the `one_yesno` template. Currently German says "Bed light ist on".
-- [ ] Mixed polarity in one clause without a second verb ("Licht an und Heizung aus"): split on particles and swap the intent per segment
+- [x] Mixed polarity in one clause without a second verb ("Licht an und Heizung aus"): each device follows the nearest on/off word ("near", 2026-10-07)
+- [ ] Room commands act on one device only (the model picks it). Decide how "all the lights in the living room" should work (area slot with domain, or several picks)
 - [ ] More intents: HassFanSetSpeed, HassSetVolume, media pause/unpause/next/previous, HassStartTimer/HassCancelTimer/HassTimerStatus (durations are already parsed), HassGetCurrentTime/Date, HassNevermind, HassStopMoving
 - [ ] Brightness phrases (max/min/half), cover "halb"/"half" → 50
 - [ ] HassGetState with area + domain + state ("are any lights on in the kitchen?") → `any`/`all` templates
@@ -183,3 +188,16 @@ uv run hass -c .ha-config   # http://127.0.0.1:8124, integration symlinked in .h
 - Server: "if" clause → one sensor → test in code; follow-up memory per context. Integration: sends hashed context and states, speaks skipped commands, three new options (EN/DE).
 - Tests: server 99 fast (10 new) + live conditions and follow-ups, all green on both checkpoints; integration 36.
 - **Not done:** real HA end-to-end check of conditions and follow-ups; not yet checked on a real satellite that consecutive wake-word turns share the device id the memory is keyed on.
+
+### Session 3 (2026-10-07)
+
+- Benchmarked six models and four approaches (BENCHMARK.md). Built the best approach into the
+  server: `pipeline.py` rewritten; `intents.py` is now "what each kind of device can do";
+  `lang.py` holds the four questions; providers only answer choice questions.
+- Removed: sentence splitting, word-rule intent guards, similar-name guessing, the "single
+  device of a kind" shortcut, verb-less follow-ups, the probe scripts and their results
+  (in git at `9849dde`). Protocol and integration unchanged.
+- `tests/eval/benchmark.py` runs the 55 sentences through `decide()`: matches the probe at
+  check 0.0. Tests: server 94 fast + 4 live (Laya english, multilingual, Intern-Decision 0.8B).
+- **Open:** the default model is still `multilingual` and the HA thresholds 0.4/0.5; the
+  benchmark recommends `intern-decision-0.8b` at 0.2.

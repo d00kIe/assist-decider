@@ -1,7 +1,7 @@
 [project]
 name = "assist-decider"
 version = "0.1.0"
-description = "Remote decision server for Home Assistant Assist, powered by the Laya decision model"
+description = "Remote decision server for Home Assistant Assist, powered by small decision models"
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
@@ -30,7 +30,7 @@ packages = ["assist_decider_server"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-markers = ["slow: loads the real Laya model (deselect with -m 'not slow')"]
+markers = ["slow: loads real model weights (deselect with -m 'not slow')"]
 addopts = "-m 'not slow'"
 
 [tool.ruff]

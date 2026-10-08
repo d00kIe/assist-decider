@@ -1,12 +1,12 @@
-# How Assist Decider talks to Home Assistant and Laya
+# How Assist Decider works
 
 This explains, in plain words:
 
 1. [What Home Assistant can do by voice](#1-what-home-assistant-can-do-by-voice): the kinds of things it controls, the actions it knows, and the values each action accepts.
-2. [How much Laya can read at once](#2-how-much-laya-can-read-at-once), and what takes up that space.
-3. [What happens when you speak](#3-what-happens-when-you-speak): who decides what, what goes into each Laya call, what comes out, and what happens to it.
+2. [What the model is asked](#2-what-the-model-is-asked): the four questions, and how much the model can read at once.
+3. [What happens when you speak](#3-what-happens-when-you-speak): who decides what, step by step, and what goes back to Home Assistant.
 
-Everything here was checked against the code in this repo, Home Assistant 2026.9.4 and `laya==0.3.26`.
+Everything here was checked against the code in this repo and Home Assistant 2026.9.4. Why the server works this way, with measurements, is in [BENCHMARK.md](BENCHMARK.md).
 
 ---
 
@@ -21,8 +21,9 @@ Everything here was checked against the code in this repo, Home Assistant 2026.9
 | **Exposed** | You ticked "allow voice assistants to see this" in Home Assistant. Nothing else is ever sent or controlled. |
 | **Action** (Home Assistant calls it *intent*) | A named thing Home Assistant knows how to do, such as `HassTurnOn`. |
 | **Parameter** (Home Assistant calls it *slot*) | A value an action needs: which device, which room, what brightness. |
-| **Laya** | A small AI model. You give it a question plus a fixed list of answers, and it says how likely each answer is. It cannot write text, read numbers well or invent answers. |
-| **Token** | A word piece. Laya counts text in tokens. One English word is about 1–1.5 tokens, a long German word can be 3–5. |
+| **Decision model** | A small AI model, such as Intern-Decision or Laya. You give it a question plus a fixed list of answers, and it says how likely each answer is. It cannot write text or invent answers. |
+| **Confidence** | How sure the model is about an answer: 0 is a pure guess, 1 is certain. |
+| **Token** | A word piece. Models count text in tokens. One English word is about 1–1.5 tokens, a long German word can be 3–5. |
 
 ---
 
@@ -55,7 +56,7 @@ Home Assistant has many kinds of entities. These are the ones voice actions work
 | `todo` | To-do and shopping lists | – | ❌ |
 | `alarm_control_panel` | Alarm systems | – | ❌, and never guessed |
 
-Locks, alarm panels and covers of sub-kind `garage`, `gate` or `door` are **safety-sensitive**. Assist Decider only acts on them when you say their exact name or alias. They are never guessed and never included in a "whole room" command.
+Locks, alarm panels and covers of sub-kind `garage`, `gate` or `door` are **safety-sensitive**. Assist Decider only acts on them when you say their exact name or alias. When you name only a room, they are never picked.
 
 ### 1.2 What is sent about each thing
 
@@ -91,10 +92,12 @@ At least one of `name`, `area` or `floor` is required, unless stated otherwise b
 | `HassTurnOn` | Turn on, open, activate. **Locks a lock.** Runs a scene or script. | – | – | |
 | `HassTurnOff` | Turn off, close, deactivate. **Unlocks a lock.** | – | – | |
 | `HassLightSet` | Change a light | `brightness` | whole number 0–100 (percent) | `color` (a colour name) and `temperature` (kelvin, positive whole number) also exist. Not used yet. |
-| `HassClimateSetTemperature` | Set the target temperature | `temperature` | any decimal number in Home Assistant. **We only send 0–100, rounded to the nearest 0.5.** | `name`/`area`/`floor` are optional. Without them Home Assistant picks the thermostat. |
+| `HassClimateSetTemperature` | Set the target temperature | `temperature` | any decimal number in Home Assistant. **We only send 5–35 °C, rounded to the nearest 0.5.** | |
 | `HassSetPosition` | Move a cover or valve | `position` | whole number 0–100 (percent open) | |
 | `HassGetState` | Ask about a device | `state` (optional) | list of text, e.g. `["on"]` | Home Assistant also accepts area + kind ("are any lights on in the kitchen?"). We only send one named device for now. |
-| `HassClimateGetTemperature` | Ask how warm it is | – | – | Device and room are optional. |
+| `HassClimateGetTemperature` | Ask how warm it is | – | – | Used for every question about a thermostat. |
+
+Every action we send names exactly **one device** (`name`), never a whole room.
 
 #### Actions Home Assistant has that we do not produce yet
 
@@ -125,7 +128,7 @@ At least one of `name`, `area` or `floor` is required, unless stated otherwise b
 | `HassNevermind` | "Never mind" | – |
 | `HassRespond` | Just say something | `response`: text |
 
-Anything marked **free text** needs words copied out of your sentence. Laya can only pick from a list, so these need a different tool (see PLAN.md, "Later").
+Anything marked **free text** needs words copied out of your sentence. The models can only pick from a list, so these need a different tool (see PLAN.md, "Later").
 
 ### 1.4 What Home Assistant lets the server ask for
 
@@ -144,65 +147,39 @@ The server always sends **IDs** (`light.kitchen`, `kitchen`), never free names, 
 
 ---
 
-## 2. How much Laya can read at once
+## 2. What the model is asked
 
-### 2.1 The short answer
+### 2.1 The four questions
 
-- Every Laya call reads **one sequence of tokens**. It has a fixed maximum length:
+The model only ever answers multiple-choice questions about your sentence. There are four, and each is short:
 
-  | Checkpoint | Whole sequence | Of which, at most for the question and its answers | Each answer, at most |
-  |---|---|---|---|
-  | `english` | **512 tokens** | 192 tokens | 48 tokens |
-  | `multilingual` | **1024 tokens** | 256 tokens | 48 tokens |
-
-  (Both underlying models could read 8192 tokens, but Laya was trained with these limits and sets them in its config.)
-
-- **Yes, the question fills the same space as the state.** The question and its list of answers go in first. The state gets whatever is left. If the state is too long, its end is cut off silently.
-- **Each question is read on its own.** Two questions do not add up. Laya also keeps no memory between calls. Remembering the previous sentence ("turn *it* off") is done by our server code, not by Laya.
-
-### 2.2 What one sequence looks like
-
-```
-[start] choice question: Which smart home action does the user ask for? [sep]
-  [answer] turn_on: turn on, switch on, open or activate a device
-  [answer] turn_off: turn off, switch off, close or deactivate a device
-  [answer] set_brightness: change the brightness of a light, dim
-  … one line per answer …
-  [answer] none: something else, not a smart home command [sep]
-{"utterance": "turn off the kitchen light"} [sep]
-```
-
-Laya scores each `[answer]` marker. The part after the last `[sep]` is the **state**: what the question is about.
-
-```mermaid
-flowchart LR
-    subgraph seq["One Laya sequence: 512 or 1024 tokens"]
-        direction LR
-        Q["Question<br/>+ list of answers<br/>(at most 192 or 256)"] --> S["State<br/>(whatever is left)"] --> F["free space"]
-    end
-```
-
-### 2.3 What we actually put in
-
-We keep the state tiny on purpose. **The list of your devices is never put into the state.** At most 9 candidate devices or rooms appear, and only as answers in the "which device?" question.
-
-| Question | State we send | Answers |
+| Question | When it is asked | Answers offered |
 |---|---|---|
-| Which action? | `{"utterance": "<one command>"}` | the 7 actions + "none" |
-| Which device or room? | `{"utterance": "<one command>", "room": "<satellite's room>"}` | up to 9 candidates + "none" |
+| "Is the user giving a command or asking a question?" | Once per sentence | a command · a question |
+| "Which device does the user mean?" | Only when you named a room (or nothing), and that room has more than one device that fits | the room's devices, e.g. "Kitchen Light (light) in Kitchen"; at most 10 |
+| "What does the user want with the Kitchen Light?" | Once per device | only what that kind of device can do, e.g. for a light: turn on · turn off · set the brightness · only asks how it is |
+| "Which value should the Kitchen Light be set to?" | Only when the action needs a number | the numbers you said · "no value given" |
 
-Measured with the real tokenizers (9 device candidates with typical names):
+German sentences get the same questions in German. The model sees your sentence each time (the *state*), never your list of devices or their states.
 
-| Checkpoint | Language | Question | Question + answers | State | Total used | Limit |
-|---|---|---|---|---|---|---|
-| english | EN | which action | 128 | 18 | 147 | 512 |
-| english | EN | which device | 147 | 18 | 166 | 512 |
-| multilingual | EN | which action | 125 | 18 | 144 | 1024 |
-| multilingual | EN | which device | 147 | 18 | 166 | 1024 |
-| multilingual | DE | which action | 130 | 22 | 153 | 1024 |
-| multilingual | DE | which device | 147 | 22 | 170 | 1024 |
+### 2.2 What one question looks like
 
-So we use roughly **15–30 %** of the space. The tightest limit is the 192-token cap for the question and answers on the `english` checkpoint. With 9 candidates that have very long names (≈ 15+ words each), Laya would shorten every answer to an equal share and they could start to look alike. That is one reason we stop at 10 answers.
+```
+question: What does the user want with the Kitchen Light?
+answers:  turn_on:        turn on, switch on, start
+          turn_off:       turn off, switch off, stop
+          set_brightness: set the brightness to a value
+          query:          only asks how it is, changes nothing
+state:    {"utterance": "turn off the kitchen light"}
+```
+
+The model answers with a likelihood for every answer, for example `turn_off` 0.91, `turn_on` 0.03, and so on.
+
+### 2.3 How much the model can read at once
+
+Laya reads at most **512 tokens** (`english`) or **1024 tokens** (`multilingual`) per question. The question and its answers may use at most 192 or 256 of them, and each answer at most 48. The other models are built on Qwen3.5 and read much longer texts, so for them these limits don't matter.
+
+The biggest question is "which device?" with 10 devices. With typical names that is about 150–170 tokens, inside even the tightest limit. That is one reason a room may offer at most 10 devices. Each question is read on its own: questions don't add up, and the model keeps no memory between them. Remembering the previous command ("turn *it* off") is done by the server code.
 
 ---
 
@@ -218,28 +195,26 @@ sequenceDiagram
     participant HA as Home Assistant
     participant Int as Assist Decider<br/>(inside Home Assistant)
     participant Srv as Decision server<br/>(your Mac / PC)
-    participant Laya
+    participant M as Decision model
 
-    You->>Sat: "Turn off the kitchen light and set the bedroom to 21 degrees"
+    You->>Sat: "Turn on the kitchen light and turn off the hallway light"
     Sat->>HA: audio
     HA->>HA: speech to text (Whisper)
     HA->>Int: the text, language, which satellite
-    Int->>Int: collect exposed devices, rooms, sensor values, settings
+    Int->>Int: collect exposed devices, rooms, settings
     Int->>Srv: one request (secret token required)
-    loop for each command in the sentence
-        Srv->>Srv: word rules, names, numbers
-        opt only when the rules cannot decide
-            Srv->>Laya: one question + list of answers
-            Laya-->>Srv: likelihood of each answer
-        end
+    Srv->>Srv: find device and room names, read numbers
+    loop a few short questions
+        Srv->>M: one question + list of answers
+        M-->>Srv: likelihood of each answer
     end
-    Srv-->>Int: list of proposed actions, plus what was not understood
+    Srv-->>Int: list of proposed actions, or "hand it off"
     Int->>Int: check every action against the allow-list
     Int->>HA: run each action, in order
     HA-->>Int: result of each
     Int->>HA: one spoken reply
     HA->>Sat: text to speech (Piper)
-    Sat->>You: "Turned off the light. Temperature set to 21 degrees."
+    Sat->>You: "Turned on the light. Turned off the light."
 ```
 
 The server can **only suggest**. It has no password for Home Assistant. Home Assistant checks every suggestion again and runs it with the normal voice-assistant rules.
@@ -248,134 +223,84 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 
 | Decision | Who decides | How |
 |---|---|---|
-| Where one command ends and the next begins | **Code** | Split at "and", "then", commas… but only if the next part has its own verb. "Turn off the kitchen **and** hallway lights" stays one command with two rooms. |
-| Is it an "if…" sentence? | **Code** | Words like "if/wenn/falls". Not supported: the whole sentence is not understood (`conditional`) and goes to the fallback agent. |
+| Is it an "if…" sentence? | **Code** | Words like "if/wenn/falls". Not supported: the whole sentence is handed off (`conditional`). |
 | Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. |
-| Which device or room names were said | **Code** | Exact match against names and aliases, including German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"). |
-| Which actions are **not** possible | **Code** | "Word rules". "off" said → "turn on" is ruled out. A question ("is…?") → only ask-actions. A number with % or ° said → plain on/off ruled out. No number said → "set brightness" ruled out. |
-| Which action | **Laya**, unless a shortcut applies | Shortcuts: a follow-up with no verb reuses the last action ("and the hallway too"); a question naming a device is always "ask state". |
-| Which device or room | **Code first, Laya last** | See 3.4. |
-| Is Laya sure enough? | **Code** | Confidence check, see 3.5. |
-| The values sent with the action (brightness, temperature…) | **Code** | From the numbers it found. Laya never picks numbers. |
+| Which devices and rooms were named | **Code** | Exact match against names and aliases, including German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"). |
+| Nothing named: which devices then | **Code** | The previous command's devices ("turn it off"), else the satellite's room. |
+| Command or question | **Model** | Asked once. A question can only *ask*; a command can never just *ask*. |
+| Which device in a room | **Model**, from a list made by code | Code offers only devices that can take the number you said, and never locks or garage doors. One device left: no question. |
+| What to do with each device | **Model**, from a list made by code | Code offers only what that kind of device can do, and rules out what contradicts your words. |
+| The value (brightness, temperature…) | **Model** picks one of the numbers you said | Code then checks it fits: 0–100 % for brightness and position, 5–35 ° for temperature. |
+| Is the model sure enough? | **Code** | The confidence check, see 3.5. |
 | May this action run on this device? | **Home Assistant** | Allow-list check, then Home Assistant's own exposure check. |
 | What to say back | **Home Assistant** | Its own built-in reply sentences, in English or German. |
-| What to do with anything not understood | **Home Assistant** | Hand the whole sentence to a fallback agent you chose, or say "Sorry, I couldn't understand that". |
+| What to do with a handed-off sentence | **Home Assistant** | Hand it to a fallback agent you chose, or say "Sorry, I couldn't understand that". |
 
 ### 3.3 Inside the server, step by step
 
 ```mermaid
 flowchart TD
     A["Sentence from Home Assistant"] --> B["Normalize text<br/>lowercase, ä→ae, ß→ss, 21,5→21.5"]
-    B --> C["Find spoken device and room names"]
+    B --> C["Find device and room names, read numbers"]
     C --> D{"'if …' sentence?"}
-    D -- yes --> X["Not understood: conditional"]
-    D -- no --> F["Split into commands<br/>at most 5"]
-    F --> G["For each command"]
-    G --> H["Read numbers"]
-    H --> I["Pick the action<br/>shortcut, or Laya"]
-    I --> J["Pick device(s) or room(s)<br/>see 3.4"]
-    J --> K["Confidence check"]
-    K -- "too unsure" --> U["Mark command as not understood"]
-    K -- ok --> L["Build the action with IDs and values"]
-    L --> M["Remember it for follow-ups<br/>(60 s, per satellite)"]
-    X --> R
-    U --> R
-    M --> R["Answer to Home Assistant"]
+    D -- yes --> X["Hand off: conditional"]
+    D -- no --> E["1. Which devices?<br/>see 3.4"]
+    E -- "none found" --> Y["Hand off: no_target"]
+    E --> F["2. Ask: command or question?"]
+    F --> G["3. For each named room:<br/>ask which device"]
+    G --> H["4. For each device:<br/>ask what to do"]
+    H --> I["5. Action needs a number?<br/>ask which one, check it fits"]
+    I --> K{"Every answer sure enough?"}
+    K -- no --> Z["Hand off: low_confidence"]
+    K -- yes --> L["Actions, one per device<br/>remember the devices for 60 s"]
+    X --> R["Answer to Home Assistant"]
+    Y --> R
+    Z --> R
+    L --> R
 ```
 
-### 3.4 How the device or room is chosen
+### 3.4 How the devices are chosen
 
-The server tries cheap and certain ways first. Laya is the last resort.
+The server tries certain ways first. The model only picks when a room was named.
 
 ```mermaid
 flowchart TD
-    S["Command, with the chosen action"] --> A{"A device or room name<br/>was said exactly?"}
-    A -- "yes, one device" --> DONE["Use it"]
-    A -- "yes, same name in several rooms" --> N["Prefer the room that was said,<br/>then the satellite's room"] --> N2{"Still several?"}
-    N2 -- no --> DONE
-    N2 -- yes --> LAYA
-    A -- "yes, a room" --> RK{"Kind of device said, implied by the action,<br/>or known from the previous command?<br/>'lights', 'heating', …"}
-    RK -- yes --> ROOM["Whole room, that kind only<br/>(never locks)"]
-    RK -- no --> ERR["Not understood:<br/>'area_without_domain'"]
-    A -- no --> P{"Nothing named, and a<br/>previous command within 60 s?"}
-    P -- yes --> PREV["Same devices as last time<br/>('turn it off')"]
-    P -- no --> O{"Only one device of this kind<br/>in the whole home?"}
-    O -- "yes, not safety-sensitive" --> DONE
-    O -- no --> SA{"Satellite has a room?"}
-    SA -- yes --> ROOM2["That room, that kind"]
-    SA -- no --> FZ["Similar-sounding names<br/>→ shortlist of up to 9"]
-    FZ -- "nothing similar" --> ERR2["Not understood: 'no_target'"]
-    FZ --> LAYA["Ask Laya:<br/>'Which device or room does the user mean?'"]
-    LAYA --> DONE
+    S["Sentence"] --> A{"A device name<br/>was said?"}
+    A -- "yes" --> DEV["Use that device<br/>(same name in several rooms:<br/>the room said, then the satellite's room)"]
+    S --> R{"A room name<br/>was said?"}
+    R -- "yes, and one of its<br/>devices is named too" --> SKIP["Nothing more:<br/>'the light in the kitchen'"]
+    R -- "yes" --> ROOM["The room's devices<br/>without locks and garage doors"]
+    A -- "no" --> N{"Neither said"}
+    R -- "no" --> N
+    N --> P{"A previous command within 60 s,<br/>and no kind of device said?<br/>('turn it off', not 'turn on the light')"}
+    P -- yes --> PREV["The same devices as last time"]
+    P -- no --> SAT{"Satellite has a room?"}
+    SAT -- yes --> ROOM
+    SAT -- no --> ERR["Hand off: no_target"]
+    ROOM --> FIT["A number said? Keep only devices<br/>that can take it ('fit')"]
+    FIT --> ONE{"One device left?"}
+    ONE -- yes --> USE["Use it"]
+    ONE -- no --> ASK["Ask the model:<br/>'Which device does the user mean?'"]
 ```
 
-### 3.5 One Laya call, in and out
+### 3.5 What to do with each device
 
-**In** (what the server passes to Laya for "which action?"):
+For every device, the server builds the list of actions the model may choose:
 
-```json
-{
-  "state": {"utterance": "turn off the kitchen light"},
-  "questions": {
-    "intent": {
-      "type": "choice",
-      "instructions": "Which smart home action does the user ask for?",
-      "criteria": {
-        "turn_on": "turn on, switch on, open or activate a device",
-        "turn_off": "turn off, switch off, close or deactivate a device",
-        "set_brightness": "change the brightness of a light, dim",
-        "set_temperature": "set the target temperature of heating or thermostat",
-        "set_position": "move a blind, shutter or cover to a position",
-        "get_state": "ask about the current state of a device",
-        "get_temperature": "ask how warm or cold it is",
-        "none": "something else, not a smart home command"
-      }
-    }
-  },
-  "lang": "en"
-}
-```
+1. **Only what that kind of device can do.** A light: turn on, turn off, set brightness, ask. A blind: open, close, set position, ask. A lock: lock, unlock, ask. A sensor: ask.
+2. **Command or question.** A question allows only "ask"; a command rules "ask" out.
+3. **Your on/off words.** "off", "aus", "close", "zu"… rule out "turn on" and "open". Locks use their own words: "lock", "ab", "zu" lock it; "unlock", "auf", "öffne" unlock it. When you say both an on and an off word, each device follows the one **nearest to its name**: in "turn on the kitchen light and turn off the hallway light", the kitchen light gets "on" and the hallway light "off".
+4. **Actions Home Assistant has.** An action whose intent Home Assistant doesn't have is ruled out.
 
-Only actions that Home Assistant has, and that have at least one exposed device, are listed. German uses German questions and descriptions.
+The model always sees every action of that kind of device, because models get worse when answers are removed. Ruled-out answers are dropped afterwards, and the rest are scaled back up to 100 %.
 
-**In** (for "which device?"):
+**How sure is it?** From the likelihoods, the server computes a confidence for the chosen answer:
+`confidence = (number of answers × top likelihood − 1) ÷ (number of answers − 1)`.
+0 means "no better than a random pick", 1 means "certain". Example: 4 answers, top one at 70 % → (4 × 0.7 − 1) ÷ 3 = **0.6**.
 
-```json
-{
-  "state": {"utterance": "turn on the lamp", "room": "Living Room"},
-  "questions": {
-    "target": {
-      "type": "choice",
-      "instructions": "Which device or room does the user mean?",
-      "criteria": {
-        "e1": "Floor Lamp (light) in Living Room",
-        "e2": "Desk Lamp (light) in Office",
-        "a3": "Living Room (whole room)",
-        "none": "none of these"
-      }
-    }
-  }
-}
-```
+**The confidence check.** If any answer in the sentence is below your threshold, **nothing runs** and the whole sentence is handed off. A sentence is done completely or not at all. The default threshold is 0.4 (English) and 0.5 (German); each model has its own best value, see the README's "Which model?".
 
-**Out** (Laya always answers like this):
-
-```json
-{"intent": {"choice": "turn_off",
-            "probabilities": {"turn_on": 0.03, "turn_off": 0.91, "set_brightness": 0.01, "…": "…", "none": 0.01}}}
-```
-
-**What the server does with it:**
-
-1. **Removes ruled-out answers.** Laya always sees the full list, because it gets worse when answers are removed. Afterwards, answers ruled out by the word rules are dropped and the rest are scaled back up to 100 %.
-2. **Takes the most likely answer.**
-3. **Computes how sure it is.** 0 means "no better than a random pick", 1 means "certain":
-   `confidence = (number of answers × top likelihood − 1) ÷ (number of answers − 1)`.
-   Example: 8 answers, top one at 60 % → (8 × 0.6 − 1) ÷ 7 = **0.54**.
-4. **Checks it.** If "none" won, or the confidence is below your threshold (default **0.4** English, **0.5** German), this command is marked as not understood.
-5. **Records everything** for the live log page: all likelihoods, what was ruled out and why, the time taken.
-
-A command usually needs **0, 1 or 2** Laya calls. One call takes about **15–40 ms** on an Apple M-series GPU. The server runs one call at a time. If more than 4 requests are waiting, it answers "busy".
+A sentence needs **1 + one per device** questions, plus one per room and one per number. One question takes about 15–25 ms with Laya and 0.06–0.4 s with the other models on an Apple M-series GPU. The server answers one request at a time. If more than 4 requests are waiting, it answers "busy".
 
 ### 3.6 What the server sends back
 
@@ -383,39 +308,38 @@ A command usually needs **0, 1 or 2** Laya calls. One call takes about **15–40
 {
   "status": "ok",
   "actions": [
-    {"intent": "HassTurnOff", "slots": {"name": "light.kitchen"},
-     "segment": "Turn off the kitchen light", "confidence": 1.0},
-    {"intent": "HassClimateSetTemperature", "slots": {"area": "bedroom", "temperature": 21.0},
-     "segment": "set the bedroom to 21 degrees", "confidence": 0.87}
+    {"intent": "HassTurnOn", "slots": {"name": "light.kitchen"},
+     "segment": "Turn on the kitchen light and turn off the hallway light", "confidence": 0.62},
+    {"intent": "HassTurnOff", "slots": {"name": "light.hallway"},
+     "segment": "Turn on the kitchen light and turn off the hallway light", "confidence": 0.62}
   ],
   "unresolved": [],
   "reason": null,
   "trace_id": "3f9a1c2b7d10",
-  "elapsed_ms": 42.3
+  "elapsed_ms": 1210.4
 }
 ```
 
 | Field | Meaning | Limits |
 |---|---|---|
-| `status` | `ok` if at least one action was found, otherwise `escalate` ("I give up") | |
-| `actions` | What to run, in order. `slots` are the parameters, always with IDs. `confidence` is the lowest of the Laya answers behind it, 1.0 if Laya was not asked. | up to 10 actions, 12 parameters each |
-| `unresolved` | Parts of the sentence that were not understood | up to 10 |
-| `reason` | Why something was not understood, see below | |
+| `status` | `ok` when there are actions, otherwise `escalate` ("hand it off") | |
+| `actions` | What to run, in order: one per device. `slots` are the parameters, always with IDs. `confidence` is the lowest of all answers in the sentence. | up to 10 actions |
+| `segment` | The sentence, passed to Home Assistant's intent handlers | |
+| `unresolved` | The sentence, when it was handed off | |
+| `reason` | Why it was handed off, see below | |
 | `trace_id`, `elapsed_ms` | For finding the request in the live log | |
 
 **Reasons**, in plain words:
 
 | Reason | Meaning |
 |---|---|
-| `low_confidence` | Laya was not sure enough. |
-| `none_chosen` | Laya said it is not a smart-home command. |
-| `no_target` | No matching device or room. |
-| `area_without_domain` | A room was named but not what kind of device ("turn off the kitchen"). |
-| `area_not_supported` | This action needs one device, not a room. |
-| `missing_value` | "Dim the light", but no number was said. |
-| `no_intent` | The word rules ruled out every action. |
+| `low_confidence` | The model was not sure enough about one of its answers. |
+| `no_target` | No device or room name was recognized, and the satellite has no room. |
+| `too_many_devices` | More than 10 devices to act on, or a room with more than 10 devices and no kind of device said. |
+| `no_action` | Everything a device can do was ruled out, e.g. "lock" for a light. |
+| `missing_value` | "Dim the light", but no number was said, or the model chose "no value". |
+| `value_not_possible` | The number doesn't fit the action, e.g. 70 degrees for a thermostat. |
 | `conditional` | An "if…" sentence. These are not supported. |
-| `too_many_segments` | More than 5 commands in one sentence. |
 | `unsupported_language` | The loaded model does not speak this language. |
 | `no_exposed_entities` | Nothing is exposed to voice assistants. |
 
@@ -447,7 +371,7 @@ If the server cannot be reached, does not answer within **10 seconds**, or rejec
 | `context_id` | A scrambled ID of the satellite (or chat). Used to remember the last command. | 1–64 characters, optional |
 | `intents` | Which actions this Home Assistant has | up to 300 names |
 | `home` | Exposed devices, rooms, floors (see 1.2) | |
-| `options.confidence_threshold` | How sure Laya must be | 0–1; default 0.4 EN, 0.5 DE |
+| `options.confidence_threshold` | How sure the model must be | 0–1; default 0.4 EN, 0.5 DE |
 | `options.memory_seconds` | How long "turn it off" refers to the last command | 0–3600; default 60; 0 = off |
 
 Every request must carry the secret token, and the server checks it before reading anything else. Unknown fields are refused.
@@ -464,8 +388,8 @@ flowchart LR
         H3["Speaks the reply"]
     end
     subgraph SRV["Decision server: understands the sentence"]
-        S1["Code: splitting, names,<br/>numbers, word rules,<br/>memory"]
-        S2["Laya: 'which action?'<br/>'which device?'"]
+        S1["Code: names, numbers,<br/>what each device can do,<br/>on/off words, memory"]
+        S2["Model: command or question?<br/>which device? what to do?<br/>which number?"]
     end
     H1 -- "names and IDs" --> S1
     S1 <-->|"one short question,<br/>at most 10 answers"| S2
@@ -474,5 +398,5 @@ flowchart LR
 ```
 
 - **Home Assistant** knows the house and has the final say.
-- **Code on the server** does everything that has a clear rule: splitting sentences, matching names, reading numbers, remembering the last command.
-- **Laya** answers only two kinds of multiple-choice question: which action, and which device or room, when the rules cannot tell. It reads one short command at a time and never sees your whole home.
+- **Code on the server** does everything that has a clear rule: matching names, reading numbers, listing what each device can do, applying your on/off words, remembering the last command.
+- **The model** answers short multiple-choice questions about your sentence, and only from answers the code allows. It never sees your whole home.

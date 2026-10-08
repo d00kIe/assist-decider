@@ -12,7 +12,7 @@ from assist_decider_server import app as app_module
 from assist_decider_server.app import create_app
 from assist_decider_server.logbuf import EventBus
 
-from .conftest import FakeProvider, intent_rule, make_request
+from .conftest import FakeProvider, make_request
 
 TOKEN = "t" * 40
 AUTH = {"Authorization": f"Bearer {TOKEN}"}
@@ -24,7 +24,7 @@ def body(text: str = "turn on the kitchen light", **kw) -> dict:
 
 @pytest.fixture
 def provider():
-    return FakeProvider(intent_rule("HassTurnOn"))
+    return FakeProvider()
 
 
 @pytest.fixture
@@ -143,9 +143,7 @@ def test_busy_returns_503():
             gate.wait(5)
             return super().predict(*a, **kw)
 
-    app = create_app(
-        provider=Slow(intent_rule("HassTurnOn")), token=TOKEN, bus=EventBus(10), max_pending=1
-    )
+    app = create_app(provider=Slow(), token=TOKEN, bus=EventBus(10), max_pending=1)
     with TestClient(app) as c:
         results = []
         t = threading.Thread(

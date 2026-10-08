@@ -135,59 +135,23 @@ def _torch_device(device: str) -> tuple[Any, str, Any]:
     return torch, device, dtype
 
 
-def _raw_options(q: dict[str, Any]) -> list[tuple[str, Any]]:
-    """[(value, description or None)] of a raw choice / score / noul question, in order."""
-    crit = q.get("criteria")
-    if q["type"] == "choice":
-        opts = [(str(k), v) for k, v in crit.items()]
-    elif q["type"] == "score":
-        opts = [(str(i), v) for i, v in enumerate(crit)]
-    else:
-        crit = {str(k).lower(): v for k, v in (crit or {}).items()}
-        opts = [
-            ("no", crit.get("no", crit.get("false"))),
-            ("yes", crit.get("yes", crit.get("true"))),
-        ]
-    if not 1 <= len(opts) <= 62:
+def _check(questions: dict[str, Question]) -> None:
+    if not all(1 <= len(q.options) <= 62 for q in questions.values()):
         raise ValueError("a question takes 1-62 options")
-    return opts
 
 
 class _ScoringProvider:
-    """predict() and warm-up for providers whose score() answers raw choice/noul/score
-    questions ({"type", "instructions", "criteria"}, as in Laya) with Laya-shaped answers."""
+    """Shared by the providers that score each option with a transformer model."""
 
     model: str
     device: str
 
-    def predict(
-        self, state: dict[str, Any], questions: dict[str, Question], lang: str
-    ) -> dict[str, Answer]:
-        raw = self.score(
-            state,
-            {
-                k: {"type": "choice", "instructions": q.instructions, "criteria": q.options}
-                for k, q in questions.items()
-            },
-        )
-        return {k: Answer(choice=a["choice"], probs=a["probabilities"]) for k, a in raw.items()}
-
-    def score(self, state: Any, questions: dict[str, dict[str, Any]]) -> dict[str, dict]:
-        raise NotImplementedError
-
     @staticmethod
-    def _answers(questions: dict[str, dict[str, Any]], probs: list[list[float]]) -> dict[str, dict]:
+    def _answers(questions: dict[str, Question], probs: list[list[float]]) -> dict[str, Answer]:
         out = {}
         for (key, q), p in zip(questions.items(), probs, strict=True):
-            dist = dict(zip([v for v, _ in _raw_options(q)], p, strict=True))
-            out[key] = {
-                "choice": max(dist, key=dist.__getitem__),
-                "probabilities": dist,
-                "noul": dist.get("yes"),
-                "score": sum(float(v) * x for v, x in dist.items())
-                if q["type"] == "score"
-                else None,
-            }
+            dist = dict(zip(q.options, p, strict=True))
+            out[key] = Answer(choice=max(dist, key=dist.__getitem__), probs=dist)
         return out
 
     def _loaded(self, repo: str, revision: str, started: float) -> None:
@@ -228,10 +192,6 @@ _SYSTEM = (
     "mapping each field name to its chosen symbol. Use the field names and symbols exactly "
     "as given. Do not include explanations, Markdown, or extra text."
 )
-_NOUL_TEXT = {
-    "no": "The answer is no (negative, or disagree with the claim).",
-    "yes": "The answer is yes (affirmative, or align with the claim).",
-}
 
 
 class InternDecisionProvider(_ScoringProvider):
@@ -277,13 +237,14 @@ class InternDecisionProvider(_ScoringProvider):
         )
         self._loaded(self._repo, self._revision, started)
 
-    def score(self, state: Any, questions: dict[str, dict[str, Any]]) -> dict[str, dict]:
-        """Laya-shaped answers for choice, noul (yes/no) and score questions."""
+    def predict(
+        self, state: dict[str, Any], questions: dict[str, Question], lang: str
+    ) -> dict[str, Answer]:
+        _check(questions)
         lines = []
         for key, q in questions.items():
-            lines.append(f"{key}: {q.get('instructions', '')}")
-            for s, (v, d) in zip(_SYMBOLS, _raw_options(q), strict=False):
-                d = _NOUL_TEXT[v] if q["type"] == "noul" and d in (None, "") else d
+            lines.append(f"{key}: {q.instructions}")
+            for s, (v, d) in zip(_SYMBOLS, q.options.items(), strict=False):
                 lines.append(f"    {s} = {v}: {d}")
         user = (
             "Return one answer for every field using the supplied answer symbols.\n\n## State\n"
@@ -317,7 +278,7 @@ class InternDecisionProvider(_ScoringProvider):
         probs = []
         for i, q in enumerate(questions.values()):
             # softmax(log(softmax(z)) / T) == softmax(z / T): the checkpoint's calibration.
-            z = logits[i, self._symbol_ids[: len(_raw_options(q))]].float() / self._temperature
+            z = logits[i, self._symbol_ids[: len(q.options)]].float() / self._temperature
             probs.append(torch.softmax(z, -1).tolist())
         return self._answers(questions, probs)
 
@@ -418,22 +379,19 @@ class KevProvider(_ScoringProvider):
         # caller text can never produce delimiter tokens: <|x|> becomes <¦x¦> first (kev's rule)
         return self._tok(_KEV_SPECIAL_RE.sub(r"<¦\1¦>", text), add_special_tokens=False).input_ids
 
-    def score(self, state: Any, questions: dict[str, dict[str, Any]]) -> dict[str, dict]:
+    def predict(
+        self, state: dict[str, Any], questions: dict[str, Question], lang: str
+    ) -> dict[str, Answer]:
+        _check(questions)
         torch = self._torch
         st, q_id, o_id, c_id, d_id = self._special
         S = [st, *self._tokens(_kev_render(state))]
         rows, reads = [], []
         for q in questions.values():
-            branch = [q_id, *self._tokens(_kev_render(q.get("instructions")))]
+            branch = [q_id, *self._tokens(q.instructions)]
             ends = []
-            for v, d in _raw_options(q):
-                text = (
-                    _kev_render(d)
-                    if q["type"] == "score"
-                    else v
-                    if d in (None, "")
-                    else f"{v}: {_kev_render(d)}"
-                )
+            for v, d in q.options.items():
+                text = f"{v}: {d}" if d else v
                 branch += [o_id, *self._tokens(text), c_id]
                 ends.append(len(S) + len(branch) - 1)
             branch.append(d_id)
@@ -461,8 +419,7 @@ class KevProvider(_ScoringProvider):
         return self._answers(questions, probs)
 
 
-# name -> (Hugging Face repo, reviewed commit = tag v1.2.1). Temperature and noul floor from its
-# serve_config.json.
+# name -> (Hugging Face repo, reviewed commit = tag v1.2.1). Temperature from its serve_config.json.
 H2O_CHECKPOINTS = {
     "h2o-lightning-4b": ("h2oai/h2o-lightning-4b", "542e9eff5ce7e5d69eb457fbe54abb535992ab20"),
 }
@@ -472,7 +429,6 @@ _H2O_SYSTEM = (
 )
 _H2O_LABELS = _SYMBOLS[:52] + "αβγδεζηθικ"  # serve_config.json labels, first 62
 _H2O_TEMPERATURE = 0.8
-_H2O_NOUL_FLOOR = 0.801
 
 
 class H2OLightningProvider(_ScoringProvider):
@@ -480,8 +436,7 @@ class H2OLightningProvider(_ScoringProvider):
 
     Rebuilds h2o_lightning_shim.py's text path instead of running it behind vLLM: one prompt per
     question (system, `record:/question:/options:` user turn, thinking off, "Answer:" prefill),
-    the label logits " A", " B"... read in fp32 (config.json head_dtype), softmax at T=0.8, then
-    the yes/no floor.
+    the label logits " A", " B"... read in fp32 (config.json head_dtype), softmax at T=0.8.
     """
 
     name = "h2o-lightning"
@@ -526,30 +481,18 @@ class H2OLightningProvider(_ScoringProvider):
     def _tokens(self, text: str, **kw: Any) -> list[int]:
         return self._tok(text, add_special_tokens=False, **kw)["input_ids"]
 
-    def score(self, state: Any, questions: dict[str, dict[str, Any]]) -> dict[str, dict]:
+    def predict(
+        self, state: dict[str, Any], questions: dict[str, Question], lang: str
+    ) -> dict[str, Answer]:
+        _check(questions)
         torch = self._torch
-        record = (
-            state
-            if isinstance(state, str)
-            else json.dumps(state, ensure_ascii=False, separators=(",", ":"))
-        )
+        record = json.dumps(state, ensure_ascii=False, separators=(",", ":"))
         probs = []
         for q in questions.values():
-            opts = _raw_options(q)
-            if q["type"] == "noul":  # the shim asks [true, false]
-                opts = [
-                    ("true", opts[1][1] or "the statement holds"),
-                    ("false", opts[0][1] or "it does not"),
-                ]
-            descs = [
-                v if d is None else d if isinstance(d, str) else json.dumps(d, ensure_ascii=False)
-                for v, d in opts
-            ]
             lines = "\n".join(
-                f"{s}) {v}: {d}" for s, (v, _), d in zip(_H2O_LABELS, opts, descs, strict=False)
+                f"{s}) {v}: {d}" for s, (v, d) in zip(_H2O_LABELS, q.options.items(), strict=False)
             )
-            instr = q.get("instructions") or "Answer the question below."
-            instr = instr if isinstance(instr, str) else json.dumps(instr, indent=1)
+            instr = q.instructions or "Answer the question below."
             user = f"record: {record}\nquestion: {instr.lstrip()}\noptions:\n{lines}"
             # caller text never becomes a special token (<|im_end|> in an utterance stays text)
             ids = [
@@ -565,13 +508,8 @@ class H2OLightningProvider(_ScoringProvider):
                     .last_hidden_state[0, -1]
                     .float()
                 )
-            p = torch.softmax(self._head[: len(opts)] @ h / _H2O_TEMPERATURE, -1).tolist()
-            if q["type"] == "noul":
-                y = p[0]
-                if max(y, 1 - y) < _H2O_NOUL_FLOOR:  # commit_noul: the answer never changes
-                    y = _H2O_NOUL_FLOOR if y >= 0.5 else 1 - _H2O_NOUL_FLOOR
-                p = [1 - y, y]  # back to _raw_options' [no, yes]
-            probs.append(p)
+            p = torch.softmax(self._head[: len(q.options)] @ h / _H2O_TEMPERATURE, -1)
+            probs.append(p.tolist())
         return self._answers(questions, probs)
 
 

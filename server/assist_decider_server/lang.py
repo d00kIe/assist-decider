@@ -8,80 +8,66 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 _UMLAUTS = str.maketrans({"ä": "ae", "ö": "oe", "ü": "ue"})
 TOKEN_RE = re.compile(r"\d+(?:\.\d+)?|\w+|[,;?%°]")
 
 
 def fold(text: str) -> str:
-    """Normalize text for matching. Keeps length mapping simple by folding per character."""
-    return fold_with_map(text)[0]
+    """Normalize text for matching: lowercase, umlauts as ae/oe/ue, ß as ss, "21,5" as "21.5"."""
+    text = unicodedata.normalize("NFKC", text).casefold().translate(_UMLAUTS)
+    return re.sub(r"(?<=\d),(?=\d)", ".", text)  # German decimal comma
 
 
-def fold_with_map(text: str) -> tuple[str, list[int]]:
-    """Fold `text` and return, for every folded character, its index in the NFKC input."""
-    text = unicodedata.normalize("NFKC", text)
-    out: list[str] = []
-    index: list[int] = []
-    for i, ch in enumerate(text):
-        folded = ch.casefold().translate(_UMLAUTS)
-        out.append(folded)
-        index.extend([i] * len(folded))
-    folded_text = "".join(out)
-    # German decimal comma: "21,5" -> "21.5" (same length, so the map stays valid).
-    folded_text = re.sub(r"(?<=\d),(?=\d)", ".", folded_text)
-    return folded_text, index
-
-
-def tokenize(folded: str) -> list[tuple[str, int, int]]:
-    return [(m.group(), m.start(), m.end()) for m in TOKEN_RE.finditer(folded)]
+def tokenize(folded: str) -> list[str]:
+    return TOKEN_RE.findall(folded)
 
 
 @dataclass(frozen=True)
 class Lang:
-    intent_question: str
-    target_question: str
-    none_intent: str
-    none_target: str
+    # The questions the model answers, and the wording of their options.
+    kind_question: str
+    kinds: dict[str, str]  # "command" / "question" -> description
+    which_question: str
+    action_question: str  # format(device=)
+    actions: dict[str, str]  # action (see intents.ACTIONS) -> description
+    value_question: str  # format(device=)
+    no_value: str
     entity_option: str  # format(name=, kind=, area=)
     entity_option_no_area: str
-    area_option: str
-    intents: dict[str, str]
     # domain -> (spoken label, words). Words >= 5 chars also match inside compounds
     # ("kuechenlicht" contains "licht"); shorter words must match a whole token.
     domains: dict[str, tuple[str, tuple[str, ...]]]
-    verbs: frozenset[str]  # a clause containing one of these starts a new command
-    conjunctions: tuple[tuple[str, ...], ...]
     on_words: frozenset[str]
     off_words: frozenset[str]
-    question_words: frozenset[str]
-    value_words: frozenset[str]  # "dim" etc.: needs a number, never guess one
-    temperature_words: frozenset[str]
-    stop_words: frozenset[str] = field(default_factory=frozenset)
-    condition_words: frozenset[str] = field(default_factory=frozenset)  # "if": unsupported
-    # Replace on/off words when a lock is named: "close/zu/ab" lock it, "open/auf" unlock it.
-    lock_words: frozenset[str] = field(default_factory=frozenset)
-    unlock_words: frozenset[str] = field(default_factory=frozenset)
+    # Used instead of on/off words for a lock: "close/zu/ab" lock it, "open/auf" unlock it.
+    lock_words: frozenset[str]
+    unlock_words: frozenset[str]
+    condition_words: frozenset[str]  # "if": unsupported
 
 
 EN = Lang(
-    intent_question="Which smart home action does the user ask for?",
-    target_question="Which device or room does the user mean?",
-    none_intent="something else, not a smart home command",
-    none_target="none of these",
+    kind_question="Is the user giving a command or asking a question?",
+    kinds={"command": "a command to do something", "question": "a question about how something is"},
+    which_question="Which device does the user mean?",
+    action_question="What does the user want with the {device}?",
+    actions={
+        "turn_on": "turn on, switch on, start",
+        "turn_off": "turn off, switch off, stop",
+        "set_brightness": "set the brightness to a value",
+        "set_temperature": "set the temperature to a value",
+        "open": "open",
+        "close": "close",
+        "set_position": "open to a position or percentage",
+        "lock": "lock",
+        "unlock": "unlock",
+        "query": "only asks how it is, changes nothing",
+    },
+    value_question="Which value should the {device} be set to?",
+    no_value="no value given for this device",
     entity_option="{name} ({kind}) in {area}",
     entity_option_no_area="{name} ({kind})",
-    area_option="{area} (whole room)",
-    intents={
-        "HassTurnOn": "turn on, switch on, open or activate a device",
-        "HassTurnOff": "turn off, switch off, close or deactivate a device",
-        "HassLightSet": "change the brightness of a light, dim",
-        "HassClimateSetTemperature": "set the target temperature of heating or thermostat",
-        "HassSetPosition": "move a blind, shutter or cover to a position",
-        "HassGetState": "ask about the current state of a device",
-        "HassClimateGetTemperature": "ask how warm or cold it is",
-    },
     domains={
         "light": ("light", ("light", "lights", "lamp", "lamps", "lighting")),
         "switch": ("switch", ("switch", "plug", "socket", "outlet")),
@@ -123,100 +109,34 @@ EN = Lang(
         "weather": ("weather", ("weather",)),
         "binary_sensor": ("sensor", ()),
     },
-    verbs=frozenset(
-        {
-            "turn",
-            "switch",
-            "set",
-            "dim",
-            "brighten",
-            "open",
-            "close",
-            "shut",
-            "lock",
-            "unlock",
-            "activate",
-            "deactivate",
-            "start",
-            "stop",
-            "make",
-            "put",
-            "change",
-            "raise",
-            "lower",
-            "increase",
-            "decrease",
-            "is",
-            "are",
-            "what",
-            "whats",
-            "how",
-            "hows",
-            "tell",
-            "check",
-        }
-    ),
-    conjunctions=(
-        ("and", "then"),
-        ("and", "also"),
-        ("after", "that"),
-        ("and",),
-        ("then",),
-        ("also",),
-        ("plus",),
-        (",",),
-        (";",),
-    ),
     on_words=frozenset({"on", "open", "activate", "start", "lock"}),
     off_words=frozenset({"off", "close", "shut", "deactivate", "stop", "unlock"}),
-    question_words=frozenset({"is", "are", "what", "whats", "how", "hows", "which", "?"}),
-    value_words=frozenset({"dim", "brighten", "brighter", "darker"}),
-    temperature_words=frozenset({"warm", "cold", "hot", "temperature", "degrees"}),
-    stop_words=frozenset(
-        {
-            "the",
-            "a",
-            "an",
-            "in",
-            "on",
-            "off",
-            "to",
-            "of",
-            "my",
-            "please",
-            "turn",
-            "switch",
-            "set",
-            "all",
-            "and",
-            "at",
-            "is",
-            "are",
-            "it",
-        }
-    ),
     condition_words=frozenset({"if", "when", "whenever"}),
     lock_words=frozenset({"lock", "close", "shut"}),
     unlock_words=frozenset({"unlock", "open"}),
 )
 
 DE = Lang(
-    intent_question="Welche Smart-Home-Aktion verlangt der Nutzer?",
-    target_question="Welches Gerät oder welchen Raum meint der Nutzer?",
-    none_intent="etwas anderes, kein Smart-Home-Befehl",
-    none_target="keines davon",
+    kind_question="Gibt der Nutzer einen Befehl oder stellt er eine Frage?",
+    kinds={"command": "ein Befehl, etwas zu tun", "question": "eine Frage, wie etwas ist"},
+    which_question="Welches Gerät meint der Nutzer?",
+    action_question="Was will der Nutzer mit {device}?",
+    actions={
+        "turn_on": "einschalten, anmachen, starten",
+        "turn_off": "ausschalten, ausmachen, stoppen",
+        "set_brightness": "Helligkeit auf einen Wert stellen",
+        "set_temperature": "Temperatur auf einen Wert stellen",
+        "open": "öffnen",
+        "close": "schließen",
+        "set_position": "auf eine Position oder Prozent fahren",
+        "lock": "abschließen",
+        "unlock": "aufschließen",
+        "query": "fragt nur, wie es ist, ändert nichts",
+    },
+    value_question="Auf welchen Wert soll {device} gestellt werden?",
+    no_value="kein Wert für dieses Gerät",
     entity_option="{name} ({kind}) in {area}",
     entity_option_no_area="{name} ({kind})",
-    area_option="{area} (ganzer Raum)",
-    intents={
-        "HassTurnOn": "einschalten, anschalten, öffnen oder aktivieren",
-        "HassTurnOff": "ausschalten, abschalten, schließen oder deaktivieren",
-        "HassLightSet": "Helligkeit einer Lampe ändern, dimmen",
-        "HassClimateSetTemperature": "Zieltemperatur der Heizung oder des Thermostats einstellen",
-        "HassSetPosition": "Rollladen, Jalousie oder Rollo auf eine Position fahren",
-        "HassGetState": "nach dem aktuellen Zustand eines Geräts fragen",
-        "HassClimateGetTemperature": "fragen, wie warm oder kalt es ist",
-    },
     domains={
         "light": (
             "Licht",
@@ -255,57 +175,6 @@ DE = Lang(
         "weather": ("Wetter", ("wetter",)),
         "binary_sensor": ("Sensor", ()),
     },
-    verbs=frozenset(
-        {
-            "schalte",
-            "schalt",
-            "schalten",
-            "mach",
-            "mache",
-            "machen",
-            "stell",
-            "stelle",
-            "stellen",
-            "setze",
-            "setz",
-            "dimme",
-            "dimm",
-            "oeffne",
-            "oeffnen",
-            "schliesse",
-            "schliess",
-            "schliessen",
-            "fahre",
-            "fahr",
-            "aktiviere",
-            "deaktiviere",
-            "starte",
-            "stoppe",
-            "dreh",
-            "drehe",
-            "regle",
-            "regel",
-            "ist",
-            "sind",
-            "wie",
-            "was",
-            "welche",
-            "sperre",
-            "entsperre",
-        }
-    ),
-    conjunctions=(
-        ("und", "dann"),
-        ("und", "danach"),
-        ("und",),
-        ("dann",),
-        ("danach",),
-        ("sowie",),
-        ("ausserdem",),
-        ("anschliessend",),
-        (",",),
-        (";",),
-    ),
     on_words=frozenset(
         {
             "an",
@@ -336,39 +205,6 @@ DE = Lang(
             "deaktiviere",
             "stoppe",
             "entsperre",
-        }
-    ),
-    question_words=frozenset({"ist", "sind", "wie", "was", "welche", "welcher", "wieviel", "?"}),
-    value_words=frozenset({"dimme", "dimm", "dimmen", "heller", "dunkler"}),
-    temperature_words=frozenset({"warm", "kalt", "heiss", "temperatur", "grad"}),
-    stop_words=frozenset(
-        {
-            "der",
-            "die",
-            "das",
-            "den",
-            "dem",
-            "des",
-            "im",
-            "in",
-            "am",
-            "an",
-            "aus",
-            "auf",
-            "ein",
-            "eine",
-            "einen",
-            "bitte",
-            "mach",
-            "schalte",
-            "stell",
-            "alle",
-            "und",
-            "zu",
-            "ist",
-            "sind",
-            "es",
-            "mal",
         }
     ),
     condition_words=frozenset({"wenn", "falls", "sobald"}),

@@ -53,7 +53,7 @@ async function api(path, signal) {
 function renderQuestion(q) {
   const box = el("div", "question");
   const head = el("div", "qhead");
-  head.append(el("strong", null, q.key), el("span", "muted", q.instructions));
+  head.append(el("strong", null, q.instructions));
   const passed = q.confidence >= q.threshold && q.choice !== "none";
   head.append(el("span", "badge " + (passed ? "ok" : "warn"),
     `confidence ${q.confidence.toFixed(2)} / ${q.threshold.toFixed(2)}`));
@@ -72,17 +72,15 @@ function renderQuestion(q) {
 
 // --- decision tree ----------------------------------------------------------
 
-const PHASES = { intent: "Action", target: "Device or room" };
+const PHASES = { devices: "Devices", kind: "Command or question", action: "What to do" };
 const REASONS = {
-  low_confidence: "Laya was not sure enough",
-  none_chosen: "Laya: not a smart-home command",
-  no_target: "no matching device or room",
-  area_without_domain: "room named, but not what kind of device",
-  area_not_supported: "this action needs one device, not a room",
-  missing_value: "no number said",
-  no_intent: "every action was ruled out",
-  conditional: "'if …' commands are not supported",
-  too_many_segments: "more than 5 commands",
+  low_confidence: "the model was not sure enough",
+  no_target: "no device or room named, and no speaker's room",
+  too_many_devices: "too many devices to ask about",
+  no_action: "every action was ruled out",
+  missing_value: "no value said or chosen",
+  value_not_possible: "the number does not fit that action",
+  conditional: "'if …' sentences are not supported",
   unsupported_language: "the model does not speak this language",
   no_exposed_entities: "nothing is exposed to Assist",
 };
@@ -110,64 +108,46 @@ function item(line, body, open) {
   return li;
 }
 
-function renderStep(step, seg) {
+function renderStep(step, t) {
   const [cls, icon] = step.ok === true ? ["yes", "✓"] : step.ok === false ? ["no", "✗"] : ["info", "•"];
   const line = node(cls, icon, step.check, step.result);
-  if (step.q !== undefined && seg.questions[step.q]) {
-    return item(line, renderQuestion(seg.questions[step.q]), step.ok === false);
-  }
-  const dropped = Object.entries(step.dropped || {});
-  if (dropped.length) {
-    const list = el("ul", "small muted");
-    for (const [name, why] of dropped) list.append(el("li", null, `${name}: ${why}`));
-    return item(line, list, false);
+  if (step.q !== undefined && t.questions[step.q]) {
+    return item(line, renderQuestion(t.questions[step.q]), step.ok === false);
   }
   return item(line);
-}
-
-function renderSegment(seg, n) {
-  const kids = el("ul");
-  if (seg.numbers && seg.numbers.length) {
-    kids.append(item(node("info", "#", "numbers", seg.numbers.map((x) => x.value + (x.unit ? " " + x.unit : "")).join(", "))));
-  }
-  // Consecutive steps of one phase form one branch: Action, Device or room.
-  let branch = null;
-  let phase = null;
-  for (const step of seg.steps || []) {
-    if (step.phase !== phase) {
-      phase = step.phase;
-      branch = el("ul");
-      kids.append(item(node("phase", "◆", PHASES[phase] || phase), branch, true));
-    }
-    branch.append(renderStep(step, seg));
-  }
-  for (const a of seg.actions || []) {
-    const slots = Object.entries(a.slots).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("|") : v}`).join(" ");
-    kids.append(item(node("yes", "→", a.intent, `${slots} · confidence ${a.confidence.toFixed(2)}`)));
-  }
-  if (seg.escalate) kids.append(item(node("err", "✗", "not understood", REASONS[seg.escalate] || seg.escalate)));
-
-  const outcome = seg.escalate ? ["err", "not understood"]
-    : ["ok", (seg.actions || []).length + " action" + ((seg.actions || []).length === 1 ? "" : "s")];
-  const line = el("span", "node");
-  line.append(el("span", "check", `Command ${n}`), el("q", "stext", seg.text), el("span", "badge " + outcome[0], outcome[1]));
-  return item(line, kids, true);
 }
 
 function renderTrace(t) {
   const card = el("article", "card");
   const head = el("div", "chead");
-  const status = t.status === "ok" ? (t.segments.some((s) => s.escalate) ? "partial" : "ok") : "escalate";
-  head.append(el("span", "badge " + (status === "ok" ? "ok" : status === "partial" ? "warn" : "err"),
-    status + (t.reason ? ` · ${REASONS[t.reason] || t.reason}` : "")));
+  head.append(el("span", "badge " + (t.status === "ok" ? "ok" : "err"),
+    t.status + (t.reason ? ` · ${REASONS[t.reason] || t.reason}` : "")));
   head.append(el("q", "utterance", t.text));
-  const meta = [t.language, t.satellite_area && "room " + t.satellite_area, t.previous && "previous: " + t.previous,
+  const meta = [t.language, t.satellite_area && "room " + t.satellite_area,
     time(t.ts), `${t.elapsed_ms} ms (model ${t.model_ms} ms)`];
   head.append(el("span", "muted", meta.filter(Boolean).join(" · ")));
   card.append(head);
+
   const tree = el("ul", "tree");
-  let n = 0;
-  for (const seg of t.segments || []) tree.append(renderSegment(seg, ++n));
+  if (t.numbers && t.numbers.length) {
+    tree.append(item(node("info", "#", "numbers", t.numbers.map((x) => x.value + (x.unit ? " " + x.unit : "")).join(", "))));
+  }
+  // Consecutive steps of one phase form one branch: Devices, Command or question, What to do.
+  let branch = null;
+  let phase = null;
+  for (const step of t.steps || []) {
+    if (step.phase !== phase) {
+      phase = step.phase;
+      branch = el("ul");
+      tree.append(item(node("phase", "◆", PHASES[phase] || phase), branch, true));
+    }
+    branch.append(renderStep(step, t));
+  }
+  for (const a of t.actions || []) {
+    const slots = Object.entries(a.slots).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("|") : v}`).join(" ");
+    tree.append(item(node("yes", "→", a.intent, `${slots} · confidence ${a.confidence.toFixed(2)}`)));
+  }
+  if (t.reason) tree.append(item(node("err", "✗", "handed to Home Assistant", REASONS[t.reason] || t.reason)));
   card.append(tree);
   return card;
 }
@@ -205,24 +185,14 @@ function touched(t) {
   const marks = new Map();
   const get = (id) => { if (!marks.has(id)) marks.set(id, {}); return marks.get(id); };
   for (const id of t.said || []) get(id).said = true;
-  for (const seg of t.segments || []) {
-    for (const step of seg.steps || []) {
-      for (const [id, score] of Object.entries(step.scores || {})) {
-        get(id).similar = Math.max(get(id).similar || 0, score);
-      }
-    }
-    for (const q of seg.questions || []) {
-      for (const [key, id] of Object.entries(q.ids || {})) {
-        const m = get(id);
-        m.laya = Math.max(m.laya || 0, q.probs[key] || 0);
-        if (key === q.choice) m.chosen = true;
-      }
-    }
-    for (const a of seg.actions || []) {
-      if (a.slots.name) get(a.slots.name).used = true;
-      if (a.slots.area) get(a.slots.area).used = true;
+  for (const q of t.questions || []) {
+    for (const [key, id] of Object.entries(q.ids || {})) {
+      const m = get(id);
+      m.model = Math.max(m.model || 0, q.probs[key] || 0);
+      if (key === q.choice) m.chosen = true;
     }
   }
+  for (const a of t.actions || []) get(a.slots.name).used = true;
   return marks;
 }
 
@@ -230,8 +200,7 @@ function markBadges(m) {
   const out = [];
   if (!m) return out;
   if (m.said) out.push(el("span", "badge ok", "said"));
-  if (m.similar !== undefined) out.push(el("span", "badge info", `similar ${m.similar.toFixed(2)}`));
-  if (m.laya !== undefined) out.push(el("span", "badge " + (m.chosen ? "ok" : "info"), `Laya ${(m.laya * 100).toFixed(0)}%${m.chosen ? " ✓" : ""}`));
+  if (m.model !== undefined) out.push(el("span", "badge " + (m.chosen ? "ok" : "info"), `model ${(m.model * 100).toFixed(0)}%${m.chosen ? " ✓" : ""}`));
   if (m.used) out.push(el("span", "badge ok", "used"));
   return out;
 }
@@ -246,15 +215,14 @@ const quoted = (words) => words.map((w) => `“${w}”`).join(" · ");
 
 function renderLegend(kinds) {
   const box = el("details", "legend");
-  box.append(el("summary", null, "How names are matched"));
+  box.append(el("summary", null, "How devices are found"));
   const steps = el("ol", "small");
   for (const text of [
-    "Exact: a name or alias is said word for word. Text is compared lowercase with ä→ae, ö→oe, ü→ue, ß→ss (the “matched by” forms). The longest name wins.",
+    "Exact names: a device or room name or alias, said word for word. Text is compared lowercase with ä→ae, ö→oe, ü→ue, ß→ss (the “matched by” forms). The longest name wins.",
     "Compound words: a one-word room name of 4+ letters also matches at the start of a longer word (“wohnzimmerlicht” → Wohnzimmer).",
-    "Kind words: a room command needs a kind of device (“the kitchen lights”). The words for each kind are listed below.",
-    "Similar: when nothing exact is said, names get a similarity score (shared letters; +0.3 if the kind was said, +0.2 if in the satellite's room). The best 9 go to Laya.",
-    "Laya only ever sees a candidate as its “Laya sees” text, and picks one, or “none of these”.",
-    "“Exact name only” devices (locks, alarms, garage/gate/door covers) are never scored or shown to Laya.",
+    "A room: the model picks one of its devices, worded as “model sees”. When a number is said, only devices that can take it are offered.",
+    "Nothing named: the devices of the previous command (“turn it off”), unless a kind word below is said; otherwise the speaker's room.",
+    "“Exact name only” devices (locks, alarms, garage/gate/door covers) are never picked from a room.",
   ]) steps.append(el("li", null, text));
   box.append(steps);
   const table = el("div", "small");
@@ -274,7 +242,8 @@ function renderEntity(e, marks) {
   row.append(head, el("div", "small muted mono", e.id));
   if (e.aliases.length) row.append(fact("aliases", e.aliases.join(", ")));
   row.append(fact("matched by", quoted(e.words)));
-  row.append(fact("Laya sees", e.sensitive ? "never shown to Laya" : e.option));
+  row.append(fact("model sees", e.sensitive ? "never offered for a room" : e.option));
+  row.append(fact("can", e.actions.length ? e.actions.join(", ") : "nothing yet"));
   return row;
 }
 
@@ -303,7 +272,7 @@ function renderHome() {
   // Home Assistant's floor order; rooms without a floor, then entities without a room, last.
   const floorOrder = new Map(homeData.floors.map((f, i) => [f.id, i]));
   const rooms = [...homeData.areas].sort((a, b) => (floorOrder.get(a.floor_id) ?? 1e9) - (floorOrder.get(b.floor_id) ?? 1e9));
-  rooms.push({ id: "", name: "No room", aliases: [], words: [], compound: [], option: "" });
+  rooms.push({ id: "", name: "No room", aliases: [], words: [], compound: [] });
 
   const out = [renderLegend(homeData.kinds)];
   let floorShown;
@@ -323,7 +292,6 @@ function renderHome() {
     if (a.id) {
       if (a.aliases.length) room.append(fact("aliases", a.aliases.join(", ")));
       room.append(fact("matched by", quoted(a.words) + (a.compound.length ? ` · also at the start of compound words (${a.compound.map((w) => w + "…").join(", ")})` : "")));
-      room.append(fact("Laya sees", a.option));
     }
     for (const e of ents) room.append(renderEntity(e, marks));
     out.push(room);

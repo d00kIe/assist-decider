@@ -3,18 +3,18 @@
 Which small decision model understands home commands best, and what does it cost to run?
 This page compares six models that can run locally, on 55 test sentences, in English and German.
 
-Measured on 2026-10-07 (best approach and lock fix added the same day) on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `laya 0.3.26`,
+Measured on 2026-10-07 (best approach and lock fix added, and built into the server, the same day) on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `laya 0.3.26`,
 `transformers 5.18.0` and `torch 2.14.1`. How to repeat it is at the [end](#repeat-the-benchmark).
 
 ## Short answer
 
-- **There is now a best approach**: the new approach plus two small rules in code, *near* and
-  *fit* (explained [below](#the-best-approach-step-by-step)). It never does worse than the new
-  approach, and it helps the small models most.
+- **There is now a best approach, and the server uses it**: the new approach plus two small
+  rules in code, *near* and *fit* (explained [below](#the-best-approach-in-the-server)). It
+  never does worse than the new approach, and it helps the small models most.
 - **Intern-Decision 0.8B is now as good as the big models**: 53 of 55 right with the best
   approach, the same as Intern-Decision 2B and one less than H2O-Lightning 4B. It needs only
   2.3 GB, so it **fits a 4 GB graphics card**. With a confidence check of 0.2 it makes no
-  mistakes at all (49 right, 6 handed to Home Assistant).
+  mistakes at all (47 right, 8 handed to Home Assistant, measured with the server).
 - **Most accurate: H2O-Lightning 4B** (54 of 55, no mistakes; the one sentence it misses is handed
   to Home Assistant on purpose). But it needs about 8.8 GB and about 1.1 s per sentence on the Mac,
   so it is **far too big for a 4 GB graphics card**.
@@ -57,7 +57,7 @@ Laya English only reads English, so it was tested on the 34 English sentences.
 |---|---|
 | **Today's pipeline** | The code as it is now in the server. Word lists split the sentence at "and"/"und", and remove actions that can't fit (for example "turn on" when "off" was said). The model then picks the action and the device from what is left. |
 | **New approach** | Devices are found by matching your own device and room names from Home Assistant. When nothing is named, the speaker's room is used. The model then decides: (1) is it a command or a question, (2) which device in a named room is meant, (3) what should happen to each device, choosing only from actions that kind of device supports, and (4) which number from the sentence is the value. The on/off words are still used as a safety filter. |
-| **Best approach** | The new approach plus two rules in code: *near* (when "on" and "off" are both said, each device follows the word closest to its name) and *fit* (in a room, devices that can't take the spoken number are not offered). Described step by step [below](#the-best-approach-step-by-step). |
+| **Best approach** | The new approach plus two rules in code: *near* (when "on" and "off" are both said, each device follows the word closest to its name) and *fit* (in a room, devices that can't take the spoken number are not offered). Described step by step [below](#the-best-approach-in-the-server). |
 | **Model-only tree** | The model is asked about every device ("does the user mean the kitchen light?"), then about the action for each device, then about the value. No word lists and no name matching. |
 
 Since the first version of this page, the server's German and English word lists treat locks
@@ -79,6 +79,11 @@ front door lock or the garage door would have done the wrong thing.
 A sentence counts as right only when every device, action and value in it is right.
 
 ## Results
+
+The tables in this part compare the approaches. They were measured with a probe script that
+was removed once the best approach was built into the server; it is in the git history
+(commit `9849dde`, `server/tests/eval/probe_device_tree.py`). The server's own numbers are in
+[The best approach in the server](#the-best-approach-in-the-server).
 
 ### Memory and speed
 
@@ -137,17 +142,6 @@ Confidence check at **0.4**:
 | Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 50/55 · 5 · **0** |
 | H2O-Lightning 4B | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** |
 
-### Confidence check: what each setting does to the best approach
-
-| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
-|---|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 46/55 · 1 · **8** | 46/55 · 1 · **8** | 46/55 · 2 · **7** | 45/55 · 3 · **7** | 45/55 · 5 · **5** | 44/55 · 6 · **5** |
-| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 2 · **0** | 31/34 · 3 · **0** | 31/34 · 3 · **0** | 30/34 · 4 · **0** |
-| Kev 0.8B | 50/55 · 1 · **4** | 47/55 · 5 · **3** | 43/55 · 9 · **3** | 41/55 · 12 · **2** | 39/55 · 14 · **2** | 34/55 · 20 · **1** |
-| Intern-Decision 0.8B | 53/55 · 1 · **1** | 51/55 · 3 · **1** | 49/55 · 6 · **0** | 44/55 · 11 · **0** | 37/55 · 18 · **0** | 31/55 · 24 · **0** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 52/55 · 3 · **0** | 52/55 · 3 · **0** | 50/55 · 5 · **0** |
-| H2O-Lightning 4B | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** |
-
 ### Extra context for the model (no confidence check)
 
 | Model | plain | + devices described | + numbers in options | + model splits sentence | all three |
@@ -192,64 +186,21 @@ Confidence check at **0.4**:
 | Intern-Decision 2B | 351 ms | 715 ms | 712 ms | 1211 ms |
 | H2O-Lightning 4B | 693 ms | 1098 ms | 1094 ms | 2096 ms |
 
-### Every mistake of the best approach (no confidence check)
+## The best approach in the server
 
-**Laya multilingual** (9)
-
-- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
-- "dim the desk lamp to 20 and close the garage door": wanted desk_lamp:set_brightness=20, garage_door:close, got desk_lamp:turn_off, garage_door:close
-- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:set_temperature=22, bathroom:set_temperature=24, got living_room:set_temperature=22, bathroom:set_temperature=22
-- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:set_position=30, got living_room_blinds:open
-- "dim the light to 30 percent" (speaker in living_room): wanted living_room_floor:set_brightness=30, got living_room_floor:set_brightness
-- "turn on the music" (speaker in living_room): wanted tv:turn_on, got living_room_blinds:open
-- "fahr die Rollos auf 30 Prozent" (speaker in living_room): wanted living_room_blinds:set_position=30, got living_room_floor:turn_on
-- "Licht aus" (speaker in bedroom): wanted desk_lamp:turn_off, got desk_lamp:query
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:set_brightness=70, got living_room_floor:turn_on
-
-**Laya English** (2)
-
-- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
-- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:set_position=30, got living_room_floor:set_brightness=30
-
-**Kev 0.8B** (5)
-
-- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
-- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:set_temperature=22, bathroom:set_temperature=24, got living_room:set_temperature=24, bathroom:set_temperature=24
-- "make it 23 degrees in here" (speaker in living_room): wanted living_room:set_temperature=23, got living_room:query
-- "Licht aus" (speaker in bedroom): wanted desk_lamp:turn_off, got desk_lamp:query
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:set_brightness=70, got living_room_floor:query
-
-**Intern-Decision 0.8B** (2)
-
-- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:set_brightness=70, got living_room_floor:query
-
-**Intern-Decision 2B** (2)
-
-- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:set_brightness=70, got living_room_blinds:set_position=70
-
-**H2O-Lightning 4B** (1)
-
-- "open the blinds to 30 percent": wanted living_room_blinds:set_position=30, got handed to Home Assistant
-
-
-## The best approach, step by step
-
-This is the recipe to build into the server later. The probe's version is `_mix()` with the
-context `("near", "fit")` in `server/tests/eval/probe_device_tree.py`, together with its helpers
-`polarity()` and `fits()`.
+The server does this now, in `server/assist_decider_server/pipeline.py`. Step by step:
 
 1. **Find the devices in code, not with the model.** Match the device and room names (and
-   aliases) from Home Assistant against the sentence, as `find_mentions()` already does. A named
+   aliases) from Home Assistant against the sentence (`find_mentions()`). A named
    device is a target. A named room is a target that the model narrows down in step 3.
-   When nothing is named, use the speaker's room. When there is no speaker's room either, hand the
-   sentence to Home Assistant.
+   When nothing is named, use the devices of the previous command ("turn it off", only within
+   the follow-up memory and when no kind of device such as "light" is said), else the speaker's
+   room. When there is no speaker's room either, hand the sentence to Home Assistant.
 2. **Ask once per sentence: "Is the user giving a command or asking a question?"** Keep this as its
    own question. Without it, the models answer "is the front door locked" with "lock" and
    "is the light on" with "turn on".
 3. **For a named room, ask "Which device does the user mean?"** over that room's devices. Skip the
-   room when one of its devices is already named.
+   room when one of its devices is already named. Locks and garage doors are never offered.
    - ***fit***: first drop the devices that can't take any number in the sentence. A device fits
      when one of its "set" actions accepts a spoken number: brightness 0–100 (% or a bare number),
      blinds position 0–100 (% or a bare number), temperature 5–35 (degrees or a bare number). When
@@ -264,10 +215,11 @@ context `("near", "fit")` in `server/tests/eval/probe_device_tree.py`, together 
      nearest to its name (counted in words, either side). A tie keeps both. Only when one kind of
      word is said does it apply to every device, as before.
 5. **For an action with a value, ask which number from the sentence is meant**, with "no value" as
-   an option.
+   an option. The server then checks that the number fits the action (brightness and position
+   0–100, temperature 5–35); if not, or if no number was said, it hands the sentence off.
 6. **Hand the sentence to Home Assistant when any answer is unsure.** Take the lowest confidence of
    all answers in the sentence. Set the check per model: about **0.2** for Intern-Decision 0.8B and
-   2B, 0.0–0.1 for H2O-Lightning 4B. The server default of 0.4 hands off far too much with the
+   2B, 0.0–0.1 for H2O-Lightning 4B. The default of 0.4 hands off far too much with the
    Intern models.
 
 Why these two rules and not others: *near* fixed the two sentences that turn one thing on and
@@ -278,15 +230,82 @@ Intern-Decision 2B from setting the heating to 70 degrees. Its answer is still w
 but now with low confidence, so a check of 0.2 hands it off. Both rules cost no extra model
 questions, so the best approach is as fast as the new approach.
 
+### Measured with the server code
+
+`server/tests/eval/benchmark.py` sends the same 55 sentences through the server's own code.
+Cells read right/total · handed to Home Assistant · wrong:
+
+| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 | Median |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Laya multilingual | 46/55 · 2 · **7** | 46/55 · 2 · **7** | 46/55 · 3 · **6** | 45/55 · 4 · **6** | 45/55 · 5 · **5** | 41/55 · 10 · **4** | 37 ms |
+| Laya English | 32/34 · 1 · **1** | 31/34 · 2 · **1** | 31/34 · 3 · **0** | 30/34 · 4 · **0** | 30/34 · 4 · **0** | 29/34 · 5 · **0** | 64 ms |
+| Kev 0.8B | 49/55 · 2 · **4** | 47/55 · 5 · **3** | 43/55 · 10 · **2** | 41/55 · 13 · **1** | 39/55 · 15 · **1** | 34/55 · 21 · **0** | 212 ms |
+| Intern-Decision 0.8B | 53/55 · 1 · **1** | 51/55 · 3 · **1** | 47/55 · 8 · **0** | 38/55 · 17 · **0** | 34/55 · 21 · **0** | 26/55 · 29 · **0** | 541 ms |
+| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 52/55 · 3 · **0** | 52/55 · 3 · **0** | 51/55 · 4 · **0** | 725 ms |
+| H2O-Lightning 4B | 54/55 · 1 · **0** | 53/55 · 2 · **0** | 52/55 · 3 · **0** | 51/55 · 4 · **0** | 51/55 · 4 · **0** | 51/55 · 4 · **0** | 1130 ms |
+
+At check 0.0 this matches the probe's best approach, with three small differences:
+
+- **The "which number?" answer now counts in the confidence check**, as step 6 says. The probe
+  left it out. So a few right sentences are handed off at higher checks: Intern-Decision 0.8B at
+  0.2 gets 47 right and 8 handed off instead of 49 and 6, still with none wrong.
+- **A value is never set without a number.** "Dim the light to 30 percent" with Laya
+  multilingual is now handed off instead of being done wrong.
+- **A device picked from a room is named by its Home Assistant name** in the "what to do?"
+  question. The probe used the first alias for German, which only works in this test home.
+  This costs Kev one German sentence ("mach das Licht im Schlafzimmer aus").
+
+### Every mistake of the server (no confidence check)
+
+**Laya multilingual**
+
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "dim the desk lamp to 20 and close the garage door": wanted desk_lamp:HassLightSet brightness=20, garage_door:HassTurnOff, got desk_lamp:HassTurnOff, garage_door:HassTurnOff
+- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=22
+- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_blinds:HassTurnOn
+- "dim the light to 30 percent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=30, got handed off (missing_value)
+- "turn on the music" (speaker in living_room): wanted tv:HassTurnOn, got living_room_blinds:HassTurnOn
+- "fahr die Rollos auf 30 Prozent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassTurnOn
+- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassTurnOn
+
+**Laya English**
+
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassLightSet brightness=30
+
+**Kev 0.8B**
+
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=24, bathroom:HassClimateSetTemperature temperature=24
+- "make it 23 degrees in here" (speaker in living_room): wanted living_room:HassClimateSetTemperature temperature=23, got living_room:HassClimateGetTemperature
+- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
+- "mach das Licht im Schlafzimmer aus" (speaker in kitchen): wanted desk_lamp:HassTurnOff, got handed off (missing_value)
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassGetState
+
+**Intern-Decision 0.8B**
+
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassGetState
+
+**Intern-Decision 2B**
+
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_blinds:HassSetPosition position=70
+
+**H2O-Lightning 4B**
+
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+
 ## The lock fix
 
 Locks turn the on/off words around. "Close" and "ab"/"zu" are "off" words for a light, but for a
 lock they mean *lock*, which Home Assistant does with "turn on". "Open" and "auf" are "on" words,
 but for a lock they mean *unlock*. So before the fix, "sperr die Haustür ab", "schließ die Haustür
 ab", "öffne die Haustür" and "open the front door" all did the opposite of what was said.
-Now, when a sentence part names a lock, the server uses `lock_words` and `unlock_words` instead
-of the on/off words (`server/assist_decider_server/lang.py`, used in `candidate_intents()` in
-`pipeline.py`). A test covers all four sentences.
+Now, for a lock, the server uses `lock_words` and `unlock_words` instead of the on/off words
+(`server/assist_decider_server/lang.py`, used in `Decider.polarity()` in `pipeline.py`). A test
+covers all four sentences.
 
 ## What the mistakes have in common
 
@@ -303,12 +322,14 @@ of the on/off words (`server/assist_decider_server/lang.py`, used in `candidate_
 
 ## What this means for the GeForce plan
 
-| | Fits a 4 GB card? | Best approach, right (of 55), no check | Suggested check | At that check |
+Measured with the server code:
+
+| | Fits a 4 GB card? | Right (of 55), no check | Suggested check | At that check |
 |---|---|---|---|---|
-| H2O-Lightning 4B | No, about 8.8 GB | 54 | 0.0–0.1 | 54 right, 1 handed off, 0 wrong |
+| H2O-Lightning 4B | No, about 8.8 GB | 54 | 0.0–0.1 | 54 right, 1 handed off, 0 wrong (at 0.0) |
 | Intern-Decision 2B | No, unless compressed to 8-bit (untested) | 53 | 0.2 | 52 right, 3 handed off, 0 wrong |
-| **Intern-Decision 0.8B** | **Yes, about 2.3 GB** | **53** | **0.2** | **49 right, 6 handed off, 0 wrong** |
-| Kev 0.8B | Yes, about 2.3 GB | 50 | 0.4 | 39 right, 14 handed off, 2 wrong |
+| **Intern-Decision 0.8B** | **Yes, about 2.3 GB** | **53** | **0.2** | **47 right, 8 handed off, 0 wrong** |
+| Kev 0.8B | Yes, about 2.3 GB | 49 | 0.4 | 39 right, 15 handed off, 1 wrong |
 | Laya multilingual | Yes, about 1.2 GB | 46 | 0.4 | 45 right, 5 handed off, 5 wrong |
 
 **Intern-Decision 0.8B with the best approach is the pick for the 4 GB card.**
@@ -355,18 +376,18 @@ within 0.006.
 From the `server` folder:
 
 ```bash
-# answers for every sentence, saved to tests/eval/results/<model>.json (slow models: 5-15 minutes)
-uv run python tests/eval/probe_device_tree.py multilingual english kev-0.8b \
-    intern-decision-0.8b intern-decision-2b h2o-lightning-4b --tree --out=tests/eval/results
+# right / handed off / wrong at every check, and every mistake (big models: a few minutes each)
+uv run python tests/eval/benchmark.py multilingual english kev-0.8b \
+    intern-decision-0.8b intern-decision-2b h2o-lightning-4b
 
 # memory and speed, one process per model
 for m in multilingual english kev-0.8b intern-decision-0.8b intern-decision-2b h2o-lightning-4b; do
-    uv run python tests/eval/measure_memory.py $m --out=tests/eval/results
+    uv run python tests/eval/measure_memory.py $m
 done
-
-# the tables on this page
-uv run python tests/eval/report.py
 ```
+
+The comparison of approaches (today's pipeline, extra context, other ways of asking, the
+model-only tree) needs the probe script from commit `9849dde`.
 
 To switch the server to another model, set `model = "intern-decision-2b"` in the config file, or
 start it with `--model intern-decision-2b`.

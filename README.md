@@ -7,17 +7,17 @@ The model runs on a separate machine with a GPU, Apple Silicon or just a CPU, *n
 on your Home Assistant box.
 
 Assist Decider is a [Home Assistant](https://www.home-assistant.io/) conversation agent.
-It hands each spoken command to a small decision server, which works out *what* to do and
-*which device* to do it to. Home Assistant then runs the result through its own intent
-handlers. It is built on [Laya](https://github.com/NandhaKishorM/laya), a
-non-autoregressive decision model. Laya does not generate text; it scores a fixed set of
-options in a single forward pass, so it cannot invent devices or actions. A typical
-decision takes **15–40 ms** on an Apple M-series GPU.
+It hands each spoken command to a small decision server, which works out *which devices*
+you mean and *what to do* with each. Home Assistant then runs the result through its own
+intent handlers. The server uses a small decision model such as
+[Intern-Decision](https://huggingface.co/internlm/Intern-Decision-0.8B) or
+[Laya](https://github.com/NandhaKishorM/laya). These models don't write text. They only
+pick from a fixed list of answers, so they can't invent devices or actions.
 
 ```
-"Mach das Küchenlicht an und stell das Schlafzimmer auf 20 Grad"
-   → HassTurnOn {name: light.kitchen}  → "Kitchen Lights eingeschaltet"
-   → HassClimateSetTemperature {area: bedroom, temperature: 20}  → "Temperatur auf 20 Grad gestellt"
+"Mach das Küchenlicht an und stell die Heizung Bad auf 20 Grad"
+   → HassTurnOn {name: light.kitchen}  → "Küchenlicht eingeschaltet"
+   → HassClimateSetTemperature {name: climate.bathroom, temperature: 20}  → "Temperatur auf 20 Grad gestellt"
 ```
 
 > **Status: early (v0.1).** It works end to end for the commands listed under
@@ -61,43 +61,51 @@ decision takes **15–40 ms** on an Apple M-series GPU.
  └──────────────────────────────────────────────────────────────────────────────┼───┘
                                                                                 ▼
  ┌─ assist-decider server (your Mac / Linux box / Windows PC) ───────────────────────┐
- │ 3. Fold text, find spoken device and room names, split "…and…" into commands,     │
- │    read numbers ("einundzwanzig komma fünf Grad" → 21.5)                          │
- │ 4. Ask Laya: which action? which device or room? Gate on confidence.              │
- │    Model stays loaded in RAM/VRAM. Live web UI shows every decision.              │
+ │ 3. Find the devices by name: device and room names and aliases you set in HA.     │
+ │    Nothing named: the room of the satellite you spoke to.                         │
+ │ 4. Ask the model short multiple-choice questions: command or question? which      │
+ │    device in that room? what to do with each device? which number?                │
+ │    Unsure about any answer: hand the whole sentence back to Home Assistant.       │
  └───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Responsibilities are split deliberately:
+The server's steps are explained in [HOW-IT-WORKS.md](HOW-IT-WORKS.md). The ideas behind them:
 
+- **Code finds the devices, the model decides what to do.** Device and room names are
+  matched exactly against your Home Assistant names and aliases. The model then answers
+  a few multiple-choice questions, and only ever sees options that make sense: a lock is
+  offered "lock / unlock", never "set brightness".
+- **What you said always wins.** When you say "off" or "aus", the model can't choose
+  "turn on". When you say "on" and "off" in one sentence, each device follows the word
+  nearest to its name.
+- **Unsure means hands off.** If any answer is below your confidence threshold, nothing
+  runs and the sentence goes to your fallback agent.
 - **The server holds no Home Assistant credentials.** It can only *propose* actions;
   Home Assistant decides what actually runs.
-- **The model is the core but does not work alone.** Laya picks *between options*.
-  Numbers, compound commands and exact device names are handled by fast, deterministic
-  code around it. Lexical guards stop the model from contradicting what you said: when
-  you say "aus", "turn on" is never chosen. Every guard is visible in the live log.
-- **Safety by construction.** Locks and garage/gate/door covers are never *guessed*.
-  They only act when you say their exact name. A room command never includes locks.
+- **Safety by construction.** Locks and garage, gate and door covers are only used when you
+  say their exact name. A room command never picks them.
 
 ## What it understands
 
-| Intent | English | Deutsch |
+| What | English | Deutsch |
 |---|---|---|
-| Turn on / off (lights, switches, fans, media players, covers, scenes, scripts, …) | "turn off the kitchen light", "turn on the lights in the hallway" | "Schalte das Küchenlicht aus", "Mach das Licht im Flur an" |
-| Brightness | "set the bed light to 30%" | "Stell das Bettlicht auf fünfzig Prozent" |
-| Thermostat | "set the bedroom to 21.5 degrees" | "Stell die Heizung im Bad auf 21,5 Grad" |
-| Cover position | "open the living room blinds to 40%" | "Fahre den Rollladen Wohnzimmer auf 40 Prozent" |
-| Device state | "is the front door locked?" | "Ist die Haustür abgeschlossen?" |
-| Temperature | "how warm is it in the living room?" | "Wie warm ist es im Wohnzimmer?" |
-| **Compound commands** | "turn off the kitchen light and set the bedroom to 19 degrees" | "Mach die Kaffeemaschine an und stell das Bad auf 22 Grad" |
-| **Several targets** | "turn off the lights in the kitchen and the hallway" | "Schalte das Licht in der Küche und im Flur aus" |
-| **Follow-ups** (within a minute) | "turn it off", "and the hallway too", "23 degrees" | "Mach es aus", "und im Flur auch" |
+| Turn on / off (lights, switches, fans, media players, scenes, scripts, …) | "turn off the kitchen light" | "Schalte das Küchenlicht aus" |
+| Open / close (blinds, valves, garage door), lock / unlock | "close the living room blinds", "lock the front door" | "Schließ das Garagentor", "Sperr die Haustür ab" |
+| Brightness | "set the desk lamp to 30%" | "Stell das Küchenlicht auf fünfzig Prozent" |
+| Thermostat | "set the bathroom heating to 21.5 degrees" | "Stell die Heizung Bad auf 21,5 Grad" |
+| Blind position | "open the living room blinds to 40%" | "Fahre den Rollladen Wohnzimmer auf 40 Prozent" |
+| Questions | "is the front door locked?", "what's the temperature in the bathroom?" | "Ist die Haustür abgeschlossen?", "Wie warm ist es im Bad?" |
+| **Several devices, each its own action** | "turn on the kitchen light and turn off the hallway light" | "Mach das Küchenlicht an und den Fernseher aus" |
+| **A room instead of a device** | "turn off the light in the hallway" | "Mach das Licht im Flur aus" |
+| **Nothing named**: the satellite's room | "turn on the light" (said in the kitchen) | "Licht aus" (im Schlafzimmer) |
+| **Follow-ups** (within a minute) | "turn it off" | "Mach es aus" |
 
-Devices can be named by their name or any alias you set in Home Assistant. Rooms are named
-by area name or alias. German compounds work ("Wohnzimmerlicht"). Without a room, the
-satellite's own area is used ("turn on the lights" in the kitchen). Anything else, such as
-"what's the capital of France", is passed to your fallback agent if you configured one.
-Otherwise you hear a polite "Sorry, I couldn't understand that".
+Devices are named by their name or any alias you set in Home Assistant. Rooms are named
+by area name or alias, and German compounds work ("Wohnzimmerlicht"). When you name a room,
+the model picks the one device in it that you mean. When a number is said, only devices
+that can take it are offered: "22 degrees" means the thermostat, not the lamp. Anything
+else, such as "what's the capital of France", goes to your fallback agent if you
+configured one. Otherwise you hear a polite "Sorry, I couldn't understand that".
 
 ## Requirements
 
@@ -106,13 +114,14 @@ Otherwise you hear a polite "Sorry, I couldn't understand that".
 | Platform | Status | Notes |
 |---|---|---|
 | macOS 14+ on Apple Silicon | ✅ tested (M4 Pro) | Uses the GPU (Metal/MPS). Intel Macs are not supported by PyTorch. |
-| Linux x86_64 / aarch64 with NVIDIA GPU | ⚠️ expected to work, not yet verified | ~1.3–1.7 GB VRAM. |
-| Linux / Windows CPU only | ⚠️ expected to work, slower | Roughly 0.2–0.6 s per decision. |
+| Linux x86_64 / aarch64 with NVIDIA GPU | ⚠️ expected to work, not yet verified | 1.2–2.3 GB VRAM for the smaller models. |
+| Linux / Windows CPU only | ⚠️ expected to work, slower | Several seconds per sentence with the bigger models. |
 | Windows with NVIDIA GPU | ⚠️ not yet verified | Needs the CUDA build of PyTorch, see below. |
 
 - Python 3.11+ (installed for you by `uv`)
-- About 2 GB of disk for the model download (one checkpoint)
-- RAM or VRAM: about **1.3 GB** (`multilingual`) or **1.7 GB** (`english`) while running
+- 1–9 GB of disk for the model download, depending on the model
+- RAM or VRAM while running: **1.2 GB** (`multilingual`) to **8.8 GB** (`h2o-lightning-4b`),
+  see [Which model?](#which-model)
 
 **Home Assistant**: 2026.9 or newer. No extra Python packages are installed into Home
 Assistant, so it works on Home Assistant OS, Container and Core alike.
@@ -152,15 +161,30 @@ INFO uvicorn.error: Uvicorn running on http://0.0.0.0:8765
 
 On macOS, allow incoming connections when the firewall asks.
 
-**Which model?** The server keeps exactly **one** checkpoint in memory:
+### Which model?
 
-| `--model` | Languages | Memory | Notes |
-|---|---|---|---|
-| `english` | English | ~1.7 GB | Most accurate for English |
-| `multilingual` | English, German | ~1.3 GB | Default. German accuracy is lower than English. |
+The server keeps exactly **one** model in memory. Each needs its own confidence threshold
+(set in Home Assistant, see [Options](#add-it)). Results are from
+[BENCHMARK.md](BENCHMARK.md): 55 test sentences, English and German, on an M4 Pro Mac.
 
-Want the best of both, for example an English "Jarvis" and a German "Nabu" assistant?
-Run two servers on different ports (`--port 8765 --model english` and
+| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong |
+|---|---|---|---|---|---|
+| `multilingual` (Laya, default) | English, German | 1.2 GB | 40 ms | 0.4 | 45 · 5 · 5 |
+| `english` (Laya) | English | 2.0 GB | 60 ms | 0.2 | 31 · 3 · 0 (of 34) |
+| `kev-0.8b` | English, German* | 2.3 GB | 0.2 s | 0.4 | 39 · 15 · 1 |
+| **`intern-decision-0.8b`** | English, German | 2.3 GB | 0.5 s | **0.2** | **47 · 8 · 0** |
+| `intern-decision-2b` | English, German | 4.6 GB | 0.7 s | 0.2 | 52 · 3 · 0 |
+| `h2o-lightning-4b` | English, German* | 8.8 GB | 1.1 s | 0.1 | 53 · 2 · 0 |
+
+\* trained mostly on English; German works in the test but isn't promised by its makers.
+
+**Recommended: `intern-decision-0.8b` with a threshold of 0.2.** It makes no mistakes in
+the test and fits a 4 GB graphics card. On an NVIDIA card it should be much faster than on
+the Mac. Laya (`multilingual`) is the fastest but makes the most mistakes. Use
+`h2o-lightning-4b` or `intern-decision-2b` when you have the memory.
+
+Want two languages with different models, for example an English "Jarvis" and a German
+"Nabu" assistant? Run two servers on different ports (`--port 8765 --model english` and
 `--port 8766 --model multilingual`) and add each one in Home Assistant. You get one
 conversation agent per server.
 
@@ -225,10 +249,10 @@ The integration checks the connection and token right away. The new agent appear
 
 | Option | Default | Meaning |
 |---|---|---|
-| Confidence threshold (English) | 0.40 | Below this, a command is not executed. Higher is safer, lower understands more. |
-| Confidence threshold (German) | 0.50 | Stricter because German is less accurate. |
-| Follow-up memory (seconds) | 60 | How long "turn it off" refers to the previous command, per satellite (or conversation). 0 turns it off. |
-| Fallback agent | none | Where requests go that Assist Decider can't decide, e.g. *Home Assistant* or an LLM agent. If only part of a sentence is understood, the whole sentence goes to the fallback. |
+| Confidence threshold (English) | 0.40 | If the model is less sure than this about any answer, nothing runs and the sentence goes to the fallback agent. Higher is safer, lower understands more. Set it to the value for your model in [Which model?](#which-model). |
+| Confidence threshold (German) | 0.50 | The same for German. |
+| Follow-up memory (seconds) | 60 | How long "turn it off" refers to the devices of the previous command, per satellite (or conversation). 0 turns it off. |
+| Fallback agent | none | Where requests go that Assist Decider can't decide, e.g. *Home Assistant* or an LLM agent. |
 
 Only entities **exposed to Assist** are ever sent or controlled
 (Settings → Voice assistants → Expose). Give devices aliases in their entity settings to
@@ -242,8 +266,7 @@ add alternative names, including in another language ("Küchenlicht").
 - **Language**: English or German (the list shows what your server's model supports)
 - Speech-to-text and text-to-speech: whatever you use (e.g. Whisper and Piper)
 
-One assistant per language works well, for example "Jarvis" (English, `english` server)
-and "Nabu" (German, `multilingual` server).
+One assistant per language works well.
 
 **Tip:** turn on **"Prefer handling commands locally"** in the assistant. Home Assistant's
 built-in sentence matcher then answers exact matches instantly, and only everything else
@@ -256,11 +279,14 @@ Try it in the Assist dialog (the chat icon) before using voice.
 Open `http://<server-ip>:8765/` in a browser and paste the token. It is kept in that
 browser tab only. You see every decision as it happens:
 
-- the utterance, language, satellite room and timing
-- each detected command, extracted numbers, guards that removed options
-- every model question with the probability of each option, the confidence and the
-  threshold
-- the final intent calls, plus a filterable server log
+- the sentence, language, satellite room and timing
+- how the devices were found, and the numbers that were said
+- every model question with the probability of each option, which options were ruled
+  out, the confidence and the threshold
+- the final intent calls, or why the sentence was handed back, plus a filterable server log
+
+The **Home** tab shows every exposed device and room, the words that match it, and what
+the model sees and can do with it.
 
 ## Configuration reference
 
@@ -273,7 +299,7 @@ flags. See [`server/assist-decider.example.toml`](server/assist-decider.example.
 | `host` | `--host` | `127.0.0.1` | Listen address. `0.0.0.0` for the LAN. |
 | `port` | `--port` | `8765` | |
 | `token` / `token_file` | – | – | **Required**, at least 32 characters. |
-| `model` | `--model` | `multilingual` | `english` or `multilingual` |
+| `model` | `--model` | `multilingual` | see [Which model?](#which-model) |
 | `device` | `--device` | `auto` | `auto`, `cpu`, `cuda`, `cuda:N`, `mps`, `xpu` |
 | `max_pending` | – | `4` | Queued requests before HTTP 503 |
 | `max_body_bytes` | – | `1048576` | Largest request accepted |
@@ -329,28 +355,34 @@ of the log.
 | "Cannot reach the server" when adding the integration | Is the server running with `--host 0.0.0.0`? Can Home Assistant reach the port (macOS firewall, Windows Defender, `curl http://<ip>:8765/healthz`)? |
 | "The server rejected the token" | Paste the exact token, without quotes or spaces. |
 | Assistant says "the decision server is not reachable" | The server is down or restarting. Home Assistant retries setup automatically. |
-| A command is not executed | Open the live log. Usually it is `low_confidence` (lower the threshold slightly), `no_target` (add an alias to the device) or `area_without_domain` (say "lights": "turn off the kitchen **lights**"). |
-| German is less reliable than English | Expected with the current Laya checkpoint. Add German aliases, keep the German threshold at 0.5, and configure a fallback agent. |
-| The first command after start is slow | The model warms up at startup. If it is still slow, check that the log says `device=mps`/`cuda`, not `cpu`. |
+| A command is not executed | Open the live log. Usually it is `low_confidence` (check the threshold for your model in [Which model?](#which-model)) or `no_target` (no device or room name was recognized: add an alias to the device, or give the satellite a room). |
+| The wrong device in a room is used | Name the device instead of the room, or give it an alias that you say. |
+| German is less reliable than English | Use `intern-decision-0.8b` or bigger, add German aliases, and configure a fallback agent. |
+| Every command is slow | The model warms up at startup. If it is still slow, check that the log says `device=mps`/`cuda`, not `cpu`. |
 
 ## Limitations
 
-- Laya only *chooses*, so free text such as shopping list items, broadcast messages and
-  media search is not supported yet.
-- Not yet supported: light colors and color temperature, timers, media controls, fans,
+- **A room means one device.** "Turn off the lights in the living room" turns off the one
+  light the model picks, not all of them. Name each device, or use a Home Assistant
+  group or area automation.
+- The models only *choose*, so free text such as shopping list items, broadcast messages
+  and media search is not supported.
+- Not yet supported: light colors and color temperature, timers, media controls, fan speed,
   volume and floors (see the roadmap).
-- No follow-up questions ("which light?"). References to the previous command work for
-  about a minute ("turn *it* off", "and the kitchen too").
+- No follow-up questions ("which light?"). Follow-ups only reuse the previous devices
+  ("turn *it* off"), not the previous action ("and the kitchen too").
 - Conditions ("if it is cold outside …", "wenn …") are not supported. Such sentences go
   to the fallback agent; use a Home Assistant automation instead.
-- Mixed on/off in one sentence without a second verb ("Licht an und Heizung aus") is
-  ambiguous. Say "Mach das Licht an und schalte die Heizung aus".
+- A thermostat question is answered with its temperature, also "is the heating on?".
 
 ## Development
 
 ```bash
-# Server: fast tests, then live tests with the real model
+# Server: fast tests, then live tests with real models
 cd server && uv sync && uv run pytest && uv run pytest -m slow -s
+
+# The benchmark of BENCHMARK.md (55 sentences, any models)
+cd server && uv run python tests/eval/benchmark.py multilingual intern-decision-0.8b
 
 # Home Assistant integration tests (Home Assistant 2026.9.4, Python 3.14)
 uv sync --python 3.14 && uv run pytest tests
@@ -360,7 +392,8 @@ uv sync --python 3.14 && uv run pytest tests
   `server/assist_decider_server/` and `custom_components/assist_decider/`. Tests and CI
   check this.
 - New model? Implement `DecisionProvider` (`server/assist_decider_server/providers.py`).
-  It answers choice questions, and the whole pipeline is reused.
+  It answers multiple-choice questions, and the whole pipeline is reused. Run the
+  benchmark to find its threshold.
 - New language? Add a `Lang` entry in `lang.py` (number words come from unicode-rbnf).
   Then extend `language` in `protocol.py` (both copies) and the per-language thresholds
   and messages in the integration's `const.py`, `strings.json` and translations.
@@ -372,7 +405,7 @@ Which decision model to use, with accuracy, memory and speed: [BENCHMARK.md](BEN
 
 Apache License 2.0. See [LICENSE](LICENSE).
 
-- [Laya](https://github.com/NandhaKishorM/laya) by Convai Innovations (Apache-2.0): the decision model
+- The decision models, all Apache-2.0: [Laya](https://github.com/NandhaKishorM/laya) by Convai Innovations, [Intern-Decision](https://huggingface.co/internlm/Intern-Decision-0.8B) by InternLM, [Kev](https://huggingface.co/jaredpalmer/kev-0.8b) by Jared Palmer, [H2O-Lightning](https://huggingface.co/h2oai/h2o-lightning-4b) by H2O.ai
 - [home-assistant-laya](https://github.com/allenporter/home-assistant-laya) by Allen Porter: the original in-process integration that inspired this project
 - [Home Assistant](https://github.com/home-assistant/core) (Apache-2.0): response rendering follows the built-in conversation agent; replies use the [intents](https://github.com/OHF-Voice/intents) response templates
 - [unicode-rbnf](https://github.com/rhasspy/unicode-rbnf) for spoken numbers
