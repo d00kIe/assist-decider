@@ -6,15 +6,15 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_TOKEN, CONF_URL, Platform
+from homeassistant.const import CONF_URL, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.typing import ConfigType
 
-from .client import AuthError, DeciderClient, ProtocolMismatch, ServerUnavailable
+from .client import DeciderClient, ProtocolMismatch, ServerUnavailable
 from .const import CONF_VERIFY_SSL, DOMAIN
 from .protocol import PROTOCOL_VERSION, ServerInfo
 
@@ -40,13 +40,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: DeciderConfigEntry) -> b
     client = DeciderClient(
         async_get_clientsession(hass, verify_ssl=entry.data.get(CONF_VERIFY_SSL, True)),
         entry.data[CONF_URL],
-        entry.data[CONF_TOKEN],
     )
     issue_id = f"protocol_mismatch_{entry.entry_id}"
     try:
         info = await client.info()
-    except AuthError as err:
-        raise ConfigEntryAuthFailed("The server rejected the token") from err
     except ProtocolMismatch as err:
         ir.async_create_issue(
             hass,

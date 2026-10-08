@@ -202,7 +202,7 @@ sequenceDiagram
     HA->>HA: speech to text (Whisper)
     HA->>Int: the text, language, which satellite
     Int->>Int: collect exposed devices, rooms, settings
-    Int->>Srv: one request (secret token required)
+    Int->>Srv: one request
     Srv->>Srv: find device and room names, read numbers
     loop a few short questions
         Srv->>M: one question + list of answers
@@ -358,7 +358,7 @@ flowchart TD
     SAY --> ALL["Join all replies<br/>+ 'I didn't understand the rest' if needed"]
 ```
 
-If the server cannot be reached, does not answer within **10 seconds**, or rejects the token, Home Assistant says "the decision server is not reachable", or uses the fallback agent if one is set. A rejected token also asks you to enter a new one.
+If the server cannot be reached, or does not answer within **10 seconds**, Home Assistant says "the decision server is not reachable", or uses the fallback agent if one is set.
 
 ### 3.8 What Home Assistant sends to the server
 
@@ -374,7 +374,7 @@ If the server cannot be reached, does not answer within **10 seconds**, or rejec
 | `options.confidence_threshold` | How sure the model must be | 0–1; default 0.4 EN, 0.5 DE |
 | `options.memory_seconds` | How long "turn it off" refers to the last command | 0–3600; default 60; 0 = off |
 
-Every request must carry the secret token, and the server checks it before reading anything else. Unknown fields are refused.
+Unknown fields are refused. There is no authentication: the server is meant for a closed home network.
 
 ---
 

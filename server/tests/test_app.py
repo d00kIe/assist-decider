@@ -14,9 +14,6 @@ from assist_decider_server.logbuf import EventBus
 
 from .conftest import FakeProvider, make_request
 
-TOKEN = "t" * 40
-AUTH = {"Authorization": f"Bearer {TOKEN}"}
-
 
 def body(text: str = "turn on the kitchen light", **kw) -> dict:
     return json.loads(make_request(text, **kw).model_dump_json())
@@ -29,13 +26,13 @@ def provider():
 
 @pytest.fixture
 def client(provider):
-    app = create_app(provider=provider, token=TOKEN, bus=EventBus(100), max_body_bytes=200_000)
+    app = create_app(provider=provider, bus=EventBus(100), max_body_bytes=200_000)
     with TestClient(app, client=("10.0.0.5", 1234)) as c:
         yield c
 
 
 def test_process_ok(client):
-    r = client.post("/v1/process", json=body(), headers=AUTH)
+    r = client.post("/v1/process", json=body())
     assert r.status_code == 200
     data = r.json()
     assert data["status"] == "ok"
@@ -43,54 +40,21 @@ def test_process_ok(client):
 
 
 def test_info(client):
-    r = client.get("/v1/info", headers=AUTH)
+    r = client.get("/v1/info")
     assert r.json()["protocol_version"] == 3
     assert r.json()["languages"] == ["en", "de"]
 
 
-@pytest.mark.parametrize(
-    "headers",
-    [
-        {},
-        {"Authorization": "Bearer wrong"},
-        {"Authorization": TOKEN},
-        {"Authorization": "Basic " + TOKEN},
-        {"Authorization": "Bearer té".encode("latin-1")},
-    ],
-)
-def test_auth_required(client, headers):
-    assert client.get("/v1/info", headers=headers).status_code == 401
-    assert client.post("/v1/process", json=body(), headers=headers).status_code == 401
-
-
 def test_home_shows_last_request_as_the_matcher_sees_it(client):
-    assert client.get("/v1/home").status_code == 401
-    assert client.get("/v1/home", headers=AUTH).json()["entities"] == []
-    client.post("/v1/process", json=body(), headers=AUTH)
-    home = client.get("/v1/home", headers=AUTH).json()
+    assert client.get("/v1/home").json()["entities"] == []
+    client.post("/v1/process", json=body())
+    home = client.get("/v1/home").json()
     kitchen = next(e for e in home["entities"] if e["id"] == "light.kitchen_ceiling")
     assert kitchen["words"] == ["kitchen light", "kuechenlicht"]
     assert kitchen["option"] == "Kitchen Light (light) in Kitchen"
     assert next(e for e in home["entities"] if e["id"] == "lock.front_door")["sensitive"]
     living = next(a for a in home["areas"] if a["id"] == "living_room")
     assert living["compound"] == ["wohnzimmer"]
-
-
-def test_auth_checked_before_body_is_parsed(client):
-    r = client.post(
-        "/v1/process", content=b"{not json", headers={"Content-Type": "application/json"}
-    )
-    assert r.status_code == 401
-
-
-def test_lockout_after_repeated_failures(client):
-    for _ in range(app_module.LOCKOUT_FAILURES):
-        assert client.get("/v1/info", headers={"Authorization": "Bearer nope"}).status_code == 401
-    r = client.get("/v1/info", headers={"Authorization": "Bearer nope"})
-    assert r.status_code == 429
-    assert int(r.headers["retry-after"]) > 0
-    # Behind a proxy everyone shares one address: the right token must still work.
-    assert client.get("/v1/info", headers=AUTH).status_code == 200
 
 
 def test_log_line_cannot_be_forged_through_the_path(client, caplog):
@@ -100,7 +64,7 @@ def test_log_line_cannot_be_forged_through_the_path(client, caplog):
 
 def test_body_too_large_declared(client):
     r = client.post(
-        "/v1/process", content=b"x" * 300_000, headers=AUTH | {"Content-Type": "application/json"}
+        "/v1/process", content=b"x" * 300_000, headers={"Content-Type": "application/json"}
     )
     assert r.status_code == 413
 
@@ -110,29 +74,27 @@ def test_body_too_large_streamed(client):
         for _ in range(30):
             yield b"x" * 10_000
 
-    r = client.post(
-        "/v1/process", content=chunks(), headers=AUTH | {"Content-Type": "application/json"}
-    )
+    r = client.post("/v1/process", content=chunks(), headers={"Content-Type": "application/json"})
     assert r.status_code == 413
 
 
 def test_extra_fields_rejected(client):
     data = body()
     data["evil"] = 1
-    assert client.post("/v1/process", json=data, headers=AUTH).status_code == 422
+    assert client.post("/v1/process", json=data).status_code == 422
 
 
 @pytest.mark.parametrize(
     "patch", [{"language": "fr"}, {"protocol_version": 1}, {"text": "x" * 501}, {"text": ""}]
 )
 def test_invalid_requests_rejected(client, patch):
-    assert client.post("/v1/process", json=body() | patch, headers=AUTH).status_code == 422
+    assert client.post("/v1/process", json=body() | patch).status_code == 422
 
 
 def test_invalid_entity_id_rejected(client):
     data = body()
     data["home"]["entities"][0]["id"] = "light.kitchen<script>"
-    assert client.post("/v1/process", json=data, headers=AUTH).status_code == 422
+    assert client.post("/v1/process", json=data).status_code == 422
 
 
 def test_busy_returns_503():
@@ -143,15 +105,13 @@ def test_busy_returns_503():
             gate.wait(5)
             return super().predict(*a, **kw)
 
-    app = create_app(provider=Slow(), token=TOKEN, bus=EventBus(10), max_pending=1)
+    app = create_app(provider=Slow(), bus=EventBus(10), max_pending=1)
     with TestClient(app) as c:
         results = []
-        t = threading.Thread(
-            target=lambda: results.append(c.post("/v1/process", json=body(), headers=AUTH))
-        )
+        t = threading.Thread(target=lambda: results.append(c.post("/v1/process", json=body())))
         t.start()
         for _ in range(100):  # wait until the first request occupies the slot
-            r = c.post("/v1/process", json=body(), headers=AUTH)
+            r = c.post("/v1/process", json=body())
             if r.status_code == 503:
                 break
         gate.set()
@@ -167,14 +127,14 @@ def test_docs_disabled(client):
 
 
 def test_security_headers(client):
-    for r in (client.get("/"), client.get("/v1/info", headers=AUTH), client.get("/v1/info")):
+    for r in (client.get("/"), client.get("/v1/info")):
         assert "frame-ancestors 'none'" in r.headers["content-security-policy"]
         assert r.headers["x-content-type-options"] == "nosniff"
         assert r.headers["cache-control"] == "no-store"
     assert "server" not in client.get("/healthz").headers or True  # uvicorn header off in __main__
 
 
-def test_static_ui_served_without_auth_and_has_no_query_params(client):
+def test_static_ui_has_no_query_params(client):
     assert client.get("/").status_code == 200
     assert client.get("/app.js").headers["content-type"].startswith("text/javascript")
     # Regression: route params must not leak into the file path.
@@ -187,10 +147,6 @@ def test_ui_never_uses_inner_html():
     assert not re.search(r"innerHTML|outerHTML|insertAdjacentHTML|document\.write", js)
 
 
-def test_events_require_auth(client):
-    assert client.get("/v1/events").status_code == 401
-
-
 def test_events_replay_backlog_over_real_server():
     """TestClient cannot end an infinite stream, so run uvicorn for real."""
     import httpx
@@ -198,7 +154,7 @@ def test_events_replay_backlog_over_real_server():
 
     bus = EventBus(10)
     bus.publish({"type": "log", "msg": "hello"})
-    app = create_app(provider=FakeProvider(), token=TOKEN, bus=bus)
+    app = create_app(provider=FakeProvider(), bus=bus)
     server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=0, log_config=None))
     thread = threading.Thread(target=server.run, daemon=True)
     thread.start()
@@ -209,8 +165,7 @@ def test_events_replay_backlog_over_real_server():
             threading.Event().wait(0.05)
         port = server.servers[0].sockets[0].getsockname()[1]
         url = f"http://127.0.0.1:{port}/v1/events"
-        assert httpx.get(url, timeout=5).status_code == 401
-        with httpx.stream("GET", url, headers=AUTH, timeout=5) as r:
+        with httpx.stream("GET", url, timeout=5) as r:
             assert r.headers["content-type"].startswith("text/event-stream")
             for line in r.iter_lines():
                 if line.startswith("data: "):
@@ -223,9 +178,9 @@ def test_events_replay_backlog_over_real_server():
 
 def test_trace_published_on_bus(provider):
     bus = EventBus(100)
-    app = create_app(provider=provider, token=TOKEN, bus=bus)
+    app = create_app(provider=provider, bus=bus)
     with TestClient(app) as c:
-        c.post("/v1/process", json=body(), headers=AUTH)
+        c.post("/v1/process", json=body())
         backlog, _ = bus.subscribe()
     traces = [e for e in backlog if e["type"] == "trace"]
     assert traces and traces[-1]["text"] == "turn on the kitchen light"
@@ -251,9 +206,7 @@ def test_silent_connections_are_closed(monkeypatch):
     import socket
 
     monkeypatch.setattr(app_module, "HEADER_TIMEOUT", 0.3)
-    server, thread, port = _serve(
-        create_app(provider=FakeProvider(), token=TOKEN, bus=EventBus(10))
-    )
+    server, thread, port = _serve(create_app(provider=FakeProvider(), bus=EventBus(10)))
     try:
         sock = socket.create_connection(("127.0.0.1", port))
         sock.settimeout(3)

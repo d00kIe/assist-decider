@@ -28,7 +28,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from pydantic import ValidationError
 
 from . import DeciderConfigEntry
-from .client import AuthError, ServerUnavailable
+from .client import ServerUnavailable
 from .const import (
     CONF_FALLBACK_AGENT,
     CONF_MEMORY_SECONDS,
@@ -185,9 +185,6 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
 
         try:
             result = await self.entry.runtime_data.client.process(request)
-        except AuthError:
-            self.entry.async_start_reauth(self.hass)
-            return await self._fallback_or_error(user_input, chat_log, language, "unavailable")
         except ServerUnavailable as err:
             _LOGGER.warning("Decision server unavailable: %s", err)
             return await self._fallback_or_error(user_input, chat_log, language, "unavailable")

@@ -20,30 +20,14 @@ function time(ts) {
   return new Date(ts * 1000).toLocaleTimeString();
 }
 
-function token() {
-  try { return sessionStorage.getItem("assist-decider-token"); } catch { return null; }
-}
-
 function setConn(state, text) {
   const badge = $("conn");
   badge.className = "badge " + state;
   badge.textContent = text;
 }
 
-function showLogin(message) {
-  if (abort) abort.abort();
-  $("main").hidden = true;
-  $("login").hidden = false;
-  $("login-error").textContent = message || "";
-  setConn("off", "disconnected");
-}
-
 async function api(path, signal) {
-  const res = await fetch(path, { headers: { Authorization: "Bearer " + token() }, signal, cache: "no-store" });
-  if (res.status === 401 || res.status === 429) {
-    try { sessionStorage.removeItem("assist-decider-token"); } catch { /* ignore */ }
-    throw Object.assign(new Error(res.status === 429 ? "Too many failed attempts, wait a while" : "Wrong token"), { auth: true });
-  }
+  const res = await fetch(path, { signal, cache: "no-store" });
   if (!res.ok) throw new Error("HTTP " + res.status);
   return res;
 }
@@ -302,9 +286,7 @@ function renderHome() {
 async function loadHome() {
   try {
     homeData = await (await api("/v1/home", abort && abort.signal)).json();
-  } catch (err) {
-    if (err.auth) return showLogin(err.message);
-  }
+  } catch { /* keep the last home */ }
   renderHome();
 }
 
@@ -344,17 +326,14 @@ async function connect() {
     try {
       const info = await (await api("/v1/info", abort.signal)).json();
       $("info").textContent = `v${info.server_version} · ${info.provider}/${info.model} · ${info.device} · ${info.languages.join(", ")}`;
-      $("login").hidden = true;
-      $("main").hidden = false;
       $("decisions").replaceChildren();
       $("log").replaceChildren();
       const res = await api("/v1/events", abort.signal);
       setConn("ok", "live");
       delay = 1000;
       await readSse(res.body.getReader());
-    } catch (err) {
+    } catch {
       if (abort.signal.aborted) return;
-      if (err.auth) return showLogin(err.message);
     }
     setConn("warn", "reconnecting…");
     await new Promise((r) => setTimeout(r, delay));
@@ -384,12 +363,6 @@ async function readSse(reader) {
 
 // --- wiring ----------------------------------------------------------------
 
-$("login").addEventListener("submit", (ev) => {
-  ev.preventDefault();
-  try { sessionStorage.setItem("assist-decider-token", $("token").value.trim()); } catch { /* ignore */ }
-  $("token").value = "";
-  connect();
-});
 $("pause").addEventListener("click", () => {
   paused = !paused;
   $("pause").textContent = paused ? "Resume" : "Pause";
@@ -404,4 +377,4 @@ $("home-refresh").addEventListener("click", loadHome);
 $("home-search").addEventListener("input", renderHome);
 $("home-only").addEventListener("change", renderHome);
 
-if (token()) connect(); else showLogin();
+connect();

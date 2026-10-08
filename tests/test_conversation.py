@@ -240,14 +240,6 @@ async def test_invalid_server_response(hass, aioclient_mock, setup_entry, home) 
     assert home["turn_on"] == []
 
 
-async def test_auth_error_starts_reauth(hass, aioclient_mock, setup_entry, home) -> None:
-    mock_process(aioclient_mock, status=401)
-    await converse(hass, "turn on the kitchen light")
-    await hass.async_block_till_done()
-    flows = hass.config_entries.flow.async_progress()
-    assert any(f["context"]["source"] == "reauth" for f in flows)
-
-
 async def test_supported_languages(hass, setup_entry) -> None:
     agent = conversation.async_get_agent_info(hass, AGENT)
     assert agent is not None

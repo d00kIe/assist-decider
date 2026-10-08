@@ -16,11 +16,9 @@ h1 { font-size: 17px; margin: 0; }
 h2 { font-size: 15px; margin: 0; flex: 1; }
 .muted { color: var(--muted); }
 .small { font-size: 12px; }
-.error { color: var(--err); }
 .badge { padding: 1px 8px; border-radius: 10px; font-size: 12px; border: 1px solid currentColor; white-space: nowrap; }
 .badge.ok { color: var(--ok); } .badge.warn { color: var(--warn); } .badge.err, .badge.off { color: var(--err); }
 #conn { margin-left: auto; }
-form { max-width: 360px; margin: 60px auto; padding: 20px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; display: grid; gap: 8px; }
 input, select, button { font: inherit; color: inherit; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 5px 8px; }
 button { cursor: pointer; }
 button:hover { border-color: var(--accent); }

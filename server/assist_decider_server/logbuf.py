@@ -76,19 +76,3 @@ class BusHandler(logging.Handler):
             )
         except Exception:  # noqa: BLE001 - logging must never raise
             self.handleError(record)
-
-
-class RedactFilter(logging.Filter):
-    """Replace secrets in every log line before any handler sees it."""
-
-    def __init__(self, secrets: list[str]) -> None:
-        super().__init__()
-        self.secrets = [s for s in secrets if s]
-
-    def filter(self, record: logging.LogRecord) -> bool:
-        message = record.getMessage()
-        if any(s in message for s in self.secrets):
-            for secret in self.secrets:
-                message = message.replace(secret, "***")
-            record.msg, record.args = message, None
-        return True

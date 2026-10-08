@@ -34,8 +34,7 @@ Intern-Decision, Kev, H2O-Lightning), running on a separate machine. It needs to
     conversation id), for `memory_seconds` (default 60). A sentence that names nothing and
     says no kind of device ("turn it off") reuses them. Verb-less follow-ups ("and the
     kitchen too") are no longer supported.
-  - Live log: in-memory ring buffer, server-sent events (SSE) over an authenticated
-    `fetch`, and a static UI.
+  - Live log: in-memory ring buffer, server-sent events (SSE) over `fetch`, and a static UI.
 - **Integration** (`custom_components/assist_decider/`, no pip requirements):
   - Pushes a names-only snapshot of exposed entities to the server.
   - Validates the returned actions and executes them in order via `intent.async_handle`
@@ -87,23 +86,24 @@ fallback/error wording).
 
 ### M0: Server ✅ (session 1)
 
-- [x] uv project, pinned `laya==0.3.26`, lockfile, CLI `assist-decider` (serve, gen-token, download)
-- [x] Settings: defaults < TOML < `ASSIST_DECIDER_*` env < CLI; validation; token required (≥32 chars)
+- [x] uv project, pinned `laya==0.3.26`, lockfile, CLI `assist-decider` (serve, download)
+- [x] Settings: defaults < TOML < `ASSIST_DECIDER_*` env < CLI; validation
 - [x] `protocol.py` v1 (strict requests, lenient responses, length and ID limits)
 - [x] `LayaProvider`: one checkpoint, reviewed-revision pin, warm-up, device auto
 - [x] Intent table + EN/DE language data (descriptions, domain words, verbs, guards)
 - [x] Numbers EN/DE: digits, words (unicode-rbnf), decimal comma, `komma`/`point`, %, °, durations, halves/quarters
 - [x] Pipeline: mentions with German compounds, verb-aware compound splitting, multi-target, lexical guards with masking, exact/single/satellite shortcuts, fuzzy target question (≤10 options), sensitive devices never guessed, confidence gate, partial results, traces
-- [x] App security: bearer auth before body, IP lockout, body limit (declared and streamed), security headers/CSP, no docs, single-worker inference + 503, SSE log stream
+- [x] No auth (closed home network, 2026-10-08: token removed)
+- [x] App security: body limit (declared and streamed), security headers/CSP, no docs, single-worker inference + 503, SSE log stream
 - [x] Live log UI (vanilla JS, textContent only)
 - [x] Tests: 89 fast (numbers, pipeline, app security, config, protocol sync) + 22 live Laya cases
 
 ### M1: HA integration ✅ (session 1)
 
-- [x] manifest, hacs.json (min HA 2026.9.0: needs `er/dr.async_get_effective_area_id`), brand icon, config flow (URL/token/TLS), reauth, reconfigure, options (thresholds, fallback, no self-loop)
+- [x] manifest, hacs.json (min HA 2026.9.0: needs `er/dr.async_get_effective_area_id`), brand icon, config flow (URL/TLS), reconfigure, options (thresholds, fallback, no self-loop)
 - [x] Setup: handshake, NotReady / AuthFailed / repair issue on protocol mismatch
 - [x] Conversation entity: snapshot of exposed entities only, satellite area, action validation (intent allowlist, exposed IDs, slot keys), sequential execution, template speech EN/DE, HA-native error wording with friendly names, natural numbers ("21,5"), partial-result speech, fallback agent, chat log
-- [x] Diagnostics (token redacted), strings + en/de translations
+- [x] Diagnostics, strings + en/de translations
 - [x] Tests: 35 with pytest-homeassistant-custom-component (HA 2026.9.4)
 - [x] Real HA dev instance end-to-end (`hass -c .ha-config`, demo devices)
 
@@ -145,7 +145,7 @@ fallback/error wording).
 
 - [ ] Linux + NVIDIA: verify the install, document the torch CUDA index for older GPUs, measure VRAM and latency on the 4 GB GeForce (both checkpoints, alone and together)
 - [ ] Windows + NVIDIA: verify the CUDA torch install command in the README
-- [ ] Ship `deploy/`: systemd unit (`LoadCredential` for the token), launchd plist, Dockerfile (CUDA + CPU), compose file, Caddy TLS example
+- [ ] Ship `deploy/`: systemd unit, launchd plist, Dockerfile (CUDA + CPU), compose file, Caddy TLS example
 - [ ] CI: use the CPU torch index on Linux runners (smaller downloads)
 - [ ] Publish the server to PyPI (trusted publishing), so `uv tool install assist-decider` works
 

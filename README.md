@@ -53,7 +53,7 @@ pick from a fixed list of answers, so they can't invent devices or actions.
  ┌─ Home Assistant: custom_components/assist_decider ─────────────────────────────┐
  │ 1. Collect what is exposed to Assist: entity IDs, names, aliases, device class, │
  │    area and floor names. No states.                                             │
- │ 2. POST /v1/process (bearer token) ─────────────────────────────────────────┐   │
+ │ 2. POST /v1/process ────────────────────────────────────────────────────────┐   │
  │ 5. Check every proposed action: allowed intent, exposed device, allowed slots│   │
  │ 6. Run the actions in order through HA's own intent handlers                 │   │
  │ 7. Speak the reply using HA's built-in response templates (EN/DE)            │   │
@@ -141,14 +141,11 @@ curl -LsSf https://astral.sh/uv/install.sh | sh         # or: brew install uv
 # 2. Install the server as a command-line tool
 uv tool install "git+https://github.com/d00kIe/assist-decider#subdirectory=server"
 
-# 3. Create a token (a shared secret for Home Assistant) and keep it somewhere safe
-assist-decider gen-token
-
-# 4. Download the model once (about 0.7–0.9 GB)
+# 3. Download the model once (about 0.7–0.9 GB)
 assist-decider download --model multilingual
 
-# 5. Run it. 0.0.0.0 lets Home Assistant on another machine connect.
-ASSIST_DECIDER_TOKEN='<your token>' assist-decider --host 0.0.0.0 --model multilingual
+# 4. Run it. 0.0.0.0 lets Home Assistant on another machine connect.
+assist-decider --host 0.0.0.0 --model multilingual
 ```
 
 You should see:
@@ -193,9 +190,7 @@ conversation agent per server.
 ```powershell
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 uv tool install "git+https://github.com/d00kIe/assist-decider#subdirectory=server"
-assist-decider gen-token
 assist-decider download --model multilingual
-$env:ASSIST_DECIDER_TOKEN = "<your token>"
 assist-decider --host 0.0.0.0 --model multilingual
 ```
 
@@ -206,15 +201,13 @@ build (not yet verified, see [PLAN.md](PLAN.md)):
 ### Keep it running
 
 Run it like any long-running service: a `launchd` agent on macOS, a `systemd` service on
-Linux, or Task Scheduler on Windows. Pass the token through an environment variable or a
-`token_file` readable only by the service user. Ready-made unit files are on the roadmap
+Linux, or Task Scheduler on Windows. Ready-made unit files are on the roadmap
 (PLAN.md, milestone 5). A minimal systemd unit:
 
 ```ini
 # /etc/systemd/system/assist-decider.service
 [Service]
 User=assist
-Environment=ASSIST_DECIDER_TOKEN_FILE=/etc/assist-decider/token
 ExecStart=/home/assist/.local/bin/assist-decider --host 0.0.0.0 --model multilingual
 Restart=on-failure
 [Install]
@@ -239,10 +232,9 @@ folder (for example via the Samba or File editor add-on) and restart Home Assist
 **Settings → Devices & services → Add integration → Assist Decider**, then enter:
 
 - **Server URL**: `http://<server-ip>:8765`
-- **Token**: the one from `assist-decider gen-token`
 - **Verify TLS certificate**: leave on, it only matters for `https://`
 
-The integration checks the connection and token right away. The new agent appears as
+The integration checks the connection right away. The new agent appears as
 `conversation.assist_decider_<model>`.
 
 **Options** (⚙ on the integration):
@@ -276,8 +268,7 @@ Try it in the Assist dialog (the chat icon) before using voice.
 
 ## Live log
 
-Open `http://<server-ip>:8765/` in a browser and paste the token. It is kept in that
-browser tab only. You see every decision as it happens:
+Open `http://<server-ip>:8765/` in a browser. You see every decision as it happens:
 
 - the sentence, language, satellite room and timing
 - how the devices were found, and the numbers that were said
@@ -298,7 +289,6 @@ flags. See [`server/assist-decider.example.toml`](server/assist-decider.example.
 |---|---|---|---|
 | `host` | `--host` | `127.0.0.1` | Listen address. `0.0.0.0` for the LAN. |
 | `port` | `--port` | `8765` | |
-| `token` / `token_file` | – | – | **Required**, at least 32 characters. |
 | `model` | `--model` | `multilingual` | see [Which model?](#which-model) |
 | `device` | `--device` | `auto` | `auto`, `cpu`, `cuda`, `cuda:N`, `mps`, `xpu` |
 | `max_pending` | – | `4` | Queued requests before HTTP 503 |
@@ -307,16 +297,14 @@ flags. See [`server/assist-decider.example.toml`](server/assist-decider.example.
 | `log_level` | `--log-level` | `INFO` | `DEBUG` also logs the full exposed-device list |
 | `tls_certfile` / `tls_keyfile` | – | – | Serve HTTPS directly |
 
-Commands: `assist-decider` (serve), `assist-decider gen-token`,
-`assist-decider download [--model …]`.
+Commands: `assist-decider` (serve), `assist-decider download [--model …]`.
 
 ## Security
 
-- **A token is always required.** The server refuses to start without one (32+
-  characters). Comparison is constant-time, and authentication happens *before* a request
-  body is read. After 10 failed attempts an address gets HTTP 429 for 15 minutes. A
-  request with the *correct* token always gets through, so nobody can lock Home Assistant
-  out, even when every client shares one address behind a reverse proxy.
+- **No authentication.** The server is meant for a closed home network: anyone who can
+  reach the port can send decisions and read the live log (utterances and device names).
+  Keep it off the internet, and bind it to localhost or firewall the port if your LAN
+  has untrusted devices.
 - **Slow or silent clients are dropped:** a connection must send its request headers
   within 5 s and its body within 10 s.
 - **Listens on localhost by default.** Exposing it to the LAN is an explicit `--host` choice.
@@ -331,10 +319,8 @@ Commands: `assist-decider` (serve), `assist-decider gen-token`,
   (safetensors only, no remote code). `laya` is pinned exactly. Other dependencies are
   locked (`uv.lock`) for development and CI. `uv tool install` resolves them fresh within
   the declared ranges.
-- **Plain HTTP on your LAN means the token travels unencrypted.** On untrusted networks,
-  enable TLS (`tls_certfile`/`tls_keyfile`), put a reverse proxy such as Caddy in front,
-  or use a VPN such as Tailscale. Rotate the token by generating a new one and entering it
-  in Home Assistant, which will ask.
+- **Plain HTTP on your LAN is unencrypted.** Enable TLS (`tls_certfile`/`tls_keyfile`)
+  if you want it, or reach the server over a VPN such as Tailscale.
 
 Found a vulnerability? Please open a private security advisory on GitHub instead of a
 public issue.
@@ -353,7 +339,6 @@ of the log.
 | Problem | Fix |
 |---|---|
 | "Cannot reach the server" when adding the integration | Is the server running with `--host 0.0.0.0`? Can Home Assistant reach the port (macOS firewall, Windows Defender, `curl http://<ip>:8765/healthz`)? |
-| "The server rejected the token" | Paste the exact token, without quotes or spaces. |
 | Assistant says "the decision server is not reachable" | The server is down or restarting. Home Assistant retries setup automatically. |
 | A command is not executed | Open the live log. Usually it is `low_confidence` (check the threshold for your model in [Which model?](#which-model)) or `no_target` (no device or room name was recognized: add an alias to the device, or give the satellite a room). |
 | The wrong device in a room is used | Name the device instead of the room, or give it an alias that you say. |

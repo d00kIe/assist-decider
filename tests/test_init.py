@@ -12,7 +12,7 @@ from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClien
 from custom_components.assist_decider.const import DOMAIN
 from custom_components.assist_decider.diagnostics import async_get_config_entry_diagnostics
 
-from .conftest import INFO, TOKEN, URL
+from .conftest import INFO, URL
 
 
 async def setup(hass: HomeAssistant, entry: MockConfigEntry) -> None:
@@ -36,15 +36,6 @@ async def test_server_down_retries(hass, aioclient_mock, config_entry) -> None:
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
 
 
-async def test_bad_token_starts_reauth(hass, aioclient_mock, config_entry) -> None:
-    aioclient_mock.get(f"{URL}/v1/info", status=401)
-    await setup(hass, config_entry)
-    assert config_entry.state is ConfigEntryState.SETUP_ERROR
-    assert any(
-        f["context"]["source"] == "reauth" for f in hass.config_entries.flow.async_progress()
-    )
-
-
 async def test_protocol_mismatch_raises_repair(hass, aioclient_mock, config_entry) -> None:
     aioclient_mock.get(f"{URL}/v1/info", json=INFO | {"protocol_version": 99})
     await setup(hass, config_entry)
@@ -52,9 +43,8 @@ async def test_protocol_mismatch_raises_repair(hass, aioclient_mock, config_entr
     assert ir.async_get(hass).async_get_issue(DOMAIN, f"protocol_mismatch_{config_entry.entry_id}")
 
 
-async def test_diagnostics_redact_token(hass, aioclient_mock, config_entry) -> None:
+async def test_diagnostics(hass, aioclient_mock, config_entry) -> None:
     aioclient_mock.get(f"{URL}/v1/info", json=INFO)
     await setup(hass, config_entry)
     diag = await async_get_config_entry_diagnostics(hass, config_entry)
-    assert TOKEN not in str(diag)
     assert diag["server"]["model"] == "multilingual"

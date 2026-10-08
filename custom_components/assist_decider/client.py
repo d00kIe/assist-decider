@@ -17,10 +17,6 @@ class DeciderError(Exception):
     """Base error."""
 
 
-class AuthError(DeciderError):
-    """The server rejected the token."""
-
-
 class ServerUnavailable(DeciderError):
     """The server cannot be reached or answered with an error."""
 
@@ -30,10 +26,9 @@ class ProtocolMismatch(DeciderError):
 
 
 class DeciderClient:
-    def __init__(self, session: aiohttp.ClientSession, url: str, token: str) -> None:
+    def __init__(self, session: aiohttp.ClientSession, url: str) -> None:
         self._session = session
         self._url = url.rstrip("/")
-        self._headers = {"Authorization": f"Bearer {token}"}
 
     async def info(self) -> ServerInfo:
         info = await self._request("GET", "/v1/info", ServerInfo)
@@ -51,7 +46,7 @@ class DeciderClient:
     async def _request(
         self, method: str, path: str, model: type[_M], body: str | None = None
     ) -> _M:
-        headers = self._headers | ({"Content-Type": "application/json"} if body else {})
+        headers = {"Content-Type": "application/json"} if body else {}
         try:
             async with self._session.request(
                 method,
@@ -61,8 +56,6 @@ class DeciderClient:
                 timeout=aiohttp.ClientTimeout(total=REQUEST_TIMEOUT),
                 allow_redirects=False,
             ) as resp:
-                if resp.status in (401, 403):
-                    raise AuthError("Invalid token")
                 if resp.status != 200:
                     raise ServerUnavailable(f"HTTP {resp.status}")
                 raw = await resp.content.read(MAX_RESPONSE_BYTES + 1)

@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from homeassistant.const import CONF_TOKEN, CONF_URL
+from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -13,7 +13,6 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.assist_decider.const import CONF_VERIFY_SSL, DOMAIN
 
 URL = "http://decider.local:8765"
-TOKEN = "x" * 40
 INFO = {
     "protocol_version": 3,
     "server_version": "0.1.0",
@@ -40,7 +39,7 @@ def config_entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
         title="Assist Decider (multilingual)",
-        data={CONF_URL: URL, CONF_TOKEN: TOKEN, CONF_VERIFY_SSL: True},
+        data={CONF_URL: URL, CONF_VERIFY_SSL: True},
     )
 
 

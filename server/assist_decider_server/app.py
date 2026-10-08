@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-import hmac
 import json
 import logging
-import time
 from collections.abc import AsyncIterator
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -28,9 +26,6 @@ from .providers import DecisionProvider
 _LOGGER = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / "static"
 
-LOCKOUT_FAILURES = 10
-LOCKOUT_WINDOW = 300.0
-LOCKOUT_SECONDS = 900.0
 SSE_PING_SECONDS = 15.0
 HEADER_TIMEOUT = 5.0  # a client must send its request line and headers within this
 BODY_TIMEOUT = 10.0  # ... and its body within this
@@ -103,63 +98,6 @@ class HeaderTimeoutH11Protocol(H11Protocol):
         super().connection_lost(exc)
 
 
-class BearerAuth:
-    """Rejects /v1/* requests without the token *before* the body is read.
-
-    Repeated failures from one address lock that address out, but the correct token always
-    gets through: behind a proxy every client shares one address, and an attacker must not
-    be able to lock Home Assistant out.
-    """
-
-    def __init__(self, app: ASGIApp, token: str) -> None:
-        self.app = app
-        self.token = token.encode()
-        self.failures: dict[str, list[float]] = {}
-        self.locked: dict[str, float] = {}
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] != "http" or not scope["path"].startswith("/v1/"):
-            return await self.app(scope, receive, send)
-        if self._authorized(scope):
-            return await self.app(scope, receive, send)
-        ip = (scope.get("client") or ("unknown",))[0]
-        now = time.monotonic()
-        if self.locked.get(ip, 0) > now:
-            return await _send_json(
-                send,
-                429,
-                "Too many failed attempts",
-                [(b"retry-after", str(int(self.locked[ip] - now) + 1).encode())],
-            )
-        self._record_failure(ip, now)
-        _LOGGER.warning("Rejected unauthenticated request to %r from %s", scope["path"], ip)
-        await _send_json(send, 401, "Unauthorized", [(b"www-authenticate", b"Bearer")])
-
-    def _authorized(self, scope: Scope) -> bool:
-        for name, value in scope["headers"]:
-            if name == b"authorization":
-                scheme, _, supplied = value.partition(b" ")
-                # Compare bytes: str comparison raises on non-ASCII header values.
-                return scheme.lower() == b"bearer" and hmac.compare_digest(
-                    supplied.strip(), self.token
-                )
-        return False
-
-    def _record_failure(self, ip: str, now: float) -> None:
-        if len(self.failures) > 10_000 or len(self.locked) > 10_000:
-            # ponytail: crude bound against address spraying; per-IP state is best effort
-            self.failures = {k: v for k, v in self.failures.items() if now - v[-1] < LOCKOUT_WINDOW}
-            self.locked = {k: v for k, v in self.locked.items() if v > now}
-        recent = [t for t in self.failures.get(ip, []) if now - t < LOCKOUT_WINDOW] + [now]
-        self.failures[ip] = recent
-        if len(recent) >= LOCKOUT_FAILURES:
-            self.locked[ip] = now + LOCKOUT_SECONDS
-            self.failures.pop(ip, None)
-            _LOGGER.warning(
-                "Locked out %s for %d s after repeated failed authentication", ip, LOCKOUT_SECONDS
-            )
-
-
 class BodyLimit:
     """FastAPI has no request size limit; enforce one for declared and streamed bodies."""
 
@@ -215,7 +153,6 @@ def _sse(event: dict[str, Any]) -> str:
 def create_app(
     *,
     provider: DecisionProvider,
-    token: str,
     bus: EventBus,
     max_pending: int = 4,
     max_body_bytes: int = 1_048_576,
@@ -325,8 +262,8 @@ def create_app(
     ):
         app.add_api_route(route, _static(filename, media), methods=["GET"], include_in_schema=False)
 
-    # Last added runs first: headers wrap everything, auth runs before the body is read.
+    # ponytail: no auth, the server is meant for a closed home network.
+    # Last added runs first: headers wrap everything.
     app.add_middleware(BodyLimit, max_bytes=max_body_bytes)
-    app.add_middleware(BearerAuth, token=token)
     app.add_middleware(SecurityHeaders)
     return app

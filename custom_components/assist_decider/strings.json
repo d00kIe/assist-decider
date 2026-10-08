@@ -3,10 +3,9 @@
     "step": {
       "user": {
         "title": "Connect to the Assist Decider server",
-        "description": "Start the server first (see the README). The token is printed by `assist-decider gen-token`.",
+        "description": "Start the server first (see the README).",
         "data": {
           "url": "Server URL",
-          "token": "Token",
           "verify_ssl": "Verify TLS certificate"
         },
         "data_description": {
@@ -14,32 +13,21 @@
           "verify_ssl": "Only relevant for https:// URLs."
         }
       },
-      "reauth_confirm": {
-        "title": "New token for {url}",
-        "description": "The server rejected the stored token. Enter the current one.",
-        "data": {
-          "token": "Token"
-        }
-      },
       "reconfigure": {
         "title": "Change the server",
-        "description": "Leave the token empty to keep the current one.",
         "data": {
           "url": "Server URL",
-          "token": "Token",
           "verify_ssl": "Verify TLS certificate"
         }
       }
     },
     "error": {
       "cannot_connect": "Cannot reach the server. Check the URL, that the server runs with --host 0.0.0.0, and the firewall.",
-      "invalid_auth": "The server rejected the token.",
       "invalid_url": "The URL must start with http:// or https://.",
       "protocol_mismatch": "The server and this integration speak different protocol versions. Update both to the same release."
     },
     "abort": {
       "already_configured": "This server is already configured.",
-      "reauth_successful": "Token updated.",
       "reconfigure_successful": "Server updated."
     }
   },

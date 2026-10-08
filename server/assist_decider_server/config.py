@@ -2,19 +2,14 @@
 
 from __future__ import annotations
 
-import logging
 import os
-import stat
 import tomllib
-from dataclasses import dataclass, fields, replace
-from pathlib import Path
+from dataclasses import dataclass, fields
 from typing import Any
 
 from .providers import MODELS
 
 ENV_PREFIX = "ASSIST_DECIDER_"
-MIN_TOKEN_LENGTH = 32
-_LOGGER = logging.getLogger(__name__)
 
 
 class ConfigError(Exception):
@@ -25,8 +20,6 @@ class ConfigError(Exception):
 class Settings:
     host: str = "127.0.0.1"
     port: int = 8765
-    token: str | None = None
-    token_file: str | None = None
     model: str = "multilingual"
     device: str = "auto"
     max_pending: int = 4
@@ -35,10 +28,6 @@ class Settings:
     log_level: str = "INFO"
     tls_certfile: str | None = None
     tls_keyfile: str | None = None
-
-    def __repr__(self) -> str:  # never print the token
-        shown = {f.name: getattr(self, f.name) for f in fields(self) if f.name != "token"}
-        return f"Settings({shown}, token={'set' if self.token else 'unset'})"
 
 
 def _coerce(name: str, value: Any) -> Any:
@@ -66,14 +55,6 @@ def load_settings(config_file: str | None = None, **overrides: Any) -> Settings:
             raise ConfigError(f"Cannot read config file {path}: {err}") from None
         if unknown := set(data) - names:
             raise ConfigError(f"Unknown settings in {path}: {', '.join(sorted(unknown))}")
-        if (
-            "token" in data
-            and os.name != "nt"
-            and os.stat(path).st_mode & (stat.S_IRWXG | stat.S_IRWXO)
-        ):
-            _LOGGER.warning(
-                "%s contains the token but is readable by others; run: chmod 600 %s", path, path
-            )
         values.update(data)
 
     for name in names:
@@ -82,14 +63,6 @@ def load_settings(config_file: str | None = None, **overrides: Any) -> Settings:
     values.update({k: v for k, v in overrides.items() if v is not None})
 
     settings = Settings(**{k: _coerce(k, v) for k, v in values.items()})
-    if settings.token and settings.token_file:
-        raise ConfigError("Set either token or token_file, not both (check file and environment)")
-    if settings.token_file:
-        try:
-            settings = replace(settings, token=Path(settings.token_file).read_text().strip())
-        except OSError as err:
-            raise ConfigError(f"Cannot read token_file: {err}") from None
-
     if settings.model not in MODELS:
         raise ConfigError(f"model must be one of {', '.join(MODELS)}")
     if settings.device not in ("auto", "cpu", "mps", "xpu") and not settings.device.startswith(
@@ -105,12 +78,3 @@ def load_settings(config_file: str | None = None, **overrides: Any) -> Settings:
     if bool(settings.tls_certfile) != bool(settings.tls_keyfile):
         raise ConfigError("tls_certfile and tls_keyfile must be set together")
     return settings
-
-
-def require_token(settings: Settings) -> str:
-    if not settings.token or len(settings.token) < MIN_TOKEN_LENGTH:
-        raise ConfigError(
-            f"A token of at least {MIN_TOKEN_LENGTH} characters is required. Create one with "
-            f"'assist-decider gen-token' and set {ENV_PREFIX}TOKEN, token or token_file."
-        )
-    return settings.token
