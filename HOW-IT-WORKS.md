@@ -177,7 +177,7 @@ The model answers with a likelihood for every answer, for example `turn_off` 0.9
 
 ### 2.3 How much the model can read at once
 
-Laya reads at most **512 tokens** (`english`) or **1024 tokens** (`multilingual`) per question. The question and its answers may use at most 192 or 256 of them, and each answer at most 48. The other models are built on Qwen3.5 and read much longer texts, so for them these limits don't matter.
+Laya reads at most **512 tokens** (`english`) or **1024 tokens** (`multilingual`) per question. The question and its answers may use at most 192 or 256 of them, and each answer at most 48. The other models (Intern-Decision on Qwen3.5, d1 on Liquid AI's LFM2.5) read 16k tokens or more, so for them these limits don't matter.
 
 The biggest question is "which device?" with 10 devices. With typical names that is about 150–170 tokens, inside even the tightest limit. That is one reason a room may offer at most 10 devices. Each question is read on its own: questions don't add up, and the model keeps no memory between them. Remembering the previous command ("turn *it* off") is done by the server code.
 

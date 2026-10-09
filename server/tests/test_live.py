@@ -100,7 +100,13 @@ CASES = {
 
 
 # model -> confidence threshold, as BENCHMARK.md suggests for it
-THRESHOLDS = {"english": 0.2, "multilingual": 0.4, "intern-decision-0.8b": 0.2}
+THRESHOLDS = {
+    "english": 0.2,
+    "multilingual": 0.4,
+    "intern-decision-0.8b": 0.2,
+    "d1-3b": 0.2,
+    "d1-omni-600m": 0.4,
+}
 # Mistakes BENCHMARK.md already lists for a model. Any other wrong action is a regression.
 KNOWN_WRONG = {
     ("english", "open the living room blinds to 30%"),  # opens fully

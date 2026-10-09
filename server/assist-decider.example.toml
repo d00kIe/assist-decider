@@ -15,10 +15,10 @@ port = 8765
 # threshold to set in Home Assistant for it:
 #   "multilingual"          Laya, English + German, ~1.2 GB, threshold 0.4
 #   "english"               Laya, English only, ~2.0 GB, threshold 0.2
-#   "kev-0.8b"              English + German, ~2.3 GB, threshold 0.4
-#   "intern-decision-0.8b"  English + German, ~2.3 GB, threshold 0.2 (recommended)
+#   "d1-omni-600m"          English + German, ~1.0 GB, threshold 0.4
+#   "intern-decision-0.8b"  English + German, ~2.3 GB, threshold 0.2 (best for a 4 GB card)
 #   "intern-decision-2b"    English + German, ~4.6 GB, threshold 0.2
-#   "h2o-lightning-4b"      English + German, ~8.8 GB, threshold 0.1
+#   "d1-3b"                 English + German, ~6.8 GB, threshold 0.2 (most accurate)
 model = "multilingual"
 
 # auto picks cuda, then mps (Apple Silicon), then xpu, then cpu.

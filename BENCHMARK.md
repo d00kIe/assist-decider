@@ -1,89 +1,96 @@
 # Decision model benchmark
 
-Which small decision model understands home commands best, and what does it cost to run?
-This page compares six models that can run locally, on 55 test sentences, in English and German.
+Which small decision model understands home commands best, and what does it cost to run? This page
+compares six models that run locally, on 65 test sentences in English and German.
 
-Measured on 2026-10-07 (best approach and lock fix added, and built into the server, the same day) on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `laya 0.3.26`,
-`transformers 5.18.0` and `torch 2.14.1`. How to repeat it is at the [end](#repeat-the-benchmark).
+Measured on 2026-10-09 on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `laya 0.3.26`,
+`transformers 5.18.0` and `torch 2.14.1`, through the server's own code
+(`server/tests/eval/benchmark.py`). How to repeat it is at the [end](#repeat-the-benchmark).
 
 ## Short answer
 
-- **There is now a best approach, and the server uses it**: the new approach plus two small
-  rules in code, *near* and *fit* (explained [below](#the-best-approach-in-the-server)). It
-  never does worse than the new approach, and it helps the small models most.
-- **Intern-Decision 0.8B is now as good as the big models**: 53 of 55 right with the best
-  approach, the same as Intern-Decision 2B and one less than H2O-Lightning 4B. It needs only
-  2.3 GB, so it **fits a 4 GB graphics card**. With a confidence check of 0.2 it makes no
-  mistakes at all (47 right, 8 handed to Home Assistant, measured with the server).
-- **Most accurate: H2O-Lightning 4B** (54 of 55, no mistakes; the one sentence it misses is handed
-  to Home Assistant on purpose). But it needs about 8.8 GB and about 1.1 s per sentence on the Mac,
-  so it is **far too big for a 4 GB graphics card**.
-- **Intern-Decision 2B** gets 53 of 55, and none wrong at a check of 0.2. It needs 4.6 GB, which is
-  **too much for a 4 GB card**.
-- **The German lock bug is fixed** in the server. "Sperr die Haustür ab" used to unlock the door
-  with every model. Now no model and no approach in the recommended setup does anything wrong to
-  the lock or the garage door.
-- **Laya English** is still very good (32 of 34) and by far the fastest. **Laya multilingual** still
-  makes the most mistakes (8 of 55), mostly in sentences that name only a room.
-- **Two ideas did not help**: dropping the "command or question?" step (four models then *lock*
-  the door when asked "is the front door locked"), and asking every question twice with the
-  options reversed (at most one sentence better, twice as slow).
-- **Giving the model more context does not help**, as before: describing devices, putting
-  numbers into the options or letting the model split the sentence.
-- **Asking the model about every device and then every action only works with the two biggest
-  models**: H2O-Lightning 4B (27 of 32 whole sentences) and Intern-Decision 2B (23 of 32).
+- **Most accurate: d1-3B** (Liquid AI). It gets 54 of the 55 original sentences right, gets none
+  wrong, and hands the last one off on purpose. It takes 0.3 s per sentence on the Mac, which is
+  faster than Intern-Decision 0.8B. But it needs about **6.8 GB**, so it doesn't fit a 4 GB card.
+- **Best for a 4 GB card: still Intern-Decision 0.8B** (53 of 55, 2.3 GB). With a check of 0.2 it
+  makes no mistakes on the original sentences.
+- **Smallest and fastest new model: d1-omni-600M** (1.0 GB, 51 ms per sentence). Its accuracy is
+  about Laya multilingual's (47 of 55). It mixes up "set" and "turn on" in some German sentences.
+- **The 10 new sentences show what the pipeline can't do yet.** "All the lights in the living
+  room", "all the lights on this floor", "all covers on the second floor" and "the left light …
+  the right one" fail with every model. A room still means one device, floors aren't targets yet,
+  and "the right one" isn't a name. Worse, most of these aren't handed off: one light is switched
+  instead of all of them. Only the polite "can you turn on the light please" works.
+- Kev 0.8B and H2O-Lightning 4B were removed from the server on 2026-10-09. Their results are in
+  this page's git history.
 
 ## What was tested
 
 ### The test home
 
-The test home is the same one the automatic tests use (`server/tests/conftest.py`). It has 5 rooms
-and 11 devices: 4 lights, 2 heating thermostats, living room blinds, a garage door, a front door
-lock, a coffee maker and a TV. German names come from each device's alias, such as "Küchenlicht".
+The 55 original sentences use the home of the automatic tests (`server/tests/conftest.py`). It has
+5 rooms and 11 devices: 4 lights, 2 heating thermostats, living room blinds, a garage door, a front
+door lock, a coffee maker and a TV. German names come from each device's alias, such as
+"Küchenlicht".
+
+The 10 new sentences use the same home with additions (`HOME_FLOORS` in `benchmark.py`): two
+floors (the bedroom, an office and a kids' room upstairs), a left and a right light in the living
+room, and blinds in the office and kids' room. The original 55 keep the old home, so their results
+stay comparable with earlier runs.
 
 ### The sentences
 
-- **32 sentences that name a device or a room**, such as "turn on the kitchen light and turn off the
-  hallway light" or "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein".
-  20 are English and 12 German.
-- **23 sentences that name only a room or nothing**, said to a voice satellite in a known room, such
-  as "turn on the light" in the kitchen or "Licht aus" in the bedroom. 14 are English and 9 German.
+- **32 that name a device or a room**, such as "turn on the kitchen light and turn off the hallway
+  light" or "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein" (20 English, 12
+  German).
+- **23 that name only a room or nothing**, said to a voice satellite in a known room, such as "turn
+  on the light" in the kitchen or "Licht aus" in the bedroom (14 English, 9 German).
+- **10 new ones** (5 English, 5 German): "can you turn on the light please", "turn on all the
+  lights in the living room", "turn off the left light but turn on the right one", "turn on all the
+  lights on the floor" (meaning the speaker's floor) and "close all the covers on the second
+  floor".
 
-Laya English only reads English, so it was tested on the 34 English sentences.
-
-### The four ways of understanding a sentence
-
-| Name in the tables | What it does |
-|---|---|
-| **Today's pipeline** | The code as it is now in the server. Word lists split the sentence at "and"/"und", and remove actions that can't fit (for example "turn on" when "off" was said). The model then picks the action and the device from what is left. |
-| **New approach** | Devices are found by matching your own device and room names from Home Assistant. When nothing is named, the speaker's room is used. The model then decides: (1) is it a command or a question, (2) which device in a named room is meant, (3) what should happen to each device, choosing only from actions that kind of device supports, and (4) which number from the sentence is the value. The on/off words are still used as a safety filter. |
-| **Best approach** | The new approach plus two rules in code: *near* (when "on" and "off" are both said, each device follows the word closest to its name) and *fit* (in a room, devices that can't take the spoken number are not offered). Described step by step [below](#the-best-approach-in-the-server). |
-| **Model-only tree** | The model is asked about every device ("does the user mean the kitchen light?"), then about the action for each device, then about the value. No word lists and no name matching. |
-
-Since the first version of this page, the server's German and English word lists treat locks
-differently (see [the lock fix](#the-lock-fix)). That fix is in every column, including today's
-pipeline, so a few numbers are one better than in the first version.
+Laya English only reads English, so it was tested on the 39 English sentences.
 
 ### The confidence check
 
 Every answer from the model comes with a confidence between 0 (a pure guess) and 1 (certain). When
-any answer for a sentence is below the **confidence check** setting, the sentence is handed to Home
-Assistant's own assistant instead of being acted on. The server's default setting is 0.4.
+any answer for a sentence is below the **confidence check** (the threshold in Home Assistant), the
+sentence is handed to Home Assistant's own assistant instead of being acted on.
 
 ### How to read the result cells
 
-Each cell reads **right/total · handed to Home Assistant · wrong**. For example, `48/55 · 1 · **6** (1🔒)`
-means 48 sentences were right, 1 was handed to Home Assistant and 6 were wrong. In the 1 marked 🔒, the
-front door lock or the garage door would have done the wrong thing.
-
-A sentence counts as right only when every device, action and value in it is right.
+Each cell reads **right/total · handed to Home Assistant · wrong**. For example, `48/65 · 4 · **13**`
+means 48 sentences were right, 4 were handed to Home Assistant and 13 were wrong. 🔒 counts wrong
+sentences in which the front door lock or the garage door would have done the wrong thing. None
+occur in the current results. A sentence counts as right only when every device, action and value
+in it is right.
 
 ## Results
 
-The tables in this part compare the approaches. They were measured with a probe script that
-was removed once the best approach was built into the server; it is in the git history
-(commit `9849dde`, `server/tests/eval/probe_device_tree.py`). The server's own numbers are in
-[The best approach in the server](#the-best-approach-in-the-server).
+### All 65 sentences at each confidence check
+
+| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 | Median |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Laya multilingual | 48/65 · 4 · **13** | 48/65 · 4 · **13** | 48/65 · 5 · **12** | 47/65 · 6 · **12** | 47/65 · 8 · **10** | 43/65 · 13 · **9** | 39 ms |
+| Laya English | 33/39 · 2 · **4** | 32/39 · 3 · **4** | 32/39 · 4 · **3** | 31/39 · 5 · **3** | 31/39 · 5 · **3** | 30/39 · 8 · **1** | 67 ms |
+| Intern-Decision 0.8B | 54/65 · 3 · **8** | 52/65 · 7 · **6** | 48/65 · 14 · **3** | 39/65 · 25 · **1** | 34/65 · 30 · **1** | 26/65 · 38 · **1** | 549 ms |
+| Intern-Decision 2B | 55/65 · 3 · **7** | 55/65 · 3 · **7** | 54/65 · 6 · **5** | 54/65 · 7 · **4** | 54/65 · 9 · **2** | 53/65 · 11 · **1** | 832 ms |
+| **d1-3B** | **56/65 · 3 · 6** | 55/65 · 4 · **6** | 55/65 · 4 · **6** | 55/65 · 4 · **6** | 55/65 · 5 · **5** | 54/65 · 7 · **4** | 331 ms |
+| d1-omni-600M | 49/65 · 7 · **9** | 47/65 · 9 · **9** | 45/65 · 12 · **8** | 43/65 · 16 · **6** | 42/65 · 19 · **4** | 40/65 · 21 · **4** | 51 ms |
+
+### The original 55 and the 10 new sentences (no confidence check)
+
+| Model | 55 original | 10 new |
+|---|---:|---:|
+| Laya multilingual | 46/55 · 2 · **7** | 2/10 · 2 · **6** |
+| Laya English | 32/34 · 1 · **1** | 1/5 · 1 · **3** |
+| Intern-Decision 0.8B | 53/55 · 1 · **1** | 1/10 · 2 · **7** |
+| Intern-Decision 2B | 53/55 · 1 · **1** | 2/10 · 2 · **6** |
+| **d1-3B** | **54/55 · 1 · 0** | 2/10 · 2 · **6** |
+| d1-omni-600M | 47/55 · 3 · **5** | 2/10 · 4 · **4** |
+
+The four models measured before (Laya, Intern-Decision) score exactly as on 2026-10-07 on the 55.
 
 ### Memory and speed
 
@@ -91,102 +98,100 @@ was removed once the best approach was built into the server; it is in the git h
 |---|---:|---:|---:|---:|---:|
 | Laya multilingual | 322 M | 1.2 GB | 1.2 GB | 2.5 GB | 13 ms |
 | Laya English | 421 M | 1.6 GB | 2.0 GB | 2.7 GB | 22 ms |
-| Kev 0.8B | 752 M | 1.4 GB | 2.3 GB | 5.3 GB | 60 ms |
+| d1-omni-600M (text part) | 381 M | 0.7 GB | 1.0 GB | 3.3 GB | 15 ms |
 | Intern-Decision 0.8B | 853 M | 1.6 GB | 2.3 GB | 0.7 GB | 209 ms |
 | Intern-Decision 2B | 2213 M | 4.1 GB | 4.6 GB | 3.0 GB | 276 ms |
-| H2O-Lightning 4B | 4539 M | 8.5 GB | 8.8 GB | 0.5 GB | 373 ms |
+| d1-3B | 3123 M | 5.8 GB | 6.8 GB | 0.6 GB | 112 ms |
 
-### Whole sentences: today's pipeline against the new approach
+d1-omni-600M also has vision and audio parts (587 M parameters in all). The server never loads
+them. d1-3B's vision tower is loaded with it (about 0.4 B parameters) but never used.
 
-Confidence check at **0.0**:
+### The new sentences
 
-| Model | Today's pipeline | New approach | Best approach |
-|---|---:|---:|---:|
-| Laya multilingual | 48/55 · 5 · **2** | 45/55 · 1 · **9** | 46/55 · 1 · **8** |
-| Laya English | 32/34 · 0 · **2** | 32/34 · 1 · **1** | 32/34 · 1 · **1** |
-| Kev 0.8B | 44/55 · 8 · **3** | 49/55 · 1 · **5** | 50/55 · 1 · **4** |
-| Intern-Decision 0.8B | 50/55 · 2 · **3** | 51/55 · 1 · **3** | 53/55 · 1 · **1** |
-| Intern-Decision 2B | 50/55 · 3 · **2** | 53/55 · 1 · **1** | 53/55 · 1 · **1** |
-| H2O-Lightning 4B | 52/55 · 1 · **2** | 54/55 · 1 · **0** | 54/55 · 1 · **0** |
+| Sentence | What happens (all models) |
+|---|---|
+| "can you turn on the light please" / "kannst du bitte das Licht einschalten" | Right with every model, except that Intern-Decision 0.8B takes the German one for a question. |
+| "turn on all the lights in the living room" / "schalte alle Lichter im Wohnzimmer ein" | **Wrong: one light is switched on.** A room still means one device. |
+| "turn off the left light but turn on the right one" / "mach das linke Licht aus, aber das rechte an" | **Wrong: only the left light is switched.** "the right one" isn't a name. In German, "linke Licht" doesn't match the alias "Linkes Licht", so the satellite's room is used and some models switch the wrong light. |
+| "turn on all the lights on the floor" / "schalte alle Lichter auf dieser Etage ein" | **Wrong: one light in the speaker's room.** Floors aren't targets. |
+| "close all the covers on the second floor" / "schließ alle Rollläden im Obergeschoss" | Handed off (`no_target`), which is the safe result. |
 
-Confidence check at **0.4**:
+To get these right, the pipeline needs "all" over a room or a floor, floor names as targets, and
+"the other one" references. See PLAN.md, milestone 2.
 
-| Model | Today's pipeline | New approach | Best approach |
-|---|---:|---:|---:|
-| Laya multilingual | 46/55 · 7 · **2** | 43/55 · 5 · **7** | 45/55 · 5 · **5** |
-| Laya English | 28/34 · 5 · **1** | 31/34 · 2 · **1** | 31/34 · 3 · **0** |
-| Kev 0.8B | 39/55 · 14 · **2** | 37/55 · 16 · **2** | 39/55 · 14 · **2** |
-| Intern-Decision 0.8B | 46/55 · 7 · **2** | 34/55 · 21 · **0** | 37/55 · 18 · **0** |
-| Intern-Decision 2B | 49/55 · 4 · **2** | 52/55 · 3 · **0** | 52/55 · 3 · **0** |
-| H2O-Lightning 4B | 51/55 · 2 · **2** | 53/55 · 2 · **0** | 53/55 · 2 · **0** |
+### Every mistake on the 55 original sentences (no confidence check)
 
-### Best approach by sentence type and language (no confidence check)
+**Laya multilingual**
 
-| Model | Device named | Only a room / nothing | English | German |
-|---|---:|---:|---:|---:|
-| Laya multilingual | 29/32 · 1 · **2** | 17/23 · 0 · **6** | 28/34 · 1 · **5** | 18/21 · 0 · **3** |
-| Laya English | 19/20 · 1 · **0** | 13/14 · 0 · **1** | 32/34 · 1 · **1** | 0/0 · 0 · **0** |
-| Kev 0.8B | 30/32 · 1 · **1** | 20/23 · 0 · **3** | 31/34 · 1 · **2** | 19/21 · 0 · **2** |
-| Intern-Decision 0.8B | 31/32 · 1 · **0** | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 20/21 · 0 · **1** |
-| Intern-Decision 2B | 31/32 · 1 · **0** | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 20/21 · 0 · **1** |
-| H2O-Lightning 4B | 31/32 · 1 · **0** | 23/23 · 0 · **0** | 33/34 · 1 · **0** | 21/21 · 0 · **0** |
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "dim the desk lamp to 20 and close the garage door": wanted desk_lamp:HassLightSet brightness=20, garage_door:HassTurnOff, got desk_lamp:HassTurnOff, garage_door:HassTurnOff
+- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=22
+- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_blinds:HassTurnOn
+- "dim the light to 30 percent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=30, got handed off (missing_value)
+- "turn on the music" (speaker in living_room): wanted tv:HassTurnOn, got living_room_blinds:HassTurnOn
+- "fahr die Rollos auf 30 Prozent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassTurnOn
+- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassTurnOn
 
-### Confidence check: what each setting does to the new approach
+**Laya English**
 
-| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
-|---|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 45/55 · 1 · **9** | 45/55 · 1 · **9** | 45/55 · 1 · **9** | 44/55 · 3 · **8** | 43/55 · 5 · **7** | 42/55 · 6 · **7** |
-| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 31/34 · 2 · **1** | 31/34 · 2 · **1** | 30/34 · 3 · **1** |
-| Kev 0.8B | 49/55 · 1 · **5** | 46/55 · 5 · **4** | 42/55 · 9 · **4** | 39/55 · 14 · **2** | 37/55 · 16 · **2** | 32/55 · 22 · **1** |
-| Intern-Decision 0.8B | 51/55 · 1 · **3** | 49/55 · 3 · **3** | 46/55 · 7 · **2** | 41/55 · 13 · **1** | 34/55 · 21 · **0** | 28/55 · 27 · **0** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 50/55 · 5 · **0** |
-| H2O-Lightning 4B | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** | 53/55 · 2 · **0** |
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassLightSet brightness=30
 
-### Extra context for the model (no confidence check)
+**Intern-Decision 0.8B**
 
-| Model | plain | + devices described | + numbers in options | + model splits sentence | all three |
-|---|---:|---:|---:|---:|---:|
-| Laya multilingual | 45/55 · 1 · **9** | 40/55 · 1 · **14** | 45/55 · 1 · **9** | 44/55 · 1 · **10** | 40/55 · 1 · **14** (1🔒) |
-| Laya English | 32/34 · 1 · **1** | 31/34 · 1 · **2** | 31/34 · 1 · **2** | 32/34 · 1 · **1** | 30/34 · 1 · **3** |
-| Kev 0.8B | 49/55 · 1 · **5** | 47/55 · 1 · **7** | 49/55 · 1 · **5** | 45/55 · 1 · **9** | 45/55 · 1 · **9** |
-| Intern-Decision 0.8B | 51/55 · 1 · **3** | 51/55 · 1 · **3** | 51/55 · 1 · **3** | 50/55 · 1 · **4** | 49/55 · 1 · **5** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 54/55 · 1 · **0** | 53/55 · 1 · **1** | 52/55 · 1 · **2** | 53/55 · 1 · **1** |
-| H2O-Lightning 4B | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** |
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassGetState
 
-### Other ways of asking (no confidence check)
+**Intern-Decision 2B**
 
-| Model | plain | near | fit | near + fit | no command/question step | options asked twice |
-|---|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 45/55 · 1 · **9** | 46/55 · 1 · **8** | 45/55 · 1 · **9** | 46/55 · 1 · **8** | 39/55 · 1 · **15** (1🔒) | 45/55 · 1 · **9** |
-| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 30/34 · 1 · **3** (1🔒) | 32/34 · 1 · **1** |
-| Kev 0.8B | 49/55 · 1 · **5** | 50/55 · 1 · **4** | 49/55 · 1 · **5** | 50/55 · 1 · **4** | 47/55 · 1 · **7** (1🔒) | 46/55 · 1 · **8** |
-| Intern-Decision 0.8B | 51/55 · 1 · **3** | 53/55 · 1 · **1** | 51/55 · 1 · **3** | 53/55 · 1 · **1** | 47/55 · 1 · **7** (1🔒) | 52/55 · 1 · **2** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 1 · **2** | 53/55 · 1 · **1** |
-| H2O-Lightning 4B | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** | 54/55 · 1 · **0** |
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_blinds:HassSetPosition position=70
 
-### The model-only tree, step by step
+**d1-3B**
 
-| Model | Devices, yes ≥ 0.5 | Devices, best cut-off | Devices, top-ranked (count known) | Action per device | Value | Vague change | Whole sentence | Wrong on lock/garage |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 3/32 | 9/32 (at 0.80) | 21/32 | 35/45 | 9/11 | 1/5 | 2/32 | 12 |
-| Laya English | 2/20 | 5/20 (at 0.60) | 13/20 | 26/29 | 7/7 | 2/3 | 2/20 | 7 |
-| Kev 0.8B | 12/32 | 20/32 (at 0.65) | 29/32 | 38/45 | 10/11 | 4/5 | 8/32 | 3 |
-| Intern-Decision 0.8B | 5/32 | 20/32 (at 0.60) | 28/32 | 38/45 | 11/11 | 1/5 | 3/32 | 7 |
-| Intern-Decision 2B | 26/32 | 28/32 (at 0.60) | 30/32 | 42/45 | 11/11 | 4/5 | 23/32 | 2 |
-| H2O-Lightning 4B | 28/32 | 28/32 (at 0.30) | 32/32 | 44/45 | 11/11 | 4/5 | 27/32 | 2 |
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
 
-### Time per sentence (median)
+**d1-omni-600M**
 
-| Model | Today's pipeline | New approach | Best approach | Options asked twice |
-|---|---:|---:|---:|---:|
-| Laya multilingual | 16 ms | 37 ms | 36 ms | 62 ms |
-| Laya English | 31 ms | 63 ms | 63 ms | 118 ms |
-| Kev 0.8B | 154 ms | 218 ms | 183 ms | 373 ms |
-| Intern-Decision 0.8B | 267 ms | 538 ms | 537 ms | 912 ms |
-| Intern-Decision 2B | 351 ms | 715 ms | 712 ms | 1211 ms |
-| H2O-Lightning 4B | 693 ms | 1098 ms | 1094 ms | 2096 ms |
+- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=24, bathroom:HassClimateSetTemperature temperature=24
+- "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an": wanted living_room:HassClimateSetTemperature temperature=23, kitchen_ceiling:HassTurnOn, got living_room:HassTurnOn, kitchen_ceiling:HassTurnOn
+- "schließ das Garagentor": wanted garage_door:HassTurnOff, got handed off (missing_value)
+- "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein": wanted bathroom:HassClimateSetTemperature temperature=22, coffee_maker:HassTurnOn, got bathroom:HassTurnOn, coffee_maker:HassTurnOn
+- "make it 23 degrees in here" (speaker in living_room): wanted living_room:HassClimateSetTemperature temperature=23, got living_room:HassClimateGetTemperature
+- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
+- "schließ die Rollläden" (speaker in living_room): wanted living_room_blinds:HassTurnOff, got handed off (missing_value)
+
+What they have in common:
+
+1. **"Open the blinds to 30 percent" with no room known is handed off on purpose** by every model.
+   Nothing in it names a device or a room, and the test gives no speaker's room.
+2. **"Mach es heller, 70 Prozent"** ("make it brighter, 70 percent") fails with Laya and both
+   Intern-Decision models. d1-3B and d1-omni-600M get it right.
+3. **d1-omni-600M often picks "turn on" for a German "stell … auf N Grad"**, and picks a
+   position for "schließ …", which the server then hands off because no number was said.
+
+## What this means for the GeForce plan
+
+| | Fits a 4 GB card? | Right (of 55), no check | Suggested check | At that check (all 65) |
+|---|---|---|---|---|
+| d1-3B | No, about 6.8 GB | 54 | 0.2 | 55 right, 4 handed off, 6 wrong (all among the new sentences) |
+| Intern-Decision 2B | No, about 4.6 GB | 53 | 0.2 | 54 right, 6 handed off, 5 wrong |
+| **Intern-Decision 0.8B** | **Yes, about 2.3 GB** | **53** | **0.2** | **48 right, 14 handed off, 3 wrong** |
+| d1-omni-600M | Yes, about 1.0 GB | 47 | 0.4 | 42 right, 19 handed off, 4 wrong |
+| Laya multilingual | Yes, about 1.2 GB | 46 | 0.4 | 47 right, 8 handed off, 10 wrong |
+
+**Intern-Decision 0.8B is still the pick for the 4 GB card. d1-3B is the pick for any machine with
+8 GB or more** (a Mac, or a larger graphics card).
+
+On the Mac, the Qwen-based Intern-Decision models take 200–280 ms per question because two speed-up
+libraries (`flash-linear-attention`, `causal-conv1d`) only exist for NVIDIA cards. d1-3B is built
+on Liquid AI's LFM2.5, which runs well on the Mac (112 ms per question). Liquid AI reports 8 ms per
+question for d1-3B on an RTX 4090. None of this has been measured on NVIDIA here.
 
 ## The best approach in the server
+
 
 The server does this now, in `server/assist_decider_server/pipeline.py`. Step by step:
 
@@ -219,83 +224,105 @@ The server does this now, in `server/assist_decider_server/pipeline.py`. Step by
    0–100, temperature 5–35); if not, or if no number was said, it hands the sentence off.
 6. **Hand the sentence to Home Assistant when any answer is unsure.** Take the lowest confidence of
    all answers in the sentence. Set the check per model: about **0.2** for Intern-Decision 0.8B and
-   2B, 0.0–0.1 for H2O-Lightning 4B. The default of 0.4 hands off far too much with the
+   2B and d1-3B, 0.4 for d1-omni-600M. The default of 0.4 hands off far too much with the
    Intern models.
 
 Why these two rules and not others: *near* fixed the two sentences that turn one thing on and
 another off ("turn on the kitchen light and turn off the hallway light", "Küchenlicht an und den
-Fernseher aus") for Intern-Decision 0.8B, Kev and Laya multilingual. Over all six models it
+Fernseher aus") for Intern-Decision 0.8B and Laya multilingual. Over the six models tested then, it
 turned 4 wrong sentences right and no right sentence wrong. *fit* stopped
 Intern-Decision 2B from setting the heating to 70 degrees. Its answer is still wrong (the blinds),
 but now with low confidence, so a check of 0.2 hands it off. Both rules cost no extra model
 questions, so the best approach is as fast as the new approach.
 
-### Measured with the server code
 
-`server/tests/eval/benchmark.py` sends the same 55 sentences through the server's own code.
-Cells read right/total · handed to Home Assistant · wrong:
+## How the best approach was chosen (2026-10-07)
 
-| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 | Median |
-|---|---:|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 46/55 · 2 · **7** | 46/55 · 2 · **7** | 46/55 · 3 · **6** | 45/55 · 4 · **6** | 45/55 · 5 · **5** | 41/55 · 10 · **4** | 37 ms |
-| Laya English | 32/34 · 1 · **1** | 31/34 · 2 · **1** | 31/34 · 3 · **0** | 30/34 · 4 · **0** | 30/34 · 4 · **0** | 29/34 · 5 · **0** | 64 ms |
-| Kev 0.8B | 49/55 · 2 · **4** | 47/55 · 5 · **3** | 43/55 · 10 · **2** | 41/55 · 13 · **1** | 39/55 · 15 · **1** | 34/55 · 21 · **0** | 212 ms |
-| Intern-Decision 0.8B | 53/55 · 1 · **1** | 51/55 · 3 · **1** | 47/55 · 8 · **0** | 38/55 · 17 · **0** | 34/55 · 21 · **0** | 26/55 · 29 · **0** | 541 ms |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 52/55 · 3 · **0** | 52/55 · 3 · **0** | 51/55 · 4 · **0** | 725 ms |
-| H2O-Lightning 4B | 54/55 · 1 · **0** | 53/55 · 2 · **0** | 52/55 · 3 · **0** | 51/55 · 4 · **0** | 51/55 · 4 · **0** | 51/55 · 4 · **0** | 1130 ms |
+These tables compared four ways of understanding a sentence on the 55 original sentences. They were
+measured with a probe script that was removed once the best approach was built into the server.
+The script is in the git history (commit `9849dde`, `server/tests/eval/probe_device_tree.py`). The
+d1 models came later and are not in these tables.
 
-At check 0.0 this matches the probe's best approach, with three small differences:
+| Name in the tables | What it does |
+|---|---|
+| **Today's pipeline** | The code before 2026-10-07. Word lists split the sentence at "and"/"und", and remove actions that can't fit. The model then picks the action and the device from what is left. |
+| **New approach** | Devices found by your device and room names. The model decides: command or question, which device in a named room, what to do with each device, which number. |
+| **Best approach** | The new approach plus *near* and *fit* (above). This is what the server does now. |
+| **Model-only tree** | The model is asked about every device, then the action for each, then the value. No word lists and no name matching. |
 
-- **The "which number?" answer now counts in the confidence check**, as step 6 says. The probe
-  left it out. So a few right sentences are handed off at higher checks: Intern-Decision 0.8B at
-  0.2 gets 47 right and 8 handed off instead of 49 and 6, still with none wrong.
-- **A value is never set without a number.** "Dim the light to 30 percent" with Laya
-  multilingual is now handed off instead of being done wrong.
-- **A device picked from a room is named by its Home Assistant name** in the "what to do?"
-  question. The probe used the first alias for German, which only works in this test home.
-  This costs Kev one German sentence ("mach das Licht im Schlafzimmer aus").
+#### Whole sentences: today's pipeline against the new approach
 
-### Every mistake of the server (no confidence check)
+Confidence check at **0.0**:
 
-**Laya multilingual**
+| Model | Today's pipeline | New approach | Best approach |
+|---|---:|---:|---:|
+| Laya multilingual | 48/55 · 5 · **2** | 45/55 · 1 · **9** | 46/55 · 1 · **8** |
+| Laya English | 32/34 · 0 · **2** | 32/34 · 1 · **1** | 32/34 · 1 · **1** |
+| Intern-Decision 0.8B | 50/55 · 2 · **3** | 51/55 · 1 · **3** | 53/55 · 1 · **1** |
+| Intern-Decision 2B | 50/55 · 3 · **2** | 53/55 · 1 · **1** | 53/55 · 1 · **1** |
 
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "dim the desk lamp to 20 and close the garage door": wanted desk_lamp:HassLightSet brightness=20, garage_door:HassTurnOff, got desk_lamp:HassTurnOff, garage_door:HassTurnOff
-- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=22
-- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_blinds:HassTurnOn
-- "dim the light to 30 percent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=30, got handed off (missing_value)
-- "turn on the music" (speaker in living_room): wanted tv:HassTurnOn, got living_room_blinds:HassTurnOn
-- "fahr die Rollos auf 30 Prozent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassTurnOn
-- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassTurnOn
+Confidence check at **0.4**:
 
-**Laya English**
+| Model | Today's pipeline | New approach | Best approach |
+|---|---:|---:|---:|
+| Laya multilingual | 46/55 · 7 · **2** | 43/55 · 5 · **7** | 45/55 · 5 · **5** |
+| Laya English | 28/34 · 5 · **1** | 31/34 · 2 · **1** | 31/34 · 3 · **0** |
+| Intern-Decision 0.8B | 46/55 · 7 · **2** | 34/55 · 21 · **0** | 37/55 · 18 · **0** |
+| Intern-Decision 2B | 49/55 · 4 · **2** | 52/55 · 3 · **0** | 52/55 · 3 · **0** |
 
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassLightSet brightness=30
+#### Best approach by sentence type and language (no confidence check)
 
-**Kev 0.8B**
+| Model | Device named | Only a room / nothing | English | German |
+|---|---:|---:|---:|---:|
+| Laya multilingual | 29/32 · 1 · **2** | 17/23 · 0 · **6** | 28/34 · 1 · **5** | 18/21 · 0 · **3** |
+| Laya English | 19/20 · 1 · **0** | 13/14 · 0 · **1** | 32/34 · 1 · **1** | 0/0 · 0 · **0** |
+| Intern-Decision 0.8B | 31/32 · 1 · **0** | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 20/21 · 0 · **1** |
+| Intern-Decision 2B | 31/32 · 1 · **0** | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 20/21 · 0 · **1** |
 
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=24, bathroom:HassClimateSetTemperature temperature=24
-- "make it 23 degrees in here" (speaker in living_room): wanted living_room:HassClimateSetTemperature temperature=23, got living_room:HassClimateGetTemperature
-- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
-- "mach das Licht im Schlafzimmer aus" (speaker in kitchen): wanted desk_lamp:HassTurnOff, got handed off (missing_value)
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassGetState
+#### Confidence check: what each setting does to the new approach
 
-**Intern-Decision 0.8B**
+| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
+|---|---:|---:|---:|---:|---:|---:|
+| Laya multilingual | 45/55 · 1 · **9** | 45/55 · 1 · **9** | 45/55 · 1 · **9** | 44/55 · 3 · **8** | 43/55 · 5 · **7** | 42/55 · 6 · **7** |
+| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 31/34 · 2 · **1** | 31/34 · 2 · **1** | 30/34 · 3 · **1** |
+| Intern-Decision 0.8B | 51/55 · 1 · **3** | 49/55 · 3 · **3** | 46/55 · 7 · **2** | 41/55 · 13 · **1** | 34/55 · 21 · **0** | 28/55 · 27 · **0** |
+| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 50/55 · 5 · **0** |
 
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassGetState
+#### Extra context for the model (no confidence check)
 
-**Intern-Decision 2B**
+| Model | plain | + devices described | + numbers in options | + model splits sentence | all three |
+|---|---:|---:|---:|---:|---:|
+| Laya multilingual | 45/55 · 1 · **9** | 40/55 · 1 · **14** | 45/55 · 1 · **9** | 44/55 · 1 · **10** | 40/55 · 1 · **14** (1🔒) |
+| Laya English | 32/34 · 1 · **1** | 31/34 · 1 · **2** | 31/34 · 1 · **2** | 32/34 · 1 · **1** | 30/34 · 1 · **3** |
+| Intern-Decision 0.8B | 51/55 · 1 · **3** | 51/55 · 1 · **3** | 51/55 · 1 · **3** | 50/55 · 1 · **4** | 49/55 · 1 · **5** |
+| Intern-Decision 2B | 53/55 · 1 · **1** | 54/55 · 1 · **0** | 53/55 · 1 · **1** | 52/55 · 1 · **2** | 53/55 · 1 · **1** |
 
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_blinds:HassSetPosition position=70
+#### Other ways of asking (no confidence check)
 
-**H2O-Lightning 4B**
+| Model | plain | near | fit | near + fit | no command/question step | options asked twice |
+|---|---:|---:|---:|---:|---:|---:|
+| Laya multilingual | 45/55 · 1 · **9** | 46/55 · 1 · **8** | 45/55 · 1 · **9** | 46/55 · 1 · **8** | 39/55 · 1 · **15** (1🔒) | 45/55 · 1 · **9** |
+| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 30/34 · 1 · **3** (1🔒) | 32/34 · 1 · **1** |
+| Intern-Decision 0.8B | 51/55 · 1 · **3** | 53/55 · 1 · **1** | 51/55 · 1 · **3** | 53/55 · 1 · **1** | 47/55 · 1 · **7** (1🔒) | 52/55 · 1 · **2** |
+| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 1 · **2** | 53/55 · 1 · **1** |
 
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
+#### The model-only tree, step by step
+
+| Model | Devices, yes ≥ 0.5 | Devices, best cut-off | Devices, top-ranked (count known) | Action per device | Value | Vague change | Whole sentence | Wrong on lock/garage |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Laya multilingual | 3/32 | 9/32 (at 0.80) | 21/32 | 35/45 | 9/11 | 1/5 | 2/32 | 12 |
+| Laya English | 2/20 | 5/20 (at 0.60) | 13/20 | 26/29 | 7/7 | 2/3 | 2/20 | 7 |
+| Intern-Decision 0.8B | 5/32 | 20/32 (at 0.60) | 28/32 | 38/45 | 11/11 | 1/5 | 3/32 | 7 |
+| Intern-Decision 2B | 26/32 | 28/32 (at 0.60) | 30/32 | 42/45 | 11/11 | 4/5 | 23/32 | 2 |
+
+#### Time per sentence (median)
+
+| Model | Today's pipeline | New approach | Best approach | Options asked twice |
+|---|---:|---:|---:|---:|
+| Laya multilingual | 16 ms | 37 ms | 36 ms | 62 ms |
+| Laya English | 31 ms | 63 ms | 63 ms | 118 ms |
+| Intern-Decision 0.8B | 267 ms | 538 ms | 537 ms | 912 ms |
+| Intern-Decision 2B | 351 ms | 715 ms | 712 ms | 1211 ms |
 
 ## The lock fix
 
@@ -307,51 +334,16 @@ Now, for a lock, the server uses `lock_words` and `unlock_words` instead of the 
 (`server/assist_decider_server/lang.py`, used in `Decider.polarity()` in `pipeline.py`). A test
 covers all four sentences.
 
-## What the mistakes have in common
-
-1. **"Open the blinds to 30 percent" with no room known is handed to Home Assistant on purpose.**
-   Nothing in it matches a device or room name, and the test gives no speaker's room.
-2. **"Mach es heller, 70 Prozent"** ("make it brighter, 70 percent") still fails with every model
-   that reads German except H2O-Lightning 4B. Intern-Decision 0.8B and Kev take it for a question;
-   Intern-Decision 2B now moves the blinds to 70 instead of the heating. "heller" is already in the
-   German value words and could point to a light, but a rule made for one test sentence would
-   only fit this page, so it is not part of the best approach.
-3. **Laya multilingual and Kev** still mix up some sentences that name only a room, and the second
-   number in "set the thermostat to 22 degrees and the bathroom heating to 24". The bigger models
-   don't.
-
-## What this means for the GeForce plan
-
-Measured with the server code:
-
-| | Fits a 4 GB card? | Right (of 55), no check | Suggested check | At that check |
-|---|---|---|---|---|
-| H2O-Lightning 4B | No, about 8.8 GB | 54 | 0.0–0.1 | 54 right, 1 handed off, 0 wrong (at 0.0) |
-| Intern-Decision 2B | No, unless compressed to 8-bit (untested) | 53 | 0.2 | 52 right, 3 handed off, 0 wrong |
-| **Intern-Decision 0.8B** | **Yes, about 2.3 GB** | **53** | **0.2** | **47 right, 8 handed off, 0 wrong** |
-| Kev 0.8B | Yes, about 2.3 GB | 49 | 0.4 | 39 right, 15 handed off, 1 wrong |
-| Laya multilingual | Yes, about 1.2 GB | 46 | 0.4 | 45 right, 5 handed off, 5 wrong |
-
-**Intern-Decision 0.8B with the best approach is the pick for the 4 GB card.**
-
-On the Mac, the Qwen-based models (Kev, Intern-Decision and H2O-Lightning) take 60 to 370 ms per question. Two
-speed-up libraries (`flash-linear-attention`, `causal-conv1d`) only exist for NVIDIA cards, so on
-the Mac they run slow fallback code. On an NVIDIA card they should be much faster. Intern-Decision's
-model card reports 34 ms per question on an RTX 4090, and H2O-Lightning's reports 34 ms on a 32 GB
-RTX PRO 4500. Neither has been measured here.
-
 ## Limits of this benchmark
 
-- **55 sentences and one test home.** A difference of one or two sentences between models is noise.
-- **The confidence settings in the tables were tried on these same sentences.** A setting that looks
-  best here needs confirming on new sentences before it goes into the configuration. The same goes
-  for *near* and *fit*: they are general rules, not fitted to single sentences, but they were
-  found while looking at these mistakes.
-- **Kev 0.8B was trained on English only, and H2O-Lightning 4B was evaluated mostly in English.**
-  Their German results are measured here, but their makers don't claim German support.
+- **65 sentences and one test home.** A difference of one or two sentences between models is noise.
+- **The suggested checks were picked on these same sentences.** Confirm them on your own commands
+  with the live log.
+- **The d1 providers rebuild the models' text path in the server's own code**, from the
+  checkpoints' `prompt.py`, `runner.py` and `encoder.py`. They were not compared number by number
+  with Liquid AI's own code.
 - **Time and memory were measured on the Mac only.** "Memory in use" is what the Apple graphics
-  driver reports. "Peak RAM while loading" is the most memory the process used: Kev briefly needs
-  more because it merges its add-on at full precision before shrinking.
+  driver reports. "Peak RAM while loading" is the most memory the process used.
 
 ## The models
 
@@ -359,17 +351,15 @@ RTX PRO 4500. Neither has been measured here.
 |---|---|---|---|
 | [Laya multilingual](https://huggingface.co/convaiinnovations/laya-multilingual) | ConvAI Innovations | mmBERT-base | Apache-2.0 |
 | [Laya English](https://huggingface.co/convaiinnovations/laya) | ConvAI Innovations | ModernBERT-large | Apache-2.0 |
-| [Kev 0.8B](https://huggingface.co/jaredpalmer/kev-0.8b) | Jared Palmer | Qwen3.5-0.8B-Base + LoRA add-on + scoring head | Apache-2.0 |
 | [Intern-Decision 0.8B](https://huggingface.co/internlm/Intern-Decision-0.8B) | InternLM | Qwen3.5-0.8B | Apache-2.0 |
 | [Intern-Decision 2B](https://huggingface.co/internlm/Intern-Decision-2B) | InternLM | Qwen3.5-2B | Apache-2.0 |
-| [H2O-Lightning 4B](https://huggingface.co/h2oai/h2o-lightning-4b) | H2O.ai | Qwen3.5-4B | Apache-2.0 |
+| [d1-3B](https://huggingface.co/LiquidAI/d1-3B) | Liquid AI | LFM2.5-VL-3B | LFM Open License v1.0 |
+| [d1-omni-600M](https://huggingface.co/LiquidAI/d1-omni-600M) | Liquid AI | LFM2.5-Encoder-350M + decision head | LFM Open License v1.0 |
 
-Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`). For Kev,
-Intern-Decision and H2O-Lightning, the server does not run any code from the download. It rebuilds the
-prompt format itself. The Kev version gives the same probabilities as Kev's own code to within 0.003.
-H2O-Lightning normally runs on vLLM behind a small server of its own. The provider here rebuilds that
-server's prompt in `transformers` instead, and it reproduces the model card's example answer to
-within 0.006.
+Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`).
+For Intern-Decision and d1, the server runs no code from the download. It rebuilds the prompt (and
+for d1-omni-600M the network, in `d1_omni.py`) itself. The LFM Open License is free to use unless
+your organization makes $10M or more a year.
 
 ## Repeat the benchmark
 
@@ -377,17 +367,14 @@ From the `server` folder:
 
 ```bash
 # right / handed off / wrong at every check, and every mistake (big models: a few minutes each)
-uv run python tests/eval/benchmark.py multilingual english kev-0.8b \
-    intern-decision-0.8b intern-decision-2b h2o-lightning-4b
+uv run python tests/eval/benchmark.py multilingual english \
+    intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m
 
 # memory and speed, one process per model
-for m in multilingual english kev-0.8b intern-decision-0.8b intern-decision-2b h2o-lightning-4b; do
+for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m; do
     uv run python tests/eval/measure_memory.py $m
 done
 ```
 
-The comparison of approaches (today's pipeline, extra context, other ways of asking, the
-model-only tree) needs the probe script from commit `9849dde`.
-
-To switch the server to another model, set `model = "intern-decision-2b"` in the config file, or
-start it with `--model intern-decision-2b`.
+To switch the server to another model, set `model = "d1-3b"` in the config file, or start it with
+`--model d1-3b`.

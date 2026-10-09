@@ -1,4 +1,4 @@
-"""The benchmark of BENCHMARK.md: 55 sentences through the server's own pipeline.
+"""The benchmark of BENCHMARK.md: 65 sentences through the server's own pipeline.
 
 Prints, per model, how many sentences are right, handed to Home Assistant, or wrong at each
 confidence threshold, the median time per sentence, and every mistake.
@@ -16,7 +16,9 @@ from assist_decider_server.pipeline import decide
 from assist_decider_server.providers import MODELS, make_provider
 
 sys.path.insert(0, "tests")
-from conftest import make_request  # noqa: E402
+from conftest import HOME, make_request  # noqa: E402
+
+from assist_decider_server.protocol import Area, Entity, Floor  # noqa: E402
 
 KL, DL, FL, HL = (
     "light.kitchen_ceiling",
@@ -148,9 +150,74 @@ ROOM_CASES = [
     ("de", "mach es heller, 70 Prozent", "living_room", {FL: ("set_brightness", 70)}),
 ]
 
+# The test home with floors, two more living room lights and blinds upstairs, for NEW_CASES only:
+# the 55 sentences above keep their home, so their results stay comparable.
+LL, RL, OB, KB = (
+    "light.living_room_left",
+    "light.living_room_right",
+    "cover.office_blinds",
+    "cover.kids_room_blinds",
+)
+UPSTAIRS = {"bedroom", "office", "kids_room"}
+HOME_FLOORS = HOME.model_copy(
+    update={
+        "floors": [
+            Floor(id="ground", name="Ground Floor", aliases=["Erdgeschoss"]),
+            Floor(id="second", name="Second Floor", aliases=["Obergeschoss", "zweiter Stock"]),
+        ],
+        "areas": [
+            a.model_copy(update={"floor_id": "second" if a.id in UPSTAIRS else "ground"})
+            for a in HOME.areas
+        ]
+        + [
+            Area(id="office", name="Office", aliases=["Büro"], floor_id="second"),
+            Area(id="kids_room", name="Kids Room", aliases=["Kinderzimmer"], floor_id="second"),
+        ],
+        "entities": [
+            *HOME.entities,
+            Entity(id=LL, name="Left Light", aliases=["Linkes Licht"], area_id="living_room"),
+            Entity(id=RL, name="Right Light", aliases=["Rechtes Licht"], area_id="living_room"),
+            Entity(
+                id=OB,
+                name="Office Blinds",
+                aliases=["Rollladen Büro"],
+                area_id="office",
+                device_class="blind",
+            ),
+            Entity(
+                id=KB,
+                name="Kids Room Blinds",
+                aliases=["Rollladen Kinderzimmer"],
+                area_id="kids_room",
+                device_class="blind",
+            ),
+        ],
+    }
+)
+ON, OFF, CLOSE = ("turn_on", None), ("turn_off", None), ("close", None)
+LIVING_LIGHTS = {FL: ON, LL: ON, RL: ON}
+GROUND_LIGHTS = {KL: ON, FL: ON, LL: ON, RL: ON, HL: ON}  # the speaker is on the ground floor
+# lang, text, speaker's room, gold: politeness, "all", left/right and floors
+NEW_CASES = [
+    ("en", "can you turn on the light please", "kitchen", {KL: ON}),
+    ("en", "turn on all the lights in the living room", None, LIVING_LIGHTS),
+    ("en", "turn off the left light but turn on the right one", "living_room", {LL: OFF, RL: ON}),
+    ("en", "turn on all the lights on the floor", "living_room", GROUND_LIGHTS),
+    ("en", "close all the covers on the second floor", None, {OB: CLOSE, KB: CLOSE}),
+    ("de", "kannst du bitte das Licht einschalten", "kitchen", {KL: ON}),
+    ("de", "schalte alle Lichter im Wohnzimmer ein", None, LIVING_LIGHTS),
+    ("de", "mach das linke Licht aus, aber das rechte an", "living_room", {LL: OFF, RL: ON}),
+    ("de", "schalte alle Lichter auf dieser Etage ein", "living_room", GROUND_LIGHTS),
+    ("de", "schließ alle Rollläden im Obergeschoss", None, {OB: CLOSE, KB: CLOSE}),
+]
+
 SENSITIVE = {GD, FD}
 THRESHOLDS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5)
-ALL_CASES = [(lang, text, None, gold) for lang, text, gold in CASES] + ROOM_CASES
+ALL_CASES = (
+    [(lang, text, None, gold, HOME) for lang, text, gold in CASES]
+    + [(*case, HOME) for case in ROOM_CASES]
+    + [(*case, HOME_FLOORS) for case in NEW_CASES]
+)
 
 
 def expected(gold: dict) -> dict[str, tuple]:
@@ -176,11 +243,13 @@ def run(model: str) -> list[dict]:
     provider = make_provider(model)
     provider.load()
     rows = []
-    for lang, text, sat, gold in ALL_CASES:
+    for lang, text, sat, gold, home in ALL_CASES:
         if lang not in provider.languages:
             continue
         # The threshold is applied below, so one run gives the result for every threshold.
-        req = make_request(text, lang, satellite_area_id=sat, options={"confidence_threshold": 0.0})
+        req = make_request(
+            text, lang, home=home, satellite_area_id=sat, options={"confidence_threshold": 0.0}
+        )
         started = time.perf_counter()
         response, _ = decide(req, provider)
         ms = (time.perf_counter() - started) * 1000
@@ -189,6 +258,7 @@ def run(model: str) -> list[dict]:
         rows.append(
             {
                 "text": text,
+                "new": home is HOME_FLOORS,
                 "sat": sat,
                 "want": short(want),
                 "got": short(got) if got else f"handed off ({response.reason})",
@@ -229,6 +299,10 @@ if __name__ == "__main__":
     for m, rows in results.items():
         cells = " | ".join(cell(rows, t) for t in THRESHOLDS)
         print(f"| {m} | {cells} | {statistics.median(r['ms'] for r in rows):.0f} ms |")
+    print("\n| Model | 55 sentences | 10 new sentences |\n|---|---:|---:|")
+    for m, rows in results.items():
+        old, new = [r for r in rows if not r["new"]], [r for r in rows if r["new"]]
+        print(f"| {m} | {cell(old, 0.0)} | {cell(new, 0.0)} |")
     for m, rows in results.items():
         print(f"\n**{m}**\n")
         for r in rows:

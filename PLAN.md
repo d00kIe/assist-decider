@@ -6,7 +6,7 @@ add measurements and decisions so the next session can pick up without re-resear
 ## Goal
 
 A Home Assistant voice-command agent powered by small "choice" models (Laya,
-Intern-Decision, Kev, H2O-Lightning), running on a separate machine. It needs to be:
+Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
 
 - fast and resident in memory
 - English and German
@@ -201,3 +201,19 @@ uv run hass -c .ha-config   # http://127.0.0.1:8124, integration symlinked in .h
   check 0.0. Tests: server 94 fast + 4 live (Laya english, multilingual, Intern-Decision 0.8B).
 - **Open:** the default model is still `multilingual` and the HA thresholds 0.4/0.5; the
   benchmark recommends `intern-decision-0.8b` at 0.2.
+
+### Session 4 (2026-10-09)
+
+- New providers: `d1-3b` (Liquid AI d1-3B, LFM2.5-VL; native `transformers` class, prompt rebuilt from
+  its prompt.py) and `d1-omni-600m` (bidirectional LFM2.5 encoder plus decision head, rebuilt text-only
+  in `d1_omni.py`, with vision and audio never loaded). Both pinned, with no remote code. LFM Open License.
+- Removed Kev 0.8B and H2O-Lightning 4B.
+- Benchmark: 10 new sentences (politeness, "all … in the room", left/right, floors) on a home with floors.
+  Results are in BENCHMARK.md. d1-3B is the most accurate (54/55 original, 0 wrong, 6.8 GB, 0.3 s).
+  d1-omni is the smallest (1.0 GB, 51 ms) and about as accurate as Laya multilingual. **Every model
+  fails the "all"/floor/"the right one" sentences, and most act on one device instead of handing off.**
+  That makes the "room commands" and "floors" items under M2 the next real gap.
+- CI: fixed a flaky `test_busy_returns_503` (polling raced for the single slot, so it hung or failed on
+  slow runners) and two unused `noqa` (RUF100) in the integration. HACS needs a repo description and
+  topics, which are set in GitHub settings.
+- README rewritten for users (install / choose a model / use it), with a Docker placeholder.

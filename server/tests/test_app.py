@@ -98,10 +98,11 @@ def test_invalid_entity_id_rejected(client):
 
 
 def test_busy_returns_503():
-    gate = threading.Event()
+    gate, inside = threading.Event(), threading.Event()
 
     class Slow(FakeProvider):
         def predict(self, *a, **kw):
+            inside.set()
             gate.wait(5)
             return super().predict(*a, **kw)
 
@@ -110,10 +111,10 @@ def test_busy_returns_503():
         results = []
         t = threading.Thread(target=lambda: results.append(c.post("/v1/process", json=body())))
         t.start()
-        for _ in range(100):  # wait until the first request occupies the slot
-            r = c.post("/v1/process", json=body())
-            if r.status_code == 503:
-                break
+        # Only ask once the first request holds the slot. Polling raced on slow CI runners:
+        # a poll could take the slot first and the threaded request got the 503.
+        assert inside.wait(10)
+        r = c.post("/v1/process", json=body())
         gate.set()
         t.join()
         assert r.status_code == 503

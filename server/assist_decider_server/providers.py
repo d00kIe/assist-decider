@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import re
 import time
 from dataclasses import dataclass
 from typing import Any, Protocol
@@ -283,199 +282,65 @@ class InternDecisionProvider(_ScoringProvider):
         return self._answers(questions, probs)
 
 
-# name -> (Hugging Face repo, reviewed commit). The base model, its commit, the head and the
-# calibration temperature come from the checkpoint's head.pt.
-KEV_CHECKPOINTS = {
-    "kev-0.8b": ("jaredpalmer/kev-0.8b", "bf75a6a8848ea6960ff2ed108d9ed44c2941174f"),
+# name -> (Hugging Face repo, reviewed commit). LFM Open License v1.0.
+D1_CHECKPOINTS = {
+    "d1-3b": ("LiquidAI/d1-3B", "051bcc464b01b9f92942b364d9586b0ef5912432"),
 }
-# Kev's delimiters: rarely used Qwen special tokens for <state> <q> <opt> </opt> <decide>.
-_KEV_SPECIAL = [
-    "<|fim_prefix|>",
-    "<|fim_middle|>",
-    "<|box_start|>",
-    "<|box_end|>",
-    "<|fim_suffix|>",
-]
-_KEV_SPECIAL_RE = re.compile(r"<\|([A-Za-z0-9_]+)\|>")
 
 
-def _kev_render(v: Any, indent: int = 0) -> str:
-    """kev/api.py render(): str | object | array as labelled text."""
-    pad = "  " * indent
-    if v is None:
-        return ""
-    if isinstance(v, (str, int, float, bool)):
-        return str(v)
-    if isinstance(v, list):
-        return "\n".join(f"{pad}- {_kev_render(x, indent + 1).lstrip()}" for x in v)
-    return "\n".join(
-        f"{pad}{k}:\n{_kev_render(x, indent + 1)}"
-        if isinstance(x, (dict, list))
-        else f"{pad}{k}: {_kev_render(x)}"
-        for k, x in v.items()
-    )
+def d1_codes(n: int) -> list[str]:
+    """d1's option codes: A..Z, or 00.. past 26 options (prompt.py option_codes)."""
+    return [chr(65 + i) for i in range(n)] if n <= 26 else [f"{i:02d}" for i in range(n)]
 
 
-class KevProvider(_ScoringProvider):
-    """Kev (https://github.com/jaredpalmer/kev, commit 5e42a7a): Qwen3.5 base + LoRA + pointer head.
+class D1Provider(_ScoringProvider):
+    """d1-3B (https://huggingface.co/LiquidAI/d1-3B), text only.
 
-    Rebuilds kev/api.py (rendering), kev/model.py (encode, row form, PointerHead) and
-    kev/checkpoint.py (LoRA merged in fp32) without the kev package or peft. Every question is
-    its own causal row: <state> state <q> instructions (<opt> option </opt>)... <decide>; the
-    head scores each </opt> hidden state against the <decide> one.
+    Rebuilds the defaults of the checkpoint's prompt.py and runner.py instead of running its remote
+    code: no system turn, the state as indented JSON, options as "<code> <description>", and each
+    option scored by the log-probability of its code (bare or after a space) at the answer slot.
     """
 
-    name = "kev"
-    languages = ("en", "de")  # trained on English only; German is measured, not promised
+    name = "d1"
+    languages = ("en", "de")
 
     def __init__(self, model: str, device: str = "auto") -> None:
-        if model not in KEV_CHECKPOINTS:
-            raise ValueError(f"Unknown model {model!r}, choose from {sorted(KEV_CHECKPOINTS)}")
+        if model not in D1_CHECKPOINTS:
+            raise ValueError(f"Unknown model {model!r}, choose from {sorted(D1_CHECKPOINTS)}")
         self.model = model
         self.device = device
-        self._repo, self._revision = KEV_CHECKPOINTS[model]
+        self._repo, self._revision = D1_CHECKPOINTS[model]
 
     def load(self) -> None:
         started = time.perf_counter()
         torch, self.device, dtype = _torch_device(self.device)
         from huggingface_hub import snapshot_download
-        from safetensors.torch import load_file
-        from transformers import AutoModelForCausalLM, AutoTokenizer
-
-        path = snapshot_download(
-            self._repo, revision=self._revision, allow_patterns=["*.json", "*.safetensors", "*.pt"]
-        )
-        meta = torch.load(f"{path}/head.pt", map_location="cpu", weights_only=True)
-        base, base_rev = meta["base"], meta["base_revision"]
-        self._tok = AutoTokenizer.from_pretrained(base, revision=base_rev)
-        # kev uses eager attention off CUDA (its float masks); rows here only need padding masks.
-        attn = "sdpa" if self.device.startswith("cuda") else "eager"
-        lm = AutoModelForCausalLM.from_pretrained(
-            base, revision=base_rev, dtype=torch.float32, attn_implementation=attn
-        ).model
-        with open(f"{path}/adapter_config.json") as f:
-            cfg = json.load(f)
-        lora = load_file(f"{path}/adapter_model.safetensors")
-        merged = 0
-        with torch.no_grad():  # W += B @ A * alpha / r in fp32, as peft's merge_and_unload
-            for key, a in lora.items():
-                if key.endswith(".lora_A.weight"):
-                    name = key.removeprefix("base_model.model.").removesuffix(".lora_A.weight")
-                    b = lora[key.replace(".lora_A.", ".lora_B.")]
-                    lm.get_submodule(name).weight += (b @ a) * (cfg["lora_alpha"] / cfg["r"])
-                    merged += 1
-        if not merged or merged * 2 != len(lora):
-            raise ValueError(f"{self._repo}: unexpected adapter layout")
-        self._lm = lm.to(device=self.device, dtype=dtype).eval()
-        head = {k: v.to(self.device, torch.float32) for k, v in meta["head"].items()}
-        self._head = head
-        self._head_scale = 1 / (head["q.weight"].shape[0] ** 0.5) / meta["temperature"]
-        self._special = [self._tok.convert_tokens_to_ids(t) for t in _KEV_SPECIAL]
-        self._pad = self._tok.pad_token_id if self._tok.pad_token_id is not None else 0
-        self._torch = torch
-        self._loaded(self._repo, self._revision, started)
-
-    def _tokens(self, text: str) -> list[int]:
-        # caller text can never produce delimiter tokens: <|x|> becomes <¦x¦> first (kev's rule)
-        return self._tok(_KEV_SPECIAL_RE.sub(r"<¦\1¦>", text), add_special_tokens=False).input_ids
-
-    def predict(
-        self, state: dict[str, Any], questions: dict[str, Question], lang: str
-    ) -> dict[str, Answer]:
-        _check(questions)
-        torch = self._torch
-        st, q_id, o_id, c_id, d_id = self._special
-        S = [st, *self._tokens(_kev_render(state))]
-        rows, reads = [], []
-        for q in questions.values():
-            branch = [q_id, *self._tokens(q.instructions)]
-            ends = []
-            for v, d in q.options.items():
-                text = f"{v}: {d}" if d else v
-                branch += [o_id, *self._tokens(text), c_id]
-                ends.append(len(S) + len(branch) - 1)
-            branch.append(d_id)
-            rows.append(S + branch)
-            reads.append((len(rows[-1]) - 1, ends))
-        width = max(len(r) for r in rows)
-        ids = torch.full((len(rows), width), self._pad)
-        att = torch.zeros((len(rows), width), dtype=torch.long)
-        for i, r in enumerate(rows):
-            ids[i, : len(r)] = torch.tensor(r)
-            att[i, : len(r)] = 1
-        pos = torch.arange(width).expand(len(rows), width)
-        h = self._head
-        with torch.inference_mode():
-            hidden = self._lm(
-                input_ids=ids.to(self.device),
-                position_ids=pos.to(self.device),
-                attention_mask=att.to(self.device),
-            ).last_hidden_state.float()
-            probs = []
-            for i, (decide, ends) in enumerate(reads):
-                qv = hidden[i, decide] @ h["q.weight"].T + h["q.bias"]
-                kv = hidden[i, ends] @ h["k.weight"].T + h["k.bias"]
-                probs.append(torch.softmax(kv @ qv * self._head_scale, -1).tolist())
-        return self._answers(questions, probs)
-
-
-# name -> (Hugging Face repo, reviewed commit = tag v1.2.1). Temperature from its serve_config.json.
-H2O_CHECKPOINTS = {
-    "h2o-lightning-4b": ("h2oai/h2o-lightning-4b", "542e9eff5ce7e5d69eb457fbe54abb535992ab20"),
-}
-_H2O_SYSTEM = (
-    "You are a decision engine. You read a record and answer one question about it by choosing "
-    "exactly one option. Reply with a single letter."
-)
-_H2O_LABELS = _SYMBOLS[:52] + "αβγδεζηθικ"  # serve_config.json labels, first 62
-_H2O_TEMPERATURE = 0.8
-
-
-class H2OLightningProvider(_ScoringProvider):
-    """H2O-Lightning-4B (https://huggingface.co/h2oai/h2o-lightning-4b), text only.
-
-    Rebuilds h2o_lightning_shim.py's text path instead of running it behind vLLM: one prompt per
-    question (system, `record:/question:/options:` user turn, thinking off, "Answer:" prefill),
-    the label logits " A", " B"... read in fp32 (config.json head_dtype), softmax at T=0.8.
-    """
-
-    name = "h2o-lightning"
-    languages = ("en", "de")  # evaluated mostly in English; German is measured, not promised
-
-    def __init__(self, model: str, device: str = "auto") -> None:
-        if model not in H2O_CHECKPOINTS:
-            raise ValueError(f"Unknown model {model!r}, choose from {sorted(H2O_CHECKPOINTS)}")
-        self.model = model
-        self.device = device
-        self._repo, self._revision = H2O_CHECKPOINTS[model]
-
-    def load(self) -> None:
-        started = time.perf_counter()
-        torch, self.device, dtype = _torch_device(self.device)
-        from huggingface_hub import snapshot_download
-        from transformers import AutoTokenizer, Qwen3_5ForConditionalGeneration
+        from transformers import Lfm2VlForConditionalGeneration, PreTrainedTokenizerFast
 
         path = snapshot_download(
             self._repo,
             revision=self._revision,
-            allow_patterns=["*.json", "*.jinja", "*.txt", "*.safetensors"],
+            allow_patterns=["*.json", "*.jinja", "*.safetensors"],
         )
         self._torch = torch
-        self._tok = AutoTokenizer.from_pretrained(path, local_files_only=True)
-        self._label_ids = []
-        for s in _H2O_LABELS:  # the shim's check: " <label>" is one token at the answer slot
-            ids = self._tok.encode("Answer: " + s, add_special_tokens=False)
-            if ids[:-1] != self._tok.encode("Answer:", add_special_tokens=False):
-                raise ValueError(f"{self._repo}: label {s!r} is not one token")
-            self._label_ids.append(ids[-1])
+        self._tok = PreTrainedTokenizerFast.from_pretrained(path, local_files_only=True)
+        self._code_ids = {}
+        for code in d1_codes(26) + d1_codes(62):
+            bare = self._tokens(code)
+            if len(bare) != 1:
+                raise ValueError(f"{self._repo}: option code {code!r} is not one token")
+            spaced = self._tokens(" " + code)
+            self._code_ids[code] = bare + (spaced if len(spaced) == 1 else [])
         self._model = (
-            Qwen3_5ForConditionalGeneration.from_pretrained(
-                path, dtype=dtype, local_files_only=True, attn_implementation="sdpa"
+            Lfm2VlForConditionalGeneration.from_pretrained(
+                path,
+                dtype=torch.float32 if self.device == "cpu" else dtype,
+                local_files_only=True,
+                attn_implementation="sdpa",
             )
             .to(self.device)
             .eval()
         )
-        self._head = self._model.get_output_embeddings().weight[self._label_ids].detach().float()
         self._loaded(self._repo, self._revision, started)
 
     def _tokens(self, text: str, **kw: Any) -> list[int]:
@@ -486,41 +351,113 @@ class H2OLightningProvider(_ScoringProvider):
     ) -> dict[str, Answer]:
         _check(questions)
         torch = self._torch
-        record = json.dumps(state, ensure_ascii=False, separators=(",", ":"))
+        state_text = json.dumps(state, ensure_ascii=False, indent=2)
         probs = []
         for q in questions.values():
+            codes = d1_codes(len(q.options))
             lines = "\n".join(
-                f"{s}) {v}: {d}" for s, (v, d) in zip(_H2O_LABELS, q.options.items(), strict=False)
+                f"{c} {d or k.replace('_', ' ')}"
+                for c, (k, d) in zip(codes, q.options.items(), strict=True)
             )
-            instr = q.instructions or "Answer the question below."
-            user = f"record: {record}\nquestion: {instr.lstrip()}\noptions:\n{lines}"
+            user = (
+                f"user\n{state_text}\n\n\nQUESTION:\n{q.instructions}\n\nOptions:\n{lines}"
+                "\n\nReply with the option code only."
+            )
             # caller text never becomes a special token (<|im_end|> in an utterance stays text)
             ids = [
-                *self._tokens(f"<|im_start|>system\n{_H2O_SYSTEM}<|im_end|>\n<|im_start|>user\n"),
-                *self._tokens(user.strip(), split_special_tokens=True),
-                *self._tokens("<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\nAnswer:"),
+                *self._tokens("<|startoftext|><|im_start|>"),
+                *self._tokens(user, split_special_tokens=True),
+                *self._tokens("<|im_end|>\n<|im_start|>assistant\n"),
             ]
             with torch.inference_mode():
-                h = (
-                    self._model.model(
-                        input_ids=torch.tensor([ids], device=self.device), use_cache=False
-                    )
-                    .last_hidden_state[0, -1]
-                    .float()
-                )
-            p = torch.softmax(self._head[: len(q.options)] @ h / _H2O_TEMPERATURE, -1)
-            probs.append(p.tolist())
+                z = self._model(
+                    input_ids=torch.tensor([ids], device=self.device), logits_to_keep=1
+                ).logits[0, -1]
+                logz = torch.log_softmax(z.float(), -1)
+                scores = torch.stack([logz[self._code_ids[c]].max() for c in codes])
+                probs.append(torch.softmax(scores, -1).tolist())
         return self._answers(questions, probs)
 
 
-MODELS = sorted([*LAYA_CHECKPOINTS, *INTERN_CHECKPOINTS, *KEV_CHECKPOINTS, *H2O_CHECKPOINTS])
+# name -> (Hugging Face repo, reviewed commit). LFM Open License v1.0.
+D1_OMNI_CHECKPOINTS = {
+    "d1-omni-600m": ("LiquidAI/d1-omni-600M", "02b55d7076f15129e59ab3f94783f32c4b088674"),
+}
+
+
+class D1OmniProvider(_ScoringProvider):
+    """d1-omni-600M (https://huggingface.co/LiquidAI/d1-omni-600M), text only: see d1_omni.py.
+
+    Text answers are calibrated with the per-option-count temperatures in its config.json.
+    """
+
+    name = "d1-omni"
+    languages = ("en", "de")
+
+    def __init__(self, model: str, device: str = "auto") -> None:
+        if model not in D1_OMNI_CHECKPOINTS:
+            raise ValueError(f"Unknown model {model!r}, choose from {sorted(D1_OMNI_CHECKPOINTS)}")
+        self.model = model
+        self.device = device
+        self._repo, self._revision = D1_OMNI_CHECKPOINTS[model]
+
+    def load(self) -> None:
+        started = time.perf_counter()
+        torch, self.device, _ = _torch_device(self.device)
+        from huggingface_hub import snapshot_download
+        from safetensors import safe_open
+        from transformers import PreTrainedTokenizerFast
+
+        from . import d1_omni
+
+        path = snapshot_download(
+            self._repo, revision=self._revision, allow_patterns=["*.json", "*.safetensors"]
+        )
+        with open(f"{path}/config.json") as f:
+            config = json.load(f)
+        self._temperatures = config["temperatures"]
+        # the tokenizer class itself: AutoTokenizer reads config.json and offers its remote code
+        self._tok = PreTrainedTokenizerFast.from_pretrained(path, local_files_only=True)
+        net = d1_omni.D1Omni(config)
+        with safe_open(f"{path}/model.safetensors", "pt") as f:  # vision/audio towers stay on disk
+            weights = {k: f.get_tensor(k) for k in f.keys() if k.startswith(("encoder.", "head."))}  # noqa: SIM118
+        net.load_state_dict(weights, strict=True)
+        # The model card: float16 keeps the float32 answers on GPUs, bfloat16 does not.
+        dtype = torch.float32 if self.device == "cpu" else torch.float16
+        self._net = net.to(self.device, dtype).eval()
+        self._encode = d1_omni.encode
+        self._temperature_key = d1_omni.temperature_key
+        self._torch = torch
+        self._loaded(self._repo, self._revision, started)
+
+    def predict(
+        self, state: dict[str, Any], questions: dict[str, Question], lang: str
+    ) -> dict[str, Answer]:
+        _check(questions)
+        torch = self._torch
+        probs = []
+        for q in questions.values():
+            ids, markers = self._encode(self._tok, state, q.instructions, q.options)
+            t = self._temperatures.get(
+                self._temperature_key(len(q.options)), self._temperatures.get("choice", 1.0)
+            )
+            with torch.inference_mode():
+                z = self._net(
+                    torch.tensor([ids], device=self.device),
+                    torch.tensor(markers, device=self.device),
+                )
+                probs.append(torch.softmax(z / t, -1).tolist())
+        return self._answers(questions, probs)
+
+
+MODELS = sorted([*LAYA_CHECKPOINTS, *INTERN_CHECKPOINTS, *D1_CHECKPOINTS, *D1_OMNI_CHECKPOINTS])
 
 
 def make_provider(model: str, device: str = "auto") -> DecisionProvider:
     if model in INTERN_CHECKPOINTS:
         return InternDecisionProvider(model, device)
-    if model in H2O_CHECKPOINTS:
-        return H2OLightningProvider(model, device)
-    if model in KEV_CHECKPOINTS:
-        return KevProvider(model, device)
+    if model in D1_CHECKPOINTS:
+        return D1Provider(model, device)
+    if model in D1_OMNI_CHECKPOINTS:
+        return D1OmniProvider(model, device)
     return LayaProvider(model, device)

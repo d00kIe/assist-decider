@@ -28,7 +28,7 @@ p = make_provider(model, device)
 started = time.perf_counter()
 p.load()
 load_s = time.perf_counter() - started
-net = getattr(p, "_model", None) or getattr(p, "_lm", None) or getattr(p._agent, "model", None)
+net = getattr(p, "_model", None) or getattr(p, "_net", None) or getattr(p._agent, "model", None)
 weights = sum(t.numel() * t.element_size() for t in net.parameters()) / 2**30
 params = sum(t.numel() for t in net.parameters()) / 1e6
 
