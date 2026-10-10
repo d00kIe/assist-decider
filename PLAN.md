@@ -144,8 +144,9 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
 - [ ] Linux + NVIDIA: verify the install, document the torch CUDA index for older GPUs,
       measure VRAM and speed on the 4 GB GeForce
 - [ ] Windows + NVIDIA: verify the CUDA torch install command in the README
-- [ ] Ship `deploy/`: systemd unit, launchd plist, Dockerfile (CUDA + CPU), compose file,
-      Caddy TLS example
+- [x] Ship `deploy/`: compose file without a Dockerfile (source at a pinned commit, packages
+      from `uv.lock`), launchd plist; systemd unit and Windows scheduled task in the README
+- [ ] Caddy TLS example
 - [ ] CI: use the CPU torch index on Linux runners (smaller downloads)
 - [ ] Publish the server to PyPI (trusted publishing), so `uv tool install assist-decider`
       works

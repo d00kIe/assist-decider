@@ -1,0 +1,46 @@
+# Assist Decider decision server in Docker, without building an image: the container downloads
+# the server source at REF and runs it with the exact package versions in its uv.lock.
+#
+#   docker compose up -d          start (the first start downloads PyTorch and the model)
+#   docker compose logs -f        watch the log until "Ready: provider=..."
+#
+# Update: download this file again (CI keeps REF on main at the latest tested server commit),
+# then docker compose up -d.
+# Models and packages are kept in ./data, so restarts and updates don't download them again.
+# Docker on macOS can't use the Apple GPU: on a Mac, run the server natively (see README).
+services:
+  assist-decider:
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm@sha256:85d4cb1afa769a7338e095b927bee941cf5ec92266c7424b3f6c0f2748567248
+    environment:
+      REF: 8f6ab4b673c3eac6989842328bed4b4ffb2330a9
+      ASSIST_DECIDER_HOST: 0.0.0.0
+      # Set MODEL=... in a .env file next to this one (see "Choose a model" in the README).
+      ASSIST_DECIDER_MODEL: ${MODEL:-intern-decision-0.8b}
+      HF_HOME: /data/huggingface
+      UV_CACHE_DIR: /data/uv
+      UV_LINK_MODE: copy
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        if [ ! -d /app ]; then
+          rm -rf /tmp/src && mkdir /tmp/src
+          curl -fsSL "https://github.com/d00kIe/assist-decider/archive/$$REF.tar.gz" | tar xz --strip-components=1 -C /tmp/src
+          mv /tmp/src /app
+        fi
+        exec uv run --project /app/server --frozen --no-dev assist-decider
+    volumes:
+      - ./data:/data
+    ports:
+      - "8765:8765"
+    restart: unless-stopped
+    # NVIDIA GPU (Linux, or Windows with WSL 2): needs the NVIDIA Container Toolkit on Linux.
+    # Without an NVIDIA card, delete this block and the model runs on the CPU.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

@@ -24,6 +24,31 @@ jobs:
       # The live Laya tests (-m slow) need the model weights and are run locally.
       - run: uv run pytest
 
+  pin-compose:
+    name: Pin deploy/compose.yaml to this commit
+    needs: server
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    concurrency: pin-compose
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      # The commit is pushed with GITHUB_TOKEN, so it doesn't start another CI run.
+      - run: |
+          git pull --ff-only origin main
+          ref=$(sed -n 's/^ *REF: *//p' deploy/compose.yaml)
+          # Nothing to do when the server is unchanged since REF, or REF is already newer.
+          git diff --quiet "$ref" "$GITHUB_SHA" -- server && exit 0
+          git merge-base --is-ancestor "$ref" "$GITHUB_SHA" || exit 0
+          sed -i "s/^\( *REF: *\).*/\1$GITHUB_SHA/" deploy/compose.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "Pin deploy/compose.yaml to ${GITHUB_SHA::7}"
+          git push origin HEAD:main
+
   integration:
     name: Home Assistant integration
     runs-on: ubuntu-latest

@@ -51,11 +51,29 @@ You need two parts:
 
 ### 1. Install the decision server
 
-#### With Docker
+#### With Docker (Linux, Windows)
 
-*Coming soon.*
+Download [deploy/compose.yaml](deploy/compose.yaml), choose the model (see "Choose a model")
+and start it:
 
-<!-- Docker image, docker run / compose example and GPU notes go here. -->
+```bash
+curl -O https://raw.githubusercontent.com/d00kIe/assist-decider/main/deploy/compose.yaml
+echo MODEL=intern-decision-0.8b > .env
+docker compose up -d
+docker compose logs -f    # wait for "Ready: provider=…"
+```
+
+The file fixes the server version (`REF`, a commit) and the base image, and the packages are
+installed from the server's `uv.lock`, so every restart runs the same code. The first start
+downloads PyTorch (about 5 GB) and the model into `./data`. After that, starting takes seconds.
+To update, download `compose.yaml` again and run `docker compose up -d`. On `main`, `REF` is
+always the latest server commit that passed CI.
+
+The file uses an NVIDIA card. On Linux this needs the NVIDIA Container Toolkit; on Windows,
+Docker Desktop with WSL 2 and a current NVIDIA driver. The log then shows `device=cuda`. Without
+an NVIDIA card, delete the `deploy:` block and the model runs on the CPU.
+
+Docker on macOS can't use the Apple GPU, so the model would run on the CPU. On a Mac, use uv.
 
 #### With uv (macOS, Linux, Windows)
 
@@ -79,8 +97,27 @@ connections when the firewall asks. When the server is ready, it logs
 On **Windows with an NVIDIA card**, PyTorch from PyPI is CPU-only. Install the CUDA build with:
 `uv tool install --reinstall "git+https://github.com/d00kIe/assist-decider#subdirectory=server" --with torch --index https://download.pytorch.org/whl/cu128 --index-strategy unsafe-best-match`
 
-To keep the server running, use a launchd agent (macOS), a systemd service (Linux) or Task
-Scheduler (Windows). A minimal systemd unit:
+To keep the server running:
+
+- **macOS:** [deploy/assist-decider.plist](deploy/assist-decider.plist) starts it at login and
+  restarts it if it stops. Set the model in it, then load it. The log goes to
+  `~/Library/Logs/assist-decider.log`.
+
+  ```bash
+  curl -o ~/Library/LaunchAgents/assist-decider.plist https://raw.githubusercontent.com/d00kIe/assist-decider/main/deploy/assist-decider.plist
+  launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/assist-decider.plist
+  ```
+
+- **Windows:** a scheduled task that starts it at login in a console window, without a time
+  limit, and restarts it if it stops (PowerShell):
+
+  ```powershell
+  $action = New-ScheduledTaskAction -Execute "$env:USERPROFILE\.local\bin\assist-decider.exe" -Argument "--host 0.0.0.0 --model intern-decision-0.8b"
+  $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
+  Register-ScheduledTask assist-decider -Action $action -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Settings $settings
+  ```
+
+- **Linux:** a systemd unit.
 
 ```ini
 # /etc/systemd/system/assist-decider.service

@@ -22,3 +22,6 @@ assist-decider.toml
 .DS_Store
 .idea/
 .vscode/
+
+# Models and packages of deploy/compose.yaml
+deploy/data/
