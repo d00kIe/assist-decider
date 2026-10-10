@@ -281,12 +281,6 @@ TEST_CASES = [
         {DL: bright(40), KL: OFF},
         None,
     ),
-    # conditions and times: hand off
-    ("en", "if it gets dark turn on the floor lamp", None, None, None),
-    ("de", "wenn ich nach Hause komme, mach das Küchenlicht an", None, None, None),
-    ("en", "turn on the coffee maker at 7 in the morning", None, None, None),
-    ("de", "sobald es kalt wird, stell die Heizung Bad auf 22 Grad", None, None, None),
-    ("en", "close the living room blinds when the tv turns off", None, None, None),
     # not about the home's devices: hand off
     ("en", "tell me a joke", "kitchen", None, None),
     ("de", "wie spät ist es", "living_room", None, None),

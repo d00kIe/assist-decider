@@ -284,14 +284,17 @@ def test_low_confidence_hands_off_the_whole_sentence():
     assert response.reason == "low_confidence"
 
 
-def test_conditional_request_is_handed_off():
-    response, *_ = run("turn on the kitchen light if it is cold", answer(kind="conditional"))
-    assert response.reason == "conditional"
-
-
 def test_request_not_about_the_home_is_handed_off():
     response, *_ = run("tell me a joke", answer(kind="other"), satellite_area_id="kitchen")
     assert response.reason == "not_for_home"
+
+
+def test_topic_names_the_kinds_of_device_the_home_has():
+    *_, provider = run("turn on the kitchen light")
+    home = "lights, switches, blinds, heating, TV, locks or other devices at home"
+    assert question(provider, "topic").options["home"] == home
+    *_, provider = run("turn on the kitchen light", home=Home(entities=HOME.entities[:1]))
+    assert question(provider, "topic").options["home"] == "lights or other devices at home"
 
 
 def test_changing_a_lock_needs_more_than_the_threshold():

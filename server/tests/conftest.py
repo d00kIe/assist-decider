@@ -20,14 +20,14 @@ ALL_INTENTS = [
 ]
 
 Rule = Callable[[str, Question, dict[str, Any]], str | None]
-FIRST = ("kind", "condition", "when", "topic")  # asked about every sentence
+FIRST = ("kind", "topic")  # asked about every sentence
 
 
 def question_type(q: Question) -> str:
-    """Which of the pipeline's questions this is: "kind", "condition", "when", "topic",
-    "scope", "device_kind", "place", "reference", "which", "action" or "value"."""
+    """Which of the pipeline's questions this is: "kind", "topic", "scope", "device_kind",
+    "place", "reference", "which", "action" or "value"."""
     for lang in LANGS.values():
-        for kind in ("kind", "condition", "when", "topic", "scope", "device_kind", "place"):
+        for kind in ("kind", "topic", "scope", "device_kind", "place"):
             if q.instructions == getattr(lang, f"{kind}_question"):
                 return kind
         if q.instructions.startswith(lang.reference_question.split("{")[0]):
@@ -94,7 +94,7 @@ def answer(
     place: str = "here",
     reference: str = "previous",
 ) -> Rule:
-    """A rule: what is asked (`kind`: command, question, conditional or other); `action` for
+    """A rule: what is asked (`kind`: command, question or other); `action` for
     every device, or per device name in the question; in a place the option containing `device`
     (else the first), `scope` one or all, `of` which kind (default: the kind of the device it
     picks), `place` here, floor or home; a follow-up's `reference`; `value` is a number option,
@@ -105,10 +105,6 @@ def answer(
             return {"scope": scope, "place": place, "reference": reference}.get(qtype, of)
         if qtype == "kind":
             return "question" if kind == "question" else "command"
-        if qtype == "condition":
-            return "condition" if kind == "conditional" else "none"
-        if qtype == "when":
-            return "later" if kind == "conditional" else "now"
         if qtype == "topic":
             return "other" if kind == "other" else "home"
         if qtype == "which":

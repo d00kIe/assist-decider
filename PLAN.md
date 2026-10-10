@@ -25,15 +25,15 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
   - Pipeline (`pipeline.py`), no word lists. Code finds names (devices, rooms, floors; other
     word endings like "linke"/"Linkes"; a word only one device's name has, never for locks or
     garage doors) and numbers. The model answers choice questions: in one call, command or
-    question, about the home or not, conditional or not (two questions), and for a place one
-    or all of a kind, which kind, which device; in a second call, what to do with each device.
-    A device named among others is asked again with only its own words, and the two answers
-    are averaged. A number that is the only one fitting the action is bound in code. "All"
+    question, about the home or not (its answer names the kinds of device the home has), and
+    for a place one or all of a kind, which kind, which device; in a second call, what to do
+    with each device. A device named among others is asked again with only its own words, and
+    the two answers are averaged. A number that is the only one fitting the action is bound in code. "All"
     becomes one `area` + `domain` action per room, or per-device names where a lock or garage
     door of that kind is in the room. The confidence check counts only the answers used;
     changing a lock or garage door needs every answer at 0.5 or more.
-  - Conditions: an "if/wenn …" sentence is handed off (`conditional`) when both condition
-    questions say so at 0.7 or more. Home Assistant sends no device states.
+  - Conditions are not checked: an "if/wenn …" sentence runs right away. Home Assistant sends
+    no device states.
   - Follow-ups: the last command's devices and sentence per `context_id` (hashed satellite
     device or conversation id), for `memory_seconds` (default 60). When nothing is named, the
     model says whether the previous command's devices are meant ("turn it off"); else here,
@@ -100,7 +100,8 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
 - [ ] German "… aus" at the end of a one-device sentence ("mach das Licht im Flur aus") is
       read as "on" by most models. Ideas: a third view of the words after the device's
       name; a fine-tune.
-- [ ] Conditions and times ("turn on the coffee maker at 7") are caught only in part.
+- [ ] Conditions and times ("if it gets dark …", "at 7") are not recognized: the action runs
+      right away.
 - [ ] Chit-chat ("tell me a joke", "play some jazz") still switches a device in the
       speaker's room with some models, mostly at low confidence.
 - [ ] "The whole house" without a speaker's room (typed in the app) is handed off.

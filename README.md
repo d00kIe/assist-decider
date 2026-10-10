@@ -133,16 +133,16 @@ WantedBy=multi-user.target
 
 The server keeps one model in memory. Each model has its own confidence threshold, which you set
 in Home Assistant (next step). The numbers come from [BENCHMARK.md](BENCHMARK.md), measured on an
-M4 Pro Mac: 65 sentences the server was tuned on, and 46 unseen ones, in English and German.
+M4 Pro Mac: 65 sentences the server was tuned on, and 41 unseen ones, in English and German.
 
-| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong, tuned (65) | Unseen (46) |
+| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong, tuned (65) | Unseen (41) |
 |---|---|---|---|---|---|---|
-| **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.66 s | 0.0 | **63 · 2 · 0** | **38 · 2 · 6** |
-| `intern-decision-2b` | English, German | 4.6 GB | 0.71 s | 0.0 | 60 · 2 · 3 | 37 · 4 · 5 |
-| **`intern-decision-0.8b`** | English, German | 2.3 GB | 0.59 s | **0.3** | 49 · 12 · 4 | 26 · 14 · 6 |
-| `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 0.12 s | 0.3 | 37 · 27 · 1 | 24 · 15 · 7 |
-| `multilingual` (Laya, the default) | English, German | 1.2 GB | 59 ms | 0.5 | 40 · 19 · 6 | 16 · 18 · 12 |
-| `english` (Laya) | English | 2.0 GB | 0.11 s | 0.0 | 34 · 1 · 4 (of 39) | 11 · 2 · 9 (of 22) |
+| **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.50 s | 0.0 | **64 · 1 · 0** | **35 · 2 · 4** |
+| `intern-decision-2b` | English, German | 4.6 GB | 0.64 s | 0.2 | 58 · 5 · 2 | 35 · 5 · 1 |
+| **`intern-decision-0.8b`** | English, German | 2.3 GB | 0.49 s | **0.3** | 46 · 17 · 2 | 25 · 13 · 3 |
+| `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 93 ms | 0.3 | 40 · 24 · 1 | 22 · 14 · 5 |
+| `multilingual` (Laya, the default) | English, German | 1.2 GB | 45 ms | 0.5 | 40 · 19 · 6 | 17 · 18 · 6 |
+| `english` (Laya) | English | 2.0 GB | 95 ms | 0.0 | 34 · 1 · 4 (of 39) | 12 · 1 · 6 (of 19) |
 
 "Handed off" means the sentence goes to the fallback agent instead of being acted on.
 
@@ -151,9 +151,8 @@ M4 Pro Mac: 65 sentences the server was tuned on, and 46 unseen ones, in English
 - **Up to 4 GB of graphics memory:** use `intern-decision-0.8b` with a threshold of 0.3.
 - `d1-omni-600m` is small and fast and rarely wrong, but hands off many plain commands.
 - Laya is the fastest, but when it is wrong it is usually sure, so a threshold can't catch it.
-- Common mistakes for most models: "if …" and "at 7 in the morning" sentences done right away,
-  and German "… aus" at the end of a sentence that names one device ("Licht im Flur aus") read
-  as "on".
+- Common mistakes: "if …" and "at 7 in the morning" sentences done right away, and German
+  "… aus" at the end of a sentence that names one device ("Licht im Flur aus") read as "on".
 
 Want an English and a German assistant with different models? Run two servers on different ports
 (`--port 8765 --model english`, `--port 8766 --model multilingual`) and add each one in Home
@@ -240,9 +239,8 @@ Found a vulnerability? Please open a private security advisory on GitHub.
 
 - **German "… aus" at the end of a sentence** that names one device is often read as "on". The
   server has no word lists; the model decides, and the small models get this wrong.
-- **"If …" / "wenn …" sentences and times ("at 7 in the morning") are recognized only in
-  part.** When the model is sure, they go to the fallback agent; otherwise the action runs right
-  away, without its condition.
+- **"If …" / "wenn …" sentences and times ("at 7 in the morning") are not recognized.** The
+  action runs right away, without its condition.
 - **"This floor" / "the whole house"** without the floor's name is only understood when the
   model is very sure, and only with a satellite in a known room. Floor names ("Obergeschoss")
   always work.

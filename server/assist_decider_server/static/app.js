@@ -58,7 +58,7 @@ function renderQuestion(q) {
 
 const PHASES = {
   devices: "Devices",
-  request: "Is it for the home, now?",
+  request: "Is it for the home?",
   kind: "Command or question",
   action: "What to do",
   check: "Sure enough?",
@@ -70,7 +70,6 @@ const REASONS = {
   no_action: "every action was ruled out",
   missing_value: "no value said or chosen",
   value_not_possible: "the number does not fit that action",
-  conditional: "'if …' sentences are not supported",
   not_for_home: "not about the home's devices",
   inconsistent: "the model's answers contradict each other",
   unsupported: "a question about all of a kind is not supported yet",

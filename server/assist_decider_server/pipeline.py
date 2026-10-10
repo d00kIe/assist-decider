@@ -6,8 +6,8 @@ short choice questions about the sentence (HOW-IT-WORKS.md explains it, BENCHMAR
      and a word that is in only one device's name ("the right one"). Nothing named: the previous
      command's devices ("turn it off"), or the speaker's room, its floor or the whole home.
   2. Model, one call with every question that needs no other answer: command or question; is it
-     conditional, is it about the home at all (both hand off); for a place: one device or all of
-     a kind, which kind, which device; what to do with each device named.
+     about the home at all (else hand off); for a place: one device or all of a kind, which
+     kind, which device; what to do with each device named.
   3. Model, second call: what to do with the devices picked from a place; then each device named
      among others again, with only its own words as the sentence. The two answers are averaged.
   4. Code: the value (the only spoken number that fits, or the one in the device's own words);
@@ -42,13 +42,11 @@ NONE = "none"
 # Locks and garage doors: acting on one needs every answer at least this sure, whatever the
 # threshold set in Home Assistant. Reading their state doesn't.
 SENSITIVE_MIN = 0.5
-# Hand the sentence off when the model gives "not about the home" at least OTHER_AT, or gives
-# "only if/when …" at least CONDITIONAL_AT in both condition questions. Chosen on the dev
-# sentences so that no command there is handed off (BENCHMARK.md); they miss some. Intern-
-# Decision answers "not about the home" up to 0.76 for commands, depending on the other
-# questions in the same call.
+# Hand the sentence off when the model gives "not about the home" at least OTHER_AT. Chosen on
+# the dev sentences so that no command there is handed off (BENCHMARK.md). Intern-Decision
+# answers "not about the home" up to 0.76 for commands, depending on the other questions in the
+# same call.
 OTHER_AT = 0.8
-CONDITIONAL_AT = 0.7
 # Nothing named: act on the speaker's whole floor or home only when the model says "all of a
 # kind" and gives that place at least PLACE_AT. Widening acts in other rooms, and Laya answers
 # "the whole home" for many plain sentences ("turn on the light"); otherwise it stays here.
@@ -429,6 +427,15 @@ class Decider:
         self.step(phase, check, f"{question.options[choice]} ({conf:.2f})", ok, q=q)
         return choice
 
+    def topics(self) -> dict[str, str]:
+        """The topic options: "home" names the kinds of device this home has ("lights, blinds")."""
+        kinds = dict.fromkeys(
+            desc.split(", ")[0]
+            for domain, (_, desc) in self.lang.domains.items()
+            if domain in self.index.domains
+        )
+        return self.lang.topics | {"home": self.lang.topics["home"].format(kinds=", ".join(kinds))}
+
     # -- 1. which devices (code only)
 
     def find_groups(self) -> list[Group]:
@@ -623,9 +630,7 @@ class Decider:
         # Call 1: every question that needs no other answer.
         first = {
             "kind": Question(lang.kind_question, lang.kinds),
-            "condition": Question(lang.condition_question, lang.conditions),
-            "when": Question(lang.when_question, lang.whens),
-            "topic": Question(lang.topic_question, lang.topics),
+            "topic": Question(lang.topic_question, self.topics()),
         }
         previous: list[EntityRec] = []
         if not groups:  # nothing named: the previous command's devices, or around the speaker
@@ -664,12 +669,6 @@ class Decider:
         self.ask_all(first)
         if self.says("topic", "other", OTHER_AT, "about the home"):
             raise HandOff("not_for_home")
-        later = [
-            self.says("condition", "condition", CONDITIONAL_AT, "no condition"),
-            self.says("when", "later", CONDITIONAL_AT, "now"),
-        ]
-        if all(later):  # ponytail: "if …" is not supported; hand off rather than run it unguarded
-            raise HandOff("conditional")
         is_question = self.choose("kind", "command or question", "kind") == "question"
         if previous or "place" in first:
             groups = self.around(previous, groups)

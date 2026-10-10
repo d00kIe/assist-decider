@@ -32,13 +32,8 @@ class Lang:
     # the benchmark. Laya reads at most 48 tokens per option.
     kind_question: str
     kinds: dict[str, str]  # "command" / "question" -> description
-    # Two questions that must both pick "later" to hand off an "if/when …" sentence.
-    condition_question: str
-    conditions: dict[str, str]  # "none" / "condition"
-    when_question: str
-    whens: dict[str, str]  # "now" / "later"
     topic_question: str
-    topics: dict[str, str]  # "home" / "other": not about the home's devices
+    topics: dict[str, str]  # "home" (format(kinds=): the home's kinds of device) / "other"
     # A room, a floor or the speaker's surroundings: one device or all of a kind, which kind,
     # which device. Nothing named: here, this floor or the whole home; or the previous devices.
     scope_question: str
@@ -62,19 +57,9 @@ class Lang:
 EN = Lang(
     kind_question="Is the user giving a command or asking a question?",
     kinds={"command": "a command to do something", "question": "a question about how something is"},
-    condition_question="Does the user set a condition?",
-    conditions={
-        "none": "no, do it now",
-        "condition": "yes, only if or when something happens (if, when, as soon as)",
-    },
-    when_question="When should it happen?",
-    whens={
-        "now": "right away",
-        "later": "only if or when something happens first ('if …', 'when …', 'as soon as …')",
-    },
     topic_question="What is the user talking about?",
     topics={
-        "home": "lights, heating, blinds, locks, the TV, music, plugs or other devices at home",
+        "home": "{kinds} or other devices at home",
         "other": "something else: chit-chat, knowledge, weather, timers, reminders, shopping lists",
     },
     scope_question="Does the user mean one device or all of one kind?",
@@ -133,20 +118,9 @@ EN = Lang(
 DE = Lang(
     kind_question="Gibt der Nutzer einen Befehl oder stellt er eine Frage?",
     kinds={"command": "ein Befehl, etwas zu tun", "question": "eine Frage, wie etwas ist"},
-    condition_question="Stellt der Nutzer eine Bedingung?",
-    conditions={
-        "none": "nein, jetzt tun",
-        "condition": "ja, nur wenn oder sobald etwas passiert (wenn, falls, sobald)",
-    },
-    when_question="Wann soll es passieren?",
-    whens={
-        "now": "sofort",
-        "later": "erst wenn oder sobald etwas passiert („wenn …“, „falls …“, „sobald …“)",
-    },
     topic_question="Worüber spricht der Nutzer?",
     topics={
-        "home": "Licht, Heizung, Rollläden, Schlösser, Fernseher, Musik, Steckdosen "
-        "oder andere Geräte im Haus",
+        "home": "{kinds} oder andere Geräte im Haus",
         "other": "etwas anderes: Plaudern, Wissen, Wetter, Timer, Erinnerungen, Einkaufslisten",
     },
     scope_question="Meint der Nutzer ein Gerät oder alle einer Art?",

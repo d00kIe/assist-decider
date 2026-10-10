@@ -151,13 +151,12 @@ The server always sends **IDs** (`light.kitchen`, `kitchen`), never free names, 
 
 ### 2.1 The questions
 
-The model only ever answers multiple-choice questions about your sentence. The first four are asked about every sentence, in one call together with every other question that needs no other answer:
+The model only ever answers multiple-choice questions about your sentence. The first two are asked about every sentence, in one call together with every other question that needs no other answer:
 
 | Question | When it is asked | Answers offered |
 |---|---|---|
 | "Is the user giving a command or asking a question?" | Every sentence | a command · a question |
-| "What is the user talking about?" | Every sentence | the home's devices · something else (chit-chat, knowledge, weather, timers…) |
-| "Does the user set a condition?" and "When should it happen?" | Every sentence | no · yes, only if or when something happens; right away · only once something happens |
+| "What is the user talking about?" | Every sentence | the kinds of device your home has, e.g. "lights, blinds, heating, locks or other devices at home" · something else (chit-chat, knowledge, weather, timers…) |
 | "Does the user mean one device or all of one kind?" | A room or floor with more than one device, or nothing named | one device · all devices of one kind |
 | "Which kind of device does the user mean?" | A room or floor with more than one kind of device | the kinds there, e.g. lights · blinds · heating |
 | "Which device does the user mean?" | A room or floor with more than one device (at most 10) | the devices, e.g. "Kitchen Light (light) in Kitchen" |
@@ -232,7 +231,7 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 | Decision | Who decides | How |
 |---|---|---|
 | Is it about the home at all? | **Model** | "Something else" at 0.8 or more hands the sentence off (`not_for_home`). |
-| Is it an "if…" sentence? | **Model** | Two questions; when both say "only if or when…" at 0.7 or more, the sentence is handed off (`conditional`). They miss some conditions, and with some models they hand off a few normal commands (see BENCHMARK.md). |
+| Is it an "if…" sentence? | Nobody | Not checked. "If it gets dark, turn on the floor lamp" turns the lamp on right away. |
 | Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. |
 | Which devices, rooms and floors were named | **Code** | Names and aliases from Home Assistant, also with another word ending ("das linke Licht" → "Linkes Licht"), German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"), and a word that is in only one device's name in the whole home ("the right one" → Right Light). |
 | Nothing named: which devices then | **Model**, from what code offers | The previous command's devices, if there was one within the follow-up memory; else here, the speaker's floor or the whole home. |
@@ -253,8 +252,8 @@ flowchart TD
     B --> C["Find device, room and floor names, read numbers"]
     C --> E["1. Which devices?<br/>see 3.4"]
     E -- "none found" --> Y["Hand off: no_target"]
-    E --> F["2. First call: command or question?<br/>about the home? a condition?<br/>for a place: one or all, which kind, which device?"]
-    F -- "not about the home / a condition" --> X["Hand off: not_for_home / conditional"]
+    E --> F["2. First call: command or question?<br/>about the home?<br/>for a place: one or all, which kind, which device?"]
+    F -- "not about the home" --> X["Hand off: not_for_home"]
     F --> G["3. Second call: what to do with each device<br/>(a device named among others: again, with only its own words)"]
     G --> I["4. Value: the only number that fits,<br/>or the one in the device's own words"]
     I --> K{"Every answer used sure enough?"}
@@ -350,7 +349,6 @@ The model always sees every action of that kind of device, because models get wo
 | `no_action` | Everything a device can do was ruled out, e.g. "lock" for a light. |
 | `missing_value` | "Dim the light", but no number was said, or the model chose "no value". |
 | `value_not_possible` | The number doesn't fit the action, e.g. 70 degrees for a thermostat. |
-| `conditional` | The model says it should happen only if or when something happens. These are not supported. |
 | `not_for_home` | The model says the sentence isn't about the home's devices ("tell me a joke"). |
 | `inconsistent` | The model's answers contradict each other: the device picked isn't of the kind picked. |
 | `unsupported` | A question about all devices of a kind ("are all the lights off?"). Not supported yet. |
@@ -403,7 +401,7 @@ flowchart LR
     end
     subgraph SRV["Decision server: understands the sentence"]
         S1["Code: names, numbers,<br/>what each device can do,<br/>memory, 'all' per room"]
-        S2["Model: command or question?<br/>about the home? a condition?<br/>one or all? which device?<br/>what to do? which number?"]
+        S2["Model: command or question?<br/>about the home?<br/>one or all? which device?<br/>what to do? which number?"]
     end
     H1 -- "names and IDs" --> S1
     S1 <-->|"one short question,<br/>at most 10 answers"| S2
