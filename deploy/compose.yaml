@@ -16,6 +16,7 @@ services:
       ASSIST_DECIDER_HOST: 0.0.0.0
       # Set MODEL=... in a .env file next to this one (see "Choose a model" in the README).
       ASSIST_DECIDER_MODEL: ${MODEL:-intern-decision-0.8b}
+      ASSIST_DECIDER_STATE_FILE: /data/state.json
       HF_HOME: /data/huggingface
       UV_CACHE_DIR: /data/uv
       UV_LINK_MODE: copy

@@ -12,12 +12,14 @@ CONF_THRESHOLD_EN: Final = "threshold_en"
 CONF_THRESHOLD_DE: Final = "threshold_de"
 
 CONF_MEMORY_SECONDS: Final = "memory_seconds"
+CONF_MODEL: Final = "model"  # not stored: the server's current model
 
 DEFAULT_THRESHOLDS: Final = {"en": 0.4, "de": 0.5}
 DEFAULT_MEMORY_SECONDS: Final = 60  # follow-ups ("turn it off")
 THRESHOLD_OPTIONS: Final = {"en": CONF_THRESHOLD_EN, "de": CONF_THRESHOLD_DE}
 
 REQUEST_TIMEOUT: Final = 10
+MODEL_TIMEOUT: Final = 1800  # a model switch may download several GB first
 MAX_RESPONSE_BYTES: Final = 256 * 1024
 
 # Intents the server may ask for, with the slots each may carry. Anything else in a server

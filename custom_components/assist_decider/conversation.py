@@ -189,6 +189,9 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
             _LOGGER.warning("Decision server unavailable: %s", err)
             return await self._fallback_or_error(user_input, chat_log, language, "unavailable")
         _LOGGER.debug("Decision %s: %s", result.trace_id, result)
+        if result.model and result.model != self.entry.runtime_data.info.model:
+            # Switched outside this entry: languages and device info follow the model.
+            self.hass.config_entries.async_schedule_reload(self.entry.entry_id)
 
         if result.status == "escalate" or (result.unresolved and options.get(CONF_FALLBACK_AGENT)):
             return await self._fallback_or_error(user_input, chat_log, language, "no_intent")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 import voluptuous as vol
@@ -15,13 +16,16 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
 )
 
 from . import DeciderConfigEntry
-from .client import DeciderClient, ProtocolMismatch, ServerUnavailable
+from .client import DeciderClient, DeciderError, ProtocolMismatch, ServerUnavailable
 from .const import (
     CONF_FALLBACK_AGENT,
     CONF_MEMORY_SECONDS,
+    CONF_MODEL,
     CONF_VERIFY_SSL,
     DEFAULT_MEMORY_SECONDS,
     DEFAULT_THRESHOLDS,
@@ -110,8 +114,25 @@ class AssistDeciderConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class AssistDeciderOptionsFlow(OptionsFlowWithReload):
+    _options: dict[str, Any] | None = None  # the other options, saved once the model switched
+    _switch: asyncio.Task[ServerInfo]
+    _switch_error: str | None = None
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        # Model choice needs the loaded entry, and the server's current state: the model may
+        # have changed since setup (server settings, another Home Assistant).
+        data = getattr(self.config_entry, "runtime_data", None)
+        info: ServerInfo | None = None
+        if data:
+            try:
+                info = await data.client.info()
+            except DeciderError:
+                info = data.info
+            if info.model != data.info.model:
+                self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+        if self._switch_error and user_input is None:
+            errors["base"] = "model_failed"
         own_entity = er.async_get(self.hass).async_get_entity_id(
             "conversation", DOMAIN, self.config_entry.entry_id
         )
@@ -122,11 +143,19 @@ class AssistDeciderOptionsFlow(OptionsFlowWithReload):
             ):
                 errors[CONF_FALLBACK_AGENT] = "fallback_is_self"
             else:
+                model = user_input.pop(CONF_MODEL, None)
+                if data and info and model and model != info.model:
+                    self._options = user_input
+                    # Not eager: finishing within this submit would re-run init with its input.
+                    self._switch = self.hass.async_create_task(
+                        data.client.set_model(model), eager_start=False
+                    )
+                    return await self.async_step_switch_model()
                 return self.async_create_entry(data=user_input)
         slider = NumberSelector(
             NumberSelectorConfig(min=0, max=1, step=0.05, mode=NumberSelectorMode.SLIDER)
         )
-        options = user_input or self.config_entry.options
+        options = user_input or self._options or self.config_entry.options
         schema = vol.Schema(
             {
                 **{
@@ -142,10 +171,40 @@ class AssistDeciderOptionsFlow(OptionsFlowWithReload):
                 vol.Optional(CONF_FALLBACK_AGENT): ConversationAgentSelector(),
             }
         )
+        if info and info.models:
+            schema = schema.extend(
+                {
+                    vol.Required(CONF_MODEL, default=info.model): SelectSelector(
+                        SelectSelectorConfig(options=info.models)
+                    )
+                }
+            )
         return self.async_show_form(
             step_id="init",
             data_schema=self.add_suggested_values_to_schema(
                 schema, {CONF_FALLBACK_AGENT: options.get(CONF_FALLBACK_AGENT)}
             ),
             errors=errors,
+            description_placeholders={"error": self._switch_error or ""},
         )
+
+    async def async_step_switch_model(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if not self._switch.done():
+            return self.async_show_progress(
+                step_id="switch_model", progress_action="switch_model", progress_task=self._switch
+            )
+        try:
+            self._switch.result()
+        except DeciderError as err:
+            self._switch_error = str(err)
+            return self.async_show_progress_done(next_step_id="init")
+        # Unchanged options do not reload the entry, but title, languages and device info
+        # follow the model: reload anyway.
+        self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+        return self.async_show_progress_done(next_step_id="done")
+
+    async def async_step_done(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        assert self._options is not None
+        return self.async_create_entry(data=self._options)

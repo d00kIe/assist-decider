@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import logging
 import os
 import tomllib
 from dataclasses import dataclass, fields
@@ -9,6 +11,7 @@ from typing import Any
 
 from .providers import MODELS
 
+_LOGGER = logging.getLogger(__name__)
 ENV_PREFIX = "ASSIST_DECIDER_"
 
 
@@ -28,6 +31,8 @@ class Settings:
     log_level: str = "INFO"
     tls_certfile: str | None = None
     tls_keyfile: str | None = None
+    # The model last chosen in Home Assistant; default ~/.local/state/assist-decider/state.json
+    state_file: str | None = None
 
 
 def _coerce(name: str, value: Any) -> Any:
@@ -78,3 +83,44 @@ def load_settings(config_file: str | None = None, **overrides: Any) -> Settings:
     if bool(settings.tls_certfile) != bool(settings.tls_keyfile):
         raise ConfigError("tls_certfile and tls_keyfile must be set together")
     return settings
+
+
+def _state_path(settings: Settings) -> str:
+    if settings.state_file:
+        return settings.state_file
+    root = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+    return os.path.join(root, "assist-decider", "state.json")
+
+
+def remembered_model(settings: Settings) -> str:
+    """The model last chosen in Home Assistant. A changed `model` setting wins: the choice is
+    only kept while the setting is what it was when the choice was made."""
+    path = _state_path(settings)
+    try:
+        with open(path) as fh:
+            state = json.load(fh)
+    except FileNotFoundError:
+        return settings.model
+    except (OSError, ValueError) as err:
+        _LOGGER.warning("Ignoring %s: %s", path, err)
+        return settings.model
+    if (
+        isinstance(state, dict)
+        and state.get("configured") == settings.model
+        and state.get("model") in MODELS
+    ):
+        if state["model"] != settings.model:
+            _LOGGER.info("Using %s, chosen in Home Assistant (%s)", state["model"], path)
+        return str(state["model"])
+    return settings.model
+
+
+def remember_model(settings: Settings, model: str) -> None:
+    path = _state_path(settings)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path + ".tmp", "w") as fh:
+            json.dump({"model": model, "configured": settings.model}, fh)
+        os.replace(path + ".tmp", path)  # never a half-written file
+    except OSError as err:
+        _LOGGER.warning("Cannot save the model choice to %s: %s", path, err)

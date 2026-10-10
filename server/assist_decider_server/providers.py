@@ -1,7 +1,7 @@
 """Decision providers: models that pick one option per question.
 
 The pipeline only talks to `DecisionProvider`. To add a model (NLI, cross-encoder, a hosted
-API...), implement the protocol and construct it in __main__.build_provider.
+API...), implement the protocol and construct it in make_provider.
 """
 
 from __future__ import annotations

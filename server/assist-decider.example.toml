@@ -21,6 +21,10 @@ port = 8765
 #   "d1-3b"                 English + German, ~6.8 GB, threshold 0.2 (most accurate)
 model = "multilingual"
 
+# Where the server remembers the model last chosen in Home Assistant. It loads that model on
+# the next start, until you change `model` above. Default ~/.local/state/assist-decider/state.json
+# state_file = "/path/to/state.json"
+
 # auto picks cuda, then mps (Apple Silicon), then xpu, then cpu.
 device = "auto"
 

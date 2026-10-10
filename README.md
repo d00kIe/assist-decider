@@ -176,6 +176,7 @@ server URL, for example `http://192.168.1.20:8765`.
 | Confidence threshold (English / German) | 0.40 / 0.50 | Below this, nothing runs and the sentence goes to the fallback agent. Use the value for your model from the table above. |
 | Follow-up memory (seconds) | 60 | How long "turn it off" refers to the previous command's devices. 0 turns this off. |
 | Fallback agent | none | Gets every sentence Assist Decider can't decide, for example *Home Assistant* or an LLM agent. |
+| Model | the server's | Switches the server's model. The server unloads the current model before loading the new one (a model not downloaded yet takes minutes); if the new one fails, it reloads the old one and the error is shown. The server remembers the choice across restarts, until you change its `model` setting. |
 
 Only entities **exposed to Assist** are sent or controlled (Settings → Voice assistants →
 Expose). Aliases add more names, also in another language ("Küchenlicht").
@@ -206,6 +207,7 @@ variables `ASSIST_DECIDER_<NAME>`, then command-line flags. Later sources win.
 | `device` | `--device` | `auto` | `cpu`, `cuda`, `cuda:N`, `mps`, `xpu` |
 | `log_level` | `--log-level` | `INFO` | `WARNING` keeps what you say out of the log |
 | `tls_certfile` / `tls_keyfile` | | | serve HTTPS directly |
+| `state_file` | | `~/.local/state/assist-decider/state.json` | the model last chosen in Home Assistant |
 | `max_pending`, `max_body_bytes`, `log_buffer` | | `4`, `1 MiB`, `2000` | queue size, request size limit, live-log length |
 
 ## Security and privacy

@@ -1,6 +1,11 @@
 import pytest
 
-from assist_decider_server.config import ConfigError, load_settings
+from assist_decider_server.config import (
+    ConfigError,
+    load_settings,
+    remember_model,
+    remembered_model,
+)
 
 
 @pytest.fixture(autouse=True)
@@ -29,3 +34,15 @@ def test_unknown_key(tmp_path):
     cfg.write_text("hots = 1\n")
     with pytest.raises(ConfigError):
         load_settings(str(cfg))
+
+
+def test_remembered_model(tmp_path):
+    state = tmp_path / "sub" / "state.json"
+    settings = load_settings(model="multilingual", state_file=str(state))
+    assert remembered_model(settings) == "multilingual"  # nothing chosen yet
+    remember_model(settings, "d1-3b")
+    assert remembered_model(settings) == "d1-3b"
+    # Changing the setting overrides the choice made under the old one.
+    assert remembered_model(load_settings(model="english", state_file=str(state))) == "english"
+    state.write_text("{broken")
+    assert remembered_model(settings) == "multilingual"

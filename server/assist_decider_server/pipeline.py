@@ -909,6 +909,7 @@ def decide(
         reason=reason,
         trace_id=trace_id,
         elapsed_ms=round(elapsed, 1),
+        model=provider.model,
     )
     trace.update(
         status=response.status,

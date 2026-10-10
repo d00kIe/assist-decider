@@ -39,18 +39,24 @@
           "threshold_en": "Konfidenzschwelle (Englisch)",
           "threshold_de": "Konfidenzschwelle (Deutsch)",
           "memory_seconds": "Gedächtnis für Folgebefehle (Sekunden)",
-          "fallback_agent": "Ersatz-Agent"
+          "fallback_agent": "Ersatz-Agent",
+          "model": "Modell"
         },
         "data_description": {
           "threshold_en": "Darunter wird die Anfrage nicht ausgeführt. Höher ist sicherer, niedriger versteht mehr.",
           "threshold_de": "Deutsch ist ungenauer als Englisch, daher ist der Standard strenger.",
           "memory_seconds": "Wie lange sich „mach es aus“ oder „auch in der Küche“ auf den vorigen Befehl bezieht. 0 schaltet Folgebefehle ab.",
-          "fallback_agent": "Optional. Anfragen, die Assist Decider nicht entscheiden kann, gehen hierhin (z. B. Home Assistant oder ein LLM-Agent)."
+          "fallback_agent": "Optional. Anfragen, die Assist Decider nicht entscheiden kann, gehen hierhin (z. B. Home Assistant oder ein LLM-Agent).",
+          "model": "Das Entscheidungsmodell des Servers. Der Server entlädt das aktuelle Modell, bevor er das neue lädt; ein noch nicht heruntergeladenes Modell kann einige Minuten dauern. Nach einem Neustart lädt der Server wieder sein konfiguriertes Modell."
         }
       }
     },
     "error": {
-      "fallback_is_self": "Der Ersatz-Agent darf nicht dieser Agent sein."
+      "fallback_is_self": "Der Ersatz-Agent darf nicht dieser Agent sein.",
+      "model_failed": "Der Server konnte das Modell nicht wechseln: {error}"
+    },
+    "progress": {
+      "switch_model": "Der Server lädt das Modell. Ein noch nicht heruntergeladenes Modell kann einige Minuten dauern."
     }
   },
   "issues": {

@@ -61,6 +61,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: DeciderConfigEntry) -> b
     except ServerUnavailable as err:
         raise ConfigEntryNotReady(f"Decision server not reachable: {err}") from err
     ir.async_delete_issue(hass, DOMAIN, issue_id)
+    # The server owns the model; keep the automatic title in step (a renamed entry stays).
+    title = f"Assist Decider ({info.model})"
+    if entry.title.startswith("Assist Decider (") and entry.title != title:
+        hass.config_entries.async_update_entry(entry, title=title)
 
     entry.runtime_data = DeciderData(client, info)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

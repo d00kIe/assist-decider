@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import threading
+import weakref
 from pathlib import Path
 
 import pytest
@@ -120,6 +121,40 @@ def test_busy_returns_503():
         assert r.status_code == 503
         assert r.headers["retry-after"] == "1"
         assert results[0].status_code == 200
+
+
+def test_switch_model_frees_the_old_model_first():
+    alive: weakref.WeakSet[FakeProvider] = weakref.WeakSet()
+    loads = []  # (model being loaded, other models still in memory)
+
+    class Model(FakeProvider):
+        def __init__(self, model: str) -> None:
+            super().__init__()
+            self.model = model
+            alive.add(self)
+
+        def load(self) -> None:
+            loads.append((self.model, sorted(m.model for m in alive if m is not self)))
+            if self.model == "english":
+                raise RuntimeError("out of memory")
+
+    remembered = []
+    app = create_app(
+        provider=Model("multilingual"), make=Model, on_switch=remembered.append, bus=EventBus(10)
+    )
+    with TestClient(app) as c:
+        r = c.post("/v1/model", json={"model": "d1-3b"})
+        assert r.status_code == 200
+        assert r.json()["model"] == "d1-3b"
+        assert "intern-decision-0.8b" in r.json()["models"]
+        assert c.post("/v1/process", json=body()).json()["model"] == "d1-3b"
+        r = c.post("/v1/model", json={"model": "english"})
+        assert r.status_code == 500
+        assert r.json()["detail"] == "RuntimeError: out of memory. Still using d1-3b"
+        assert c.get("/v1/info").json()["model"] == "d1-3b"
+        assert c.post("/v1/model", json={"model": "nope"}).status_code == 400
+    assert loads == [("multilingual", []), ("d1-3b", []), ("english", []), ("d1-3b", [])]
+    assert remembered == ["d1-3b"]  # a failed switch is not remembered
 
 
 def test_docs_disabled(client):

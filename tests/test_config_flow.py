@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import aiohttp
 import pytest
 from homeassistant import config_entries
@@ -9,10 +11,14 @@ from homeassistant.const import CONF_URL
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from pytest_homeassistant_custom_component.common import MockConfigEntry
-from pytest_homeassistant_custom_component.test_util.aiohttp import AiohttpClientMocker
+from pytest_homeassistant_custom_component.test_util.aiohttp import (
+    AiohttpClientMocker,
+    AiohttpClientMockResponse,
+)
 
 from custom_components.assist_decider.const import (
     CONF_FALLBACK_AGENT,
+    CONF_MODEL,
     CONF_THRESHOLD_DE,
     CONF_THRESHOLD_EN,
     CONF_VERIFY_SSL,
@@ -119,3 +125,50 @@ async def test_options(
     )
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert config_entry.options[CONF_THRESHOLD_DE] == 0.6
+
+
+async def test_options_switch_model(
+    hass: HomeAssistant, aioclient_mock: AiohttpClientMocker, config_entry: MockConfigEntry
+) -> None:
+    models = ["d1-3b", "multilingual"]
+    server = {"info": INFO | {"models": models}, "fail": True}  # a fake server's state
+
+    async def info(method: str, url: Any, data: Any) -> AiohttpClientMockResponse:
+        return AiohttpClientMockResponse(method, url, json=server["info"])
+
+    async def set_model(method: str, url: Any, data: Any) -> AiohttpClientMockResponse:
+        if server["fail"]:
+            detail = {"detail": "OutOfMemoryError. Still using multilingual"}
+            return AiohttpClientMockResponse(method, url, status=500, json=detail)
+        server["info"] = INFO | {"model": "d1-3b", "provider": "d1", "models": models}
+        return await info(method, url, data)
+
+    aioclient_mock.get(f"{URL}/v1/info", side_effect=info)
+    aioclient_mock.post(f"{URL}/v1/model", side_effect=set_model)
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    flow = await hass.config_entries.options.async_init(config_entry.entry_id)
+    user_input = {CONF_THRESHOLD_EN: 0.3, CONF_THRESHOLD_DE: 0.6, CONF_MODEL: "d1-3b"}
+
+    async def submit() -> dict:
+        result = await hass.config_entries.options.async_configure(flow["flow_id"], user_input)
+        assert result["type"] is FlowResultType.SHOW_PROGRESS
+        await hass.async_block_till_done()
+        result = await hass.config_entries.options.async_configure(flow["flow_id"])
+        await hass.async_block_till_done()
+        return result
+
+    result = await submit()
+    assert result["errors"] == {"base": "model_failed"}
+    assert result["description_placeholders"] == {
+        "error": "HTTP 500: OutOfMemoryError. Still using multilingual"
+    }
+
+    server["fail"] = False
+    result = await submit()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert '{"model":"d1-3b"}' in [call[2] for call in aioclient_mock.mock_calls]
+    assert config_entry.title == "Assist Decider (d1-3b)"
+    assert CONF_MODEL not in config_entry.options  # the server owns the model
+    assert config_entry.runtime_data.info.provider == "d1"  # reloaded

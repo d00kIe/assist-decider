@@ -7,13 +7,9 @@ import logging
 import sys
 
 from . import __version__
-from .config import ConfigError, Settings, load_settings
+from .config import ConfigError, Settings, load_settings, remember_model, remembered_model
 from .logbuf import BusHandler, EventBus
-from .providers import MODELS, DecisionProvider, make_provider
-
-
-def build_provider(settings: Settings) -> DecisionProvider:
-    return make_provider(settings.model, settings.device)
+from .providers import MODELS, make_provider
 
 
 def _setup_logging(settings: Settings, bus: EventBus | None) -> None:
@@ -50,7 +46,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         if args.command == "download":
             _setup_logging(settings, None)
-            build_provider(settings).load()
+            make_provider(settings.model, settings.device).load()
             return 0
     except ConfigError as err:
         print(f"assist-decider: {err}", file=sys.stderr)
@@ -63,7 +59,9 @@ def main(argv: list[str] | None = None) -> int:
     bus = EventBus(settings.log_buffer)
     _setup_logging(settings, bus)
     app = create_app(
-        provider=build_provider(settings),
+        provider=make_provider(remembered_model(settings), settings.device),
+        make=lambda model: make_provider(model, settings.device),
+        on_switch=lambda model: remember_model(settings, model),
         bus=bus,
         max_pending=settings.max_pending,
         max_body_bytes=settings.max_body_bytes,

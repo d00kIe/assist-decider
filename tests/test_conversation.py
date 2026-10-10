@@ -93,6 +93,19 @@ async def test_turn_on_entity(hass, aioclient_mock, setup_entry, home) -> None:
     assert speech(result) == "Turned on the light"
 
 
+async def test_model_switched_elsewhere_reloads(hass, aioclient_mock, setup_entry, home) -> None:
+    aioclient_mock.clear_requests()
+    aioclient_mock.get(f"{URL}/v1/info", json=INFO | {"model": "english", "languages": ["en"]})
+    mock_process(
+        aioclient_mock,
+        json=process_response(action("HassTurnOn", name="light.kitchen"), model="english"),
+    )
+    await converse(hass, "turn on the kitchen light")
+    await hass.async_block_till_done()
+    assert setup_entry.runtime_data.info.languages == ["en"]
+    assert setup_entry.title == "Assist Decider (english)"
+
+
 async def test_request_contains_only_exposed_entities(
     hass, aioclient_mock, setup_entry, home
 ) -> None:

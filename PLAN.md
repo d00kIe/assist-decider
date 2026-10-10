@@ -156,7 +156,7 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
 - [ ] Wyoming "intent" mode (no custom integration needed; needs an HA token to read exposure)
 - [ ] More providers: ONNX/CoreML Laya, NLI zero-shot (mDeBERTa), cross-encoder rerankers,
       GLiNER for free-text slots
-- [ ] Choose or switch the server model from HA (admin endpoint)
+- [x] Choose or switch the server model from HA (`POST /v1/model`, options flow)
 - [ ] Hash-only context with resync (fewer bytes per request)
 - [ ] State-aware disambiguation ("the light that is on")
 - [ ] Light colors and kelvin; free-text intents (shopping list, broadcast, media search)

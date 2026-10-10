@@ -39,18 +39,24 @@
           "threshold_en": "Confidence threshold (English)",
           "threshold_de": "Confidence threshold (German)",
           "memory_seconds": "Follow-up memory (seconds)",
-          "fallback_agent": "Fallback agent"
+          "fallback_agent": "Fallback agent",
+          "model": "Model"
         },
         "data_description": {
           "threshold_en": "Below this the request is not executed. Higher is safer, lower understands more.",
           "threshold_de": "German is less accurate than English, so the default is stricter.",
           "memory_seconds": "How long \"turn it off\" or \"and the kitchen too\" refers to the previous command. 0 turns follow-ups off.",
-          "fallback_agent": "Optional. Requests Assist Decider cannot decide go here (for example Home Assistant or an LLM agent)."
+          "fallback_agent": "Optional. Requests Assist Decider cannot decide go here (for example Home Assistant or an LLM agent).",
+          "model": "The server's decision model. The server unloads the current model before it loads the new one; a model it has not downloaded yet can take several minutes. When the server restarts, it loads its configured model again."
         }
       }
     },
     "error": {
-      "fallback_is_self": "The fallback agent cannot be this agent."
+      "fallback_is_self": "The fallback agent cannot be this agent.",
+      "model_failed": "The server could not switch the model: {error}"
+    },
+    "progress": {
+      "switch_model": "The server is loading the model. A model it has not downloaded yet can take several minutes."
     }
   },
   "issues": {

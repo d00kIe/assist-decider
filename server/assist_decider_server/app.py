@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import gc
 import json
 import logging
-from collections.abc import AsyncIterator
+import sys
+import traceback
+from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,8 +23,15 @@ from uvicorn.protocols.http.h11_impl import H11Protocol
 from . import __version__
 from .logbuf import EventBus
 from .pipeline import decide, describe_home
-from .protocol import PROTOCOL_VERSION, Home, ProcessRequest, ProcessResponse, ServerInfo
-from .providers import DecisionProvider
+from .protocol import (
+    PROTOCOL_VERSION,
+    Home,
+    ModelRequest,
+    ProcessRequest,
+    ProcessResponse,
+    ServerInfo,
+)
+from .providers import MODELS, DecisionProvider, make_provider
 
 _LOGGER = logging.getLogger(__name__)
 STATIC = Path(__file__).parent / "static"
@@ -145,15 +155,37 @@ def _static(filename: str, media: str) -> Any:
     return serve
 
 
+def _ready_log(provider: DecisionProvider) -> None:
+    _LOGGER.info(
+        "Ready: provider=%s model=%s device=%s languages=%s",
+        provider.name,
+        provider.model,
+        provider.device,
+        ",".join(provider.languages),
+    )
+
+
 def _sse(event: dict[str, Any]) -> str:
     data = json.dumps(event, ensure_ascii=False, separators=(",", ":"), default=str)
     return f"id: {event['id']}\nevent: {event['type']}\ndata: {data}\n\n"
+
+
+def _free_memory() -> None:
+    """Return freed weights to the device: torch keeps them cached for reuse otherwise."""
+    gc.collect()
+    if (torch := sys.modules.get("torch")) is not None:
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
 
 
 def create_app(
     *,
     provider: DecisionProvider,
     bus: EventBus,
+    make: Callable[[str], DecisionProvider] = make_provider,
+    on_switch: Callable[[str], None] = lambda model: None,
     max_pending: int = 4,
     max_body_bytes: int = 1_048_576,
 ) -> FastAPI:
@@ -162,18 +194,49 @@ def create_app(
     pending = 0
     # The last home Home Assistant sent, for the log UI's Home tab. Memory only.
     last_home: tuple[Home, str] | None = None
+    current: DecisionProvider | None = provider  # None while switching or after a failed switch
+    del provider  # `current` must be the only reference, or a switch cannot free the weights
+    switching = False
+
+    def load(model: str) -> str | None:
+        """Replace the model; on the inference worker, so no decision runs meanwhile.
+        Returns the error, if any. The old weights are freed before the new ones load:
+        a small GPU does not hold both."""
+        nonlocal current
+        current = None
+        _free_memory()
+        try:
+            candidate = make(model)
+            candidate.load()
+        except Exception as err:
+            # Text only: a kept traceback (logging exc_info too) holds the half-loaded model.
+            _LOGGER.error("Loading model %s failed\n%s", model, traceback.format_exc())
+            return f"{type(err).__name__}: {err}"
+        current = candidate
+        return None
+
+    def switch(model: str) -> str | None:
+        previous = current.model if current else None
+        if (error := load(model)) is None:
+            return None
+        if previous is None:
+            return f"{error}. No model is loaded"
+        if load(previous) is not None:
+            return f"{error}. Restoring {previous} failed too, no model is loaded"
+        return f"{error}. Still using {previous}"
+
+    def ready() -> DecisionProvider:
+        if switching or current is None:
+            detail = "Switching model" if switching else "No model loaded"
+            raise HTTPException(503, detail, headers={"Retry-After": "5"})
+        return current
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         bus.bind(asyncio.get_running_loop())
-        await asyncio.get_running_loop().run_in_executor(executor, provider.load)
-        _LOGGER.info(
-            "Ready: provider=%s model=%s device=%s languages=%s",
-            provider.name,
-            provider.model,
-            provider.device,
-            ",".join(provider.languages),
-        )
+        assert current is not None
+        await asyncio.get_running_loop().run_in_executor(executor, current.load)
+        _ready_log(current)
         yield
         executor.shutdown(wait=False, cancel_futures=True)
 
@@ -187,6 +250,7 @@ def create_app(
 
     @app.get("/v1/info")
     async def info() -> ServerInfo:
+        provider = ready()
         return ServerInfo(
             protocol_version=PROTOCOL_VERSION,
             server_version=__version__,
@@ -194,17 +258,46 @@ def create_app(
             model=provider.model,
             languages=list(provider.languages),
             device=provider.device,
+            models=MODELS,
         )
+
+    @app.post("/v1/model")
+    async def set_model(request: ModelRequest) -> ServerInfo:
+        nonlocal switching
+        if request.model not in MODELS:
+            raise HTTPException(400, f"Unknown model {request.model!r}")
+        if switching:
+            raise HTTPException(409, "A model switch is already running")
+        if current is not None and request.model == current.model:
+            return await info()
+        switching = True
+        try:
+            error = await asyncio.get_running_loop().run_in_executor(
+                executor, switch, request.model
+            )
+        finally:
+            switching = False
+        if error:
+            raise HTTPException(500, error)
+        assert current is not None
+        _ready_log(current)
+        on_switch(current.model)
+        return await info()
 
     @app.post("/v1/process")
     async def process(request: ProcessRequest) -> ProcessResponse:
         nonlocal pending, last_home
+        ready()
         if pending >= max_pending:
             raise HTTPException(503, "Busy, try again", headers={"Retry-After": "1"})
         pending += 1
         try:
             response, trace = await asyncio.get_running_loop().run_in_executor(
-                executor, decide, request, provider
+                # `current`, not a local: a switch queued behind this must be able to free it
+                executor,
+                decide,
+                request,
+                current,
             )
         except Exception:
             _LOGGER.exception("Decision failed")

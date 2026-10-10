@@ -105,6 +105,7 @@ class ProcessResponse(_Response):
     reason: ShortStr | None = None
     trace_id: ShortStr
     elapsed_ms: float
+    model: ShortStr | None = None  # the model that decided; lets the client notice a switch
 
 
 class ServerInfo(_Response):
@@ -114,3 +115,11 @@ class ServerInfo(_Response):
     model: ShortStr
     languages: Annotated[list[ShortStr], Field(max_length=20)]
     device: ShortStr
+    # Models the server can switch to (POST /v1/model); empty from older servers.
+    models: Annotated[list[ShortStr], Field(max_length=50)] = []
+
+
+class ModelRequest(_Request):
+    """POST /v1/model: unload the current model, load this one. Answers with ServerInfo."""
+
+    model: ShortStr
