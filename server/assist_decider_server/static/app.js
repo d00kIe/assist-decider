@@ -56,7 +56,13 @@ function renderQuestion(q) {
 
 // --- decision tree ----------------------------------------------------------
 
-const PHASES = { devices: "Devices", kind: "Command or question", action: "What to do" };
+const PHASES = {
+  devices: "Devices",
+  request: "Is it for the home, now?",
+  kind: "Command or question",
+  action: "What to do",
+  check: "Sure enough?",
+};
 const REASONS = {
   low_confidence: "the model was not sure enough",
   no_target: "no device or room named, and no speaker's room",
@@ -65,6 +71,9 @@ const REASONS = {
   missing_value: "no value said or chosen",
   value_not_possible: "the number does not fit that action",
   conditional: "'if …' sentences are not supported",
+  not_for_home: "not about the home's devices",
+  inconsistent: "the model's answers contradict each other",
+  unsupported: "a question about all of a kind is not supported yet",
   unsupported_language: "the model does not speak this language",
   no_exposed_entities: "nothing is exposed to Assist",
 };
@@ -176,7 +185,7 @@ function touched(t) {
       if (key === q.choice) m.chosen = true;
     }
   }
-  for (const a of t.actions || []) get(a.slots.name).used = true;
+  for (const a of t.actions || []) get(a.slots.name || a.slots.area).used = true;
   return marks;
 }
 
@@ -197,23 +206,19 @@ function fact(label, text) {
 
 const quoted = (words) => words.map((w) => `“${w}”`).join(" · ");
 
-function renderLegend(kinds) {
+function renderLegend() {
   const box = el("details", "legend");
   box.append(el("summary", null, "How devices are found"));
   const steps = el("ol", "small");
   for (const text of [
-    "Exact names: a device or room name or alias, said word for word. Text is compared lowercase with ä→ae, ö→oe, ü→ue, ß→ss (the “matched by” forms). The longest name wins.",
+    "Names: a device, room or floor name or alias, word for word or with another ending (“linke Licht” → “Linkes Licht”). Text is compared lowercase with ä→ae, ö→oe, ü→ue, ß→ss (the “matched by” forms). The longest name wins.",
+    "One word of a name counts when no other device, room or floor has it (“the right one” → Right Light), never for “exact name only” devices.",
     "Compound words: a one-word room name of 4+ letters also matches at the start of a longer word (“wohnzimmerlicht” → Wohnzimmer).",
-    "A room: the model picks one of its devices, worded as “model sees”. When a number is said, only devices that can take it are offered.",
-    "Nothing named: the devices of the previous command (“turn it off”), unless a kind word below is said; otherwise the speaker's room.",
-    "“Exact name only” devices (locks, alarms, garage/gate/door covers) are never picked from a room.",
+    "A room or floor: the model says one device or all of one kind, which kind, and which device, worded as “model sees”. When a number is said, only devices that can take it are offered.",
+    "Nothing named: the model says whether the previous command's devices are meant (“turn it off”), else here, this floor or the whole home.",
+    "“Exact name only” devices (locks, alarms, garage/gate/door covers) are never picked from a room, and “all” never includes them.",
   ]) steps.append(el("li", null, text));
   box.append(steps);
-  const table = el("div", "small");
-  for (const [domain, words] of Object.entries(kinds || {})) {
-    table.append(fact(domain, words.length ? words.join(", ") : "(no words: only by name)"));
-  }
-  box.append(el("strong", "small", "Kind words"), table);
   return box;
 }
 
@@ -258,7 +263,7 @@ function renderHome() {
   const rooms = [...homeData.areas].sort((a, b) => (floorOrder.get(a.floor_id) ?? 1e9) - (floorOrder.get(b.floor_id) ?? 1e9));
   rooms.push({ id: "", name: "No room", aliases: [], words: [], compound: [] });
 
-  const out = [renderLegend(homeData.kinds)];
+  const out = [renderLegend()];
   let floorShown;
   for (const a of rooms) {
     const ents = (byArea.get(a.id) || []).filter(show);

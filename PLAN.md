@@ -1,7 +1,8 @@
-# Assist Decider: plan and progress
+# Assist Decider: plan
 
-The source of truth for what is done and what comes next. Tick boxes as work lands, and
-add measurements and decisions so the next session can pick up without re-research.
+What the project is, how it is built today, and what comes next. Tick boxes as work lands.
+Measurements are in [BENCHMARK.md](BENCHMARK.md); how the pipeline works is in
+[HOW-IT-WORKS.md](HOW-IT-WORKS.md).
 
 ## Goal
 
@@ -17,23 +18,26 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
 - configurable from Home Assistant
 - publishable on HACS
 
-## Architecture (decided)
+## Architecture
 
 - **Server** (`server/`, Python ≥3.11, FastAPI):
-  - Holds one decision model (see BENCHMARK.md), resident and warmed up.
-  - The pipeline is BENCHMARK.md's "best approach" (2026-10-07): devices from exact names
-    (room named → its devices; nothing named → previous command's devices, else satellite
-    room) → model: command or question → model: which device in a room (only devices that
-    fit the spoken number; never locks/garage doors) → model per device: action, from what
-    its kind supports, on/off words masking the opposite (nearest word wins when both are
-    said) → model: which number → any answer below the threshold hands the whole sentence
-    off. One action per device, always `name` slots.
-  - Conditions: removed (2026-10-06, protocol v3). An "if/wenn …" utterance escalates as
-    a whole (`conditional`) so it never runs unguarded. HA sends no states at all.
-  - Follow-ups: the last command's devices per `context_id` (hashed satellite device or
-    conversation id), for `memory_seconds` (default 60). A sentence that names nothing and
-    says no kind of device ("turn it off") reuses them. Verb-less follow-ups ("and the
-    kitchen too") are no longer supported.
+  - Holds one decision model, resident and warmed up.
+  - Pipeline (`pipeline.py`), no word lists. Code finds names (devices, rooms, floors; other
+    word endings like "linke"/"Linkes"; a word only one device's name has, never for locks or
+    garage doors) and numbers. The model answers choice questions: in one call, command or
+    question, about the home or not, conditional or not (two questions), and for a place one
+    or all of a kind, which kind, which device; in a second call, what to do with each device.
+    A device named among others is asked again with only its own words, and the two answers
+    are averaged. A number that is the only one fitting the action is bound in code. "All"
+    becomes one `area` + `domain` action per room, or per-device names where a lock or garage
+    door of that kind is in the room. The confidence check counts only the answers used;
+    changing a lock or garage door needs every answer at 0.5 or more.
+  - Conditions: an "if/wenn …" sentence is handed off (`conditional`) when both condition
+    questions say so at 0.7 or more. Home Assistant sends no device states.
+  - Follow-ups: the last command's devices and sentence per `context_id` (hashed satellite
+    device or conversation id), for `memory_seconds` (default 60). When nothing is named, the
+    model says whether the previous command's devices are meant ("turn it off"); else here,
+    the speaker's floor or the whole home (widening needs "all" and 0.9 or more).
   - Live log: in-memory ring buffer, server-sent events (SSE) over `fetch`, and a static UI.
 - **Integration** (`custom_components/assist_decider/`, no pip requirements):
   - Pushes a names-only snapshot of exposed entities to the server.
@@ -41,94 +45,89 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
     with `assistant="conversation"`.
   - Speech comes from home-assistant-intents templates. There is an optional fallback agent.
 - **Protocol**: `protocol.py` v3, byte-identical in both places, pydantic v2.
-- **Provider seam**: `DecisionProvider.predict(state, questions, lang)` (choice questions)
-  in `providers.py`. A future generative model would replace `pipeline.decide()` instead.
+- **Provider seam**: `DecisionProvider.predict(state, questions, lang)` in `providers.py`
+  answers several choice questions per call (Laya: one forward pass, answers independent;
+  Intern-Decision: one prompt, answers can shift with the other questions). A provider can
+  set `batch = False` to be asked one question at a time. A generative model would replace
+  `pipeline.decide()` instead.
 
-### Key findings (2026-10-04)
+### Facts the design rests on
 
-- Laya (PyPI `laya==0.3.26`) only chooses between options: no numbers, no splitting, no
-  free text. It can't run inside HA OS, because torch has no musllinux wheels.
-- **Laya is sensitive to the option set.** Removing options made the multilingual
-  checkpoint worse. We always show the same intent options and *mask* the
-  guard-excluded ones afterwards.
-- **Option keys matter.** `turn_on`/`set_temperature` beat `HassTurnOn` and plain letters
-  (12/16 vs 11/16 vs 9/16 on the German probe).
-- Laya maps "is X on?" to `turn_on` with p≈1.0. Questions that name a device are therefore
-  answered as state queries by rule; this is read-only and harmless.
-- HA's built-in intent handlers return **empty speech**, so we render
-  home-assistant-intents templates. Response keys differ per language: the HA side picks
-  them (`_response_keys`).
-- **Laya can't do per-device decisions (probe, 2026-10-04).** Giving every device its own
-  state (utterance + device) with role, action, value-tree and condition questions scored
-  0/32 cases on multilingual and 0/17 on english. Every device got the action of the
-  whole sentence. Naming the device in a yes/no question scored 7/32: the right device
-  often scores highest, but mixed on/off still fails. Choosing exact values had
-  confidence ~0.01–0.03, and "is it cold?" over -5…30 °C gave flat probabilities. Laya
-  only answers about the utterance as a whole, so splitting, numbers and comparisons
-  stay in code.
-- Don't construct `ToolResultContent` in the chat log (2026.9 → 2026.10 API break). We
-  only add a final `AssistantContent`.
-
-### Measurements (MacBook M4 Pro, MPS)
-
-| Checkpoint | Load | Memory (MPS) | Decision p50 / max | Live test |
-|---|---|---|---|---|
-| english | 0.9–2.4 s | ~1.7 GB | 31 ms / 61 ms | 11/11 EN |
-| multilingual | 2.4–2.9 s | ~1.3 GB | 18 ms / 31 ms | 11/11 DE |
-
-Real HA 2026.9.4 end-to-end (dev instance, demo devices): 18/18 EN+DE commands executed
-and spoken correctly (lights, brightness, thermostat, cover, queries, compounds,
-fallback/error wording).
+- The models only choose between options: no numbers, no splitting, no free text. Numbers
+  and names stay in code.
+- Models get worse when options are removed. Every question shows all options of that kind
+  of device; ruled-out ones are masked afterwards.
+- Option keys and wording matter. Choice questions with options that say what they cover
+  work; Laya answers "yes" to almost any yes/no question.
+- Laya and torch can't run inside HA OS (no musllinux wheels), hence the separate server.
+- HA's built-in intent handlers return empty speech, so the integration renders
+  home-assistant-intents templates. Response keys differ per language (`_response_keys`).
+- Don't construct `ToolResultContent` in the chat log (2026.9 → 2026.10 API break). Only a
+  final `AssistantContent` is added.
 
 ---
 
 ## Milestones
 
-### M0: Server ✅ (session 1)
+### M0: Server ✅
 
-- [x] uv project, pinned `laya==0.3.26`, lockfile, CLI `assist-decider` (serve, download)
+- [x] uv project, pinned dependencies, CLI `assist-decider` (serve, download)
 - [x] Settings: defaults < TOML < `ASSIST_DECIDER_*` env < CLI; validation
-- [x] `protocol.py` v1 (strict requests, lenient responses, length and ID limits)
-- [x] `LayaProvider`: one checkpoint, reviewed-revision pin, warm-up, device auto
-- [x] Intent table + EN/DE language data (descriptions, domain words, verbs, guards)
-- [x] Numbers EN/DE: digits, words (unicode-rbnf), decimal comma, `komma`/`point`, %, °, durations, halves/quarters
-- [x] Pipeline: mentions with German compounds, verb-aware compound splitting, multi-target, lexical guards with masking, exact/single/satellite shortcuts, fuzzy target question (≤10 options), sensitive devices never guessed, confidence gate, partial results, traces
-- [x] No auth (closed home network, 2026-10-08: token removed)
-- [x] App security: body limit (declared and streamed), security headers/CSP, no docs, single-worker inference + 503, SSE log stream
+- [x] `protocol.py` v3 (strict requests, lenient responses, length and ID limits)
+- [x] Providers: Laya (multilingual, English), Intern-Decision 0.8B/2B, d1-3B, d1-omni-600M;
+      pinned revisions, safetensors only, no remote code, warm-up, device auto
+- [x] Numbers EN/DE: digits, words (unicode-rbnf), decimal comma, `komma`/`point`, %, °,
+      durations, halves/quarters
+- [x] Pipeline as above: names, rooms, floors, "all", follow-ups, confidence check, traces
+- [x] No auth (closed home network); body limit, security headers/CSP, no docs,
+      single-worker inference + 503, SSE log stream
 - [x] Live log UI (vanilla JS, textContent only)
-- [x] Tests: 89 fast (numbers, pipeline, app security, config, protocol sync) + 22 live Laya cases
+- [x] Benchmark (`tests/eval/benchmark.py`): 65 dev + 46 held-out test sentences
 
-### M1: HA integration ✅ (session 1)
+### M1: HA integration ✅
 
-- [x] manifest, hacs.json (min HA 2026.9.0: needs `er/dr.async_get_effective_area_id`), brand icon, config flow (URL/TLS), reconfigure, options (thresholds, fallback, no self-loop)
-- [x] Setup: handshake, NotReady / AuthFailed / repair issue on protocol mismatch
-- [x] Conversation entity: snapshot of exposed entities only, satellite area, action validation (intent allowlist, exposed IDs, slot keys), sequential execution, template speech EN/DE, HA-native error wording with friendly names, natural numbers ("21,5"), partial-result speech, fallback agent, chat log
+- [x] manifest, hacs.json (min HA 2026.9.0), brand icon, config flow (URL/TLS), reconfigure,
+      options (thresholds, follow-up memory, fallback, no self-loop)
+- [x] Setup: handshake, NotReady / repair issue on protocol mismatch
+- [x] Conversation entity: snapshot of exposed entities only, satellite area, action
+      validation (intent allowlist, exposed IDs, slot keys), sequential execution, template
+      speech EN/DE, HA-native error wording, natural numbers ("21,5"), fallback agent, chat log
 - [x] Diagnostics, strings + en/de translations
-- [x] Tests: 35 with pytest-homeassistant-custom-component (HA 2026.9.4)
-- [x] Real HA dev instance end-to-end (`hass -c .ha-config`, demo devices)
+- [x] Tests with pytest-homeassistant-custom-component (HA 2026.9.4)
 
 ### M2: Language and coverage (next)
 
-- [ ] **Yes/no state answers**: send a `state` slot ("an"/"on" → `on`) and use the `one_yesno` template. Currently German says "Bed light ist on".
-- [x] Mixed polarity in one clause without a second verb ("Licht an und Heizung aus"): each device follows the nearest on/off word ("near", 2026-10-07)
-- [ ] Room commands act on one device only (the model picks it). Decide how "all the lights in the living room" should work (area slot with domain, or several picks)
-- [ ] More intents: HassFanSetSpeed, HassSetVolume, media pause/unpause/next/previous, HassStartTimer/HassCancelTimer/HassTimerStatus (durations are already parsed), HassGetCurrentTime/Date, HassNevermind, HassStopMoving
+- [ ] German "… aus" at the end of a one-device sentence ("mach das Licht im Flur aus") is
+      read as "on" by most models. Ideas: a third view of the words after the device's
+      name; a fine-tune.
+- [ ] Conditions and times ("turn on the coffee maker at 7") are caught only in part.
+- [ ] Chit-chat ("tell me a joke", "play some jazz") still switches a device in the
+      speaker's room with some models, mostly at low confidence.
+- [ ] "The whole house" without a speaker's room (typed in the app) is handed off.
+- [ ] **Yes/no state answers**: send a `state` slot ("an"/"on" → `on`) and use the
+      `one_yesno` template. Currently German says "Bed light ist on".
+- [ ] Questions about all of a kind ("are all the lights off?") → `any`/`all` replies;
+      handed off today (`unsupported`)
+- [ ] More intents: HassFanSetSpeed, HassSetVolume, media pause/unpause/next/previous,
+      HassStartTimer/HassCancelTimer/HassTimerStatus (durations are already parsed),
+      HassGetCurrentTime/Date, HassNevermind, HassStopMoving
 - [ ] Brightness phrases (max/min/half), cover "halb"/"half" → 50
-- [ ] HassGetState with area + domain + state ("are any lights on in the kitchen?") → `any`/`all` templates
-- [ ] Floors as targets
-- [x] Conditions ("if it is cold outside …", "wenn das Fenster offen ist …") with sensor values sent by HA, thresholds in options, `skipped` spoken. **Removed from the server 2026-10-06**; "if" utterances escalate.
-- [x] Protocol v3: dropped `states`, `Options.cold_below/warm_above`, `ProcessResponse.skipped`; integration no longer sends sensor values, has no cold/warm options, no "Not done" speech
-- [x] Follow-ups within `memory_seconds` ("turn it off", "and the hallway too", "23 degrees")
-- [ ] Generative planner as an optional provider for compound and conditional commands that the lexical split gets wrong (idea from the probe: a 1.5–3B model with JSON-constrained output)
-- [ ] Check each `_response_keys` choice against the intents JSON in a test, for every supported intent × language
+- [ ] Generative planner as an optional provider for long compounds and conditions (a
+      1.5–3B model with JSON-constrained output), if they keep failing. Not done so far for
+      speed and the 4 GB card.
+- [ ] Check each `_response_keys` choice against the intents JSON in a test, for every
+      supported intent × language
 - [ ] Log UI: per-segment collapse, copy-as-test-case button
 
 ### M3: HACS readiness
 
-- [ ] **Re-run the review dimensions that were cut off:** pipeline correctness (adversarial EN/DE inputs) and HA integration vs HA source (hassfest/HACS validation, API usage)
-
-- [ ] Create the GitHub repo `d00kIe/assist-decider` (description, topics: `home-assistant`, `hacs`, `assist`, `voice`, `laya`)
-- [ ] Commit, push, confirm CI (ci.yaml, validate.yaml: hassfest + HACS action) is green, and fix findings
+- [ ] Review the pipeline (adversarial EN/DE inputs) and the integration against HA source
+      (hassfest/HACS validation, API usage)
+- [ ] Check on a real satellite that consecutive wake-word turns share the device id the
+      follow-up memory is keyed on
+- [ ] Create the GitHub repo `d00kIe/assist-decider` (description, topics: `home-assistant`,
+      `hacs`, `assist`, `voice`, `laya`)
+- [ ] Push, confirm CI (ci.yaml, validate.yaml: hassfest + HACS action) is green
 - [ ] Dark brand variants (`dark_icon.png`), `logo.png`
 - [ ] Exception translations (`translation_key` on raised errors)
 - [ ] First release v0.1.0 (release.yaml attaches `assist_decider.zip`)
@@ -136,43 +135,35 @@ fallback/error wording).
 
 ### M4: Accuracy and calibration
 
-- [ ] Eval sets: 60+ EN and 60+ DE realistic commands, with a fixture home in `server/tests/eval/`
-- [ ] `assist-decider eval` command: accuracy, escalation rate, confusions, p50/p95, threshold sweep
-- [ ] Tune default thresholds per language, German option wording, option-order shuffle test
-- [ ] Optional: per-language temperature fit (`lang_temperatures`), document fine-tuning
+- [ ] More benchmark sentences, ideally real ones from the live log
+- [ ] Tune the default thresholds in HA per model (today 0.4 EN / 0.5 DE for every model)
+- [ ] Optional: per-language temperature fit, document fine-tuning
 
 ### M5: Production deployment
 
-- [ ] Linux + NVIDIA: verify the install, document the torch CUDA index for older GPUs, measure VRAM and latency on the 4 GB GeForce (both checkpoints, alone and together)
+- [ ] Linux + NVIDIA: verify the install, document the torch CUDA index for older GPUs,
+      measure VRAM and speed on the 4 GB GeForce
 - [ ] Windows + NVIDIA: verify the CUDA torch install command in the README
-- [ ] Ship `deploy/`: systemd unit, launchd plist, Dockerfile (CUDA + CPU), compose file, Caddy TLS example
+- [ ] Ship `deploy/`: systemd unit, launchd plist, Dockerfile (CUDA + CPU), compose file,
+      Caddy TLS example
 - [ ] CI: use the CPU torch index on Linux runners (smaller downloads)
-- [ ] Publish the server to PyPI (trusted publishing), so `uv tool install assist-decider` works
+- [ ] Publish the server to PyPI (trusted publishing), so `uv tool install assist-decider`
+      works
 
 ### Later / ideas
 
 - [ ] Wyoming "intent" mode (no custom integration needed; needs an HA token to read exposure)
-- [ ] More providers: ONNX/CoreML Laya, NLI zero-shot (mDeBERTa), cross-encoder rerankers, GLiNER for free-text slots
+- [ ] More providers: ONNX/CoreML Laya, NLI zero-shot (mDeBERTa), cross-encoder rerankers,
+      GLiNER for free-text slots
 - [ ] Choose or switch the server model from HA (admin endpoint)
 - [ ] Hash-only context with resync (fewer bytes per request)
 - [ ] State-aware disambiguation ("the light that is on")
 - [ ] Light colors and kelvin; free-text intents (shopping list, broadcast, media search)
-- [ ] Batch the Laya questions across segments
 - [ ] Option to redact utterances from logs
 
 ---
 
-## Session log
-
-### Session 1 (2026-10-04)
-
-- Research: Laya model and API, home-assistant-laya, HA 2026.9/2026.10 conversation and intent APIs, Wyoming as an alternative (rejected: no auth, no entity context), HACS rules.
-- Built M0 + M1, tests green: server 89 fast + 22 live; integration 35.
-- Adversarial review (4 reviewers + verifiers; two reviewers hit the session limit, so the pipeline and HA-integration dimensions were *not* reviewed). Fixed: slow-client connection exhaustion (header/body timeouts), lockout blocking the valid token, bounded fuzzy matching, NFKC length overflow, bounded log events, log-line forging, token vs token_file conflict, minimum HA version 2026.9, docs accuracy.
-- Verified end to end against a real HA 2026.9.4 instance on the Mac.
-- **Not done:** no git commit or push yet; nothing tested on Linux, Windows or CUDA; no Docker.
-
-### How to resume
+## How to run
 
 ```bash
 cd server && uv sync && uv run pytest && uv run pytest -m slow -s    # server
@@ -181,39 +172,5 @@ cd .. && uv sync --python 3.14 && uv run pytest tests                # integrati
 uv run hass -c .ha-config   # http://127.0.0.1:8124, integration symlinked in .ha-config/custom_components
 ```
 
-### Session 2 (2026-10-04)
-
-- Probed a device-centric decision tree on Laya (see Key findings): rejected.
-- Protocol v2: `context_id`, `states` (condition values only), `Options.memory_seconds/cold_below/warm_above`, `ProcessResponse.skipped`.
-- Server: "if" clause → one sensor → test in code; follow-up memory per context. Integration: sends hashed context and states, speaks skipped commands, three new options (EN/DE).
-- Tests: server 99 fast (10 new) + live conditions and follow-ups, all green on both checkpoints; integration 36.
-- **Not done:** real HA end-to-end check of conditions and follow-ups; not yet checked on a real satellite that consecutive wake-word turns share the device id the memory is keyed on.
-
-### Session 3 (2026-10-07)
-
-- Benchmarked six models and four approaches (BENCHMARK.md). Built the best approach into the
-  server: `pipeline.py` rewritten; `intents.py` is now "what each kind of device can do";
-  `lang.py` holds the four questions; providers only answer choice questions.
-- Removed: sentence splitting, word-rule intent guards, similar-name guessing, the "single
-  device of a kind" shortcut, verb-less follow-ups, the probe scripts and their results
-  (in git at `9849dde`). Protocol and integration unchanged.
-- `tests/eval/benchmark.py` runs the 55 sentences through `decide()`: matches the probe at
-  check 0.0. Tests: server 94 fast + 4 live (Laya english, multilingual, Intern-Decision 0.8B).
-- **Open:** the default model is still `multilingual` and the HA thresholds 0.4/0.5; the
-  benchmark recommends `intern-decision-0.8b` at 0.2.
-
-### Session 4 (2026-10-09)
-
-- New providers: `d1-3b` (Liquid AI d1-3B, LFM2.5-VL; native `transformers` class, prompt rebuilt from
-  its prompt.py) and `d1-omni-600m` (bidirectional LFM2.5 encoder plus decision head, rebuilt text-only
-  in `d1_omni.py`, with vision and audio never loaded). Both pinned, with no remote code. LFM Open License.
-- Removed Kev 0.8B and H2O-Lightning 4B.
-- Benchmark: 10 new sentences (politeness, "all … in the room", left/right, floors) on a home with floors.
-  Results are in BENCHMARK.md. d1-3B is the most accurate (54/55 original, 0 wrong, 6.8 GB, 0.3 s).
-  d1-omni is the smallest (1.0 GB, 51 ms) and about as accurate as Laya multilingual. **Every model
-  fails the "all"/floor/"the right one" sentences, and most act on one device instead of handing off.**
-  That makes the "room commands" and "floors" items under M2 the next real gap.
-- CI: fixed a flaky `test_busy_returns_503` (polling raced for the single slot, so it hung or failed on
-  slow runners) and two unused `noqa` (RUF100) in the integration. HACS needs a repo description and
-  topics, which are set in GitHub settings.
-- README rewritten for users (install / choose a model / use it), with a Docker placeholder.
+On a Mac, Intern-Decision runs without its fast kernels (they are NVIDIA only), and Metal can
+stall for minutes compiling graphs. Benchmark one model per process.

@@ -240,9 +240,11 @@ class InternDecisionProvider(_ScoringProvider):
         self, state: dict[str, Any], questions: dict[str, Question], lang: str
     ) -> dict[str, Answer]:
         _check(questions)
+        # Neutral field names: the caller's keys are for code, not for the model.
+        fields = [f"q{i}" for i in range(1, len(questions) + 1)]
         lines = []
-        for key, q in questions.items():
-            lines.append(f"{key}: {q.instructions}")
+        for field, q in zip(fields, questions.values(), strict=True):
+            lines.append(f"{field}: {q.instructions}")
             for s, (v, d) in zip(_SYMBOLS, q.options.items(), strict=False):
                 lines.append(f"    {s} = {v}: {d}")
         user = (
@@ -251,7 +253,7 @@ class InternDecisionProvider(_ScoringProvider):
             + "\n## Decision schema\n"
             + "\n".join(lines)
         ).replace(_DECISION, "decision")  # the marker is a special token; never from input
-        skeleton = json.dumps(dict.fromkeys(questions, _DECISION), ensure_ascii=False, indent=4)
+        skeleton = json.dumps(dict.fromkeys(fields, _DECISION), ensure_ascii=False, indent=4)
         text = self._tok.apply_chat_template(
             [
                 {"role": "system", "content": _SYSTEM},

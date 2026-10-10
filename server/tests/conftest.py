@@ -19,14 +19,19 @@ ALL_INTENTS = [
     "HassClimateGetTemperature",
 ]
 
-Rule = Callable[[str, Question, dict[str, Any]], str]
+Rule = Callable[[str, Question, dict[str, Any]], str | None]
+FIRST = ("kind", "condition", "when", "topic")  # asked about every sentence
 
 
 def question_type(q: Question) -> str:
-    """ "kind", "which", "action" or "value": which of the pipeline's questions this is."""
+    """Which of the pipeline's questions this is: "kind", "condition", "when", "topic",
+    "scope", "device_kind", "place", "reference", "which", "action" or "value"."""
     for lang in LANGS.values():
-        if q.instructions == lang.kind_question:
-            return "kind"
+        for kind in ("kind", "condition", "when", "topic", "scope", "device_kind", "place"):
+            if q.instructions == getattr(lang, f"{kind}_question"):
+                return kind
+        if q.instructions.startswith(lang.reference_question.split("{")[0]):
+            return "reference"
         if q.instructions == lang.which_question:
             return "which"
         if q.instructions.startswith(lang.action_question.split("{")[0]):
@@ -48,6 +53,7 @@ class FakeProvider:
         self.rule = rule or answer()
         self.p = p
         self.calls: list[tuple[str, Question, dict[str, Any]]] = []  # (type, question, state)
+        self.batches: list[list[str]] = []  # the question keys of each predict call
 
     def load(self) -> None:
         pass
@@ -56,16 +62,26 @@ class FakeProvider:
         self, state: dict[str, Any], questions: dict[str, Question], lang: str
     ) -> dict[str, Answer]:
         out = {}
-        for key, q in questions.items():
+        self.batches.append(list(questions))
+        picked = []  # the kinds of the devices the which-questions of this call chose
+        # Which-questions first, so that a kind question can follow the device picked.
+        for key, q in sorted(
+            questions.items(), key=lambda kq: question_type(kq[1]) == "device_kind"
+        ):
             kind = question_type(q)
             self.calls.append((kind, q, state))
             choice = self.rule(kind, q, state)
+            if kind == "which":
+                picked.append(str(choice).split(".")[0])
+            if kind == "device_kind" and choice is None:
+                choice = next((d for d in picked if d in q.options), [*q.options][0])
             rest = (1 - self.p) / max(1, len(q.options) - 1)
             out[key] = Answer(choice, {k: (self.p if k == choice else rest) for k in q.options})
-        return out
+        return {key: out[key] for key in questions}
 
     def asked(self) -> list[str]:
-        return [kind for kind, _, _ in self.calls]
+        """The questions asked, without the four every sentence starts with (FIRST)."""
+        return [kind for kind, _, _ in self.calls if kind not in FIRST]
 
 
 def answer(
@@ -73,14 +89,28 @@ def answer(
     action: str | dict[str, str] = "turn_on",
     device: str | None = None,
     value: str = "first",
+    scope: str = "one",
+    of: str | None = None,
+    place: str = "here",
+    reference: str = "previous",
 ) -> Rule:
-    """A rule: command or question; `action` for every device, or per device name in the
-    question; in a room the option containing `device` (else the first); `value` is a
-    number option, "first" or "none"."""
+    """A rule: what is asked (`kind`: command, question, conditional or other); `action` for
+    every device, or per device name in the question; in a place the option containing `device`
+    (else the first), `scope` one or all, `of` which kind (default: the kind of the device it
+    picks), `place` here, floor or home; a follow-up's `reference`; `value` is a number option,
+    "first" or "none"."""
 
-    def rule(qtype: str, q: Question, state: dict[str, Any]) -> str:
+    def rule(qtype: str, q: Question, state: dict[str, Any]) -> str | None:
+        if qtype in ("scope", "place", "reference", "device_kind"):
+            return {"scope": scope, "place": place, "reference": reference}.get(qtype, of)
         if qtype == "kind":
-            return kind
+            return "question" if kind == "question" else "command"
+        if qtype == "condition":
+            return "condition" if kind == "conditional" else "none"
+        if qtype == "when":
+            return "later" if kind == "conditional" else "now"
+        if qtype == "topic":
+            return "other" if kind == "other" else "home"
         if qtype == "which":
             return next(
                 (k for k, v in q.options.items() if device and device in v), [*q.options][0]

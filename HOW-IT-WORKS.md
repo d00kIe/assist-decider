@@ -3,10 +3,10 @@
 This explains, in plain words:
 
 1. [What Home Assistant can do by voice](#1-what-home-assistant-can-do-by-voice): the kinds of things it controls, the actions it knows, and the values each action accepts.
-2. [What the model is asked](#2-what-the-model-is-asked): the four questions, and how much the model can read at once.
+2. [What the model is asked](#2-what-the-model-is-asked): the questions, and how much the model can read at once.
 3. [What happens when you speak](#3-what-happens-when-you-speak): who decides what, step by step, and what goes back to Home Assistant.
 
-Everything here was checked against the code in this repo and Home Assistant 2026.9.4. Why the server works this way, with measurements, is in [BENCHMARK.md](BENCHMARK.md).
+Everything here was checked against the code in this repo and Home Assistant 2026.9.4. How well each model does with it is in [BENCHMARK.md](BENCHMARK.md).
 
 ---
 
@@ -41,7 +41,7 @@ Home Assistant has many kinds of entities. These are the ones voice actions work
 | `fan` | Fans | – | ✅ on/off (speed not yet) |
 | `cover` | Blinds, shutters, curtains, garage doors, gates | `awning`, `blind`, `curtain`, `damper`, `door`, `garage`, `gate`, `shade`, `shutter`, `window` | ✅ open/close, position |
 | `valve` | Water and gas valves, sprinklers | `water`, `gas` | ✅ open/close, position |
-| `lock` | Door locks | – | ✅ lock/unlock, **only by exact name** |
+| `lock` | Door locks | – | ✅ lock/unlock, **only by its name** |
 | `climate` | Thermostats, heating, air conditioning | – | ✅ on/off, set temperature, ask temperature |
 | `media_player` | TVs, speakers | `tv`, `speaker`, `receiver` | ✅ on/off (pause, volume… not yet) |
 | `humidifier` | Humidifiers, dehumidifiers | `humidifier`, `dehumidifier` | ✅ on/off (level and mode not yet) |
@@ -56,7 +56,7 @@ Home Assistant has many kinds of entities. These are the ones voice actions work
 | `todo` | To-do and shopping lists | – | ❌ |
 | `alarm_control_panel` | Alarm systems | – | ❌, and never guessed |
 
-Locks, alarm panels and covers of sub-kind `garage`, `gate` or `door` are **safety-sensitive**. Assist Decider only acts on them when you say their exact name or alias. When you name only a room, they are never picked.
+Locks, alarm panels and covers of sub-kind `garage`, `gate` or `door` are **safety-sensitive**. Assist Decider only acts on them when you say their name or alias (another word ending is fine: "gates" for "Gate"). When you name only a room or floor, they are never picked, and "all the covers" never includes them. Changing one also needs the model to be sure (see 3.5).
 
 ### 1.2 What is sent about each thing
 
@@ -97,7 +97,7 @@ At least one of `name`, `area` or `floor` is required, unless stated otherwise b
 | `HassGetState` | Ask about a device | `state` (optional) | list of text, e.g. `["on"]` | Home Assistant also accepts area + kind ("are any lights on in the kitchen?"). We only send one named device for now. |
 | `HassClimateGetTemperature` | Ask how warm it is | – | – | Used for every question about a thermostat. |
 
-Every action we send names exactly **one device** (`name`), never a whole room.
+An action names **one device** (`name`), or, for "all the lights in the living room", **a room and a kind** (`area` + `domain`): one action per room, so Home Assistant says "Turned on the lights". A floor or the whole home becomes one action per room on it. When a room has a lock or garage door of that kind, its other devices are named one by one instead, so the sensitive one is never touched. Climate actions get only `area`: Home Assistant's climate intents take no `domain`.
 
 #### Actions Home Assistant has that we do not produce yet
 
@@ -149,18 +149,26 @@ The server always sends **IDs** (`light.kitchen`, `kitchen`), never free names, 
 
 ## 2. What the model is asked
 
-### 2.1 The four questions
+### 2.1 The questions
 
-The model only ever answers multiple-choice questions about your sentence. There are four, and each is short:
+The model only ever answers multiple-choice questions about your sentence. The first four are asked about every sentence, in one call together with every other question that needs no other answer:
 
 | Question | When it is asked | Answers offered |
 |---|---|---|
-| "Is the user giving a command or asking a question?" | Once per sentence | a command · a question |
-| "Which device does the user mean?" | Only when you named a room (or nothing), and that room has more than one device that fits | the room's devices, e.g. "Kitchen Light (light) in Kitchen"; at most 10 |
-| "What does the user want with the Kitchen Light?" | Once per device | only what that kind of device can do, e.g. for a light: turn on · turn off · set the brightness · only asks how it is |
-| "Which value should the Kitchen Light be set to?" | Only when the action needs a number | the numbers you said · "no value given" |
+| "Is the user giving a command or asking a question?" | Every sentence | a command · a question |
+| "What is the user talking about?" | Every sentence | the home's devices · something else (chit-chat, knowledge, weather, timers…) |
+| "Does the user set a condition?" and "When should it happen?" | Every sentence | no · yes, only if or when something happens; right away · only once something happens |
+| "Does the user mean one device or all of one kind?" | A room or floor with more than one device, or nothing named | one device · all devices of one kind |
+| "Which kind of device does the user mean?" | A room or floor with more than one kind of device | the kinds there, e.g. lights · blinds · heating |
+| "Which device does the user mean?" | A room or floor with more than one device (at most 10) | the devices, e.g. "Kitchen Light (light) in Kitchen" |
+| "Where does the user want it?" | Nothing named, and the speaker's room is known | here · on this whole floor · in the whole home |
+| "The user's previous command was: '…'. Does the user mean the same devices again?" | Nothing named, and a previous command within the follow-up memory | yes, the same devices · no |
+| "What does the user want with the Kitchen Light?" | Once per device. A device named among others is asked a second time, about only its own words | only what that kind of device can do |
+| "Which value should the Kitchen Light be set to?" | Only when two or more different numbers could be its value | the numbers you said · "no value given" |
 
-German sentences get the same questions in German. The model sees your sentence each time (the *state*), never your list of devices or their states.
+German sentences get the same questions in German. The model reads your sentence (the *state*), never your list of devices or their states. Questions asked in the same call can't see each other's answers; the server then uses only the answers it needs, and only those count for the confidence check.
+
+There are no word lists: the server doesn't look for "on", "aus", "if" or "lights" in your sentence. The wording of the questions and answers was chosen by testing Laya and Intern-Decision on the benchmark's sentences ([BENCHMARK.md](BENCHMARK.md)).
 
 ### 2.2 What one question looks like
 
@@ -168,7 +176,7 @@ German sentences get the same questions in German. The model sees your sentence 
 question: What does the user want with the Kitchen Light?
 answers:  turn_on:        turn on, switch on, start
           turn_off:       turn off, switch off, stop
-          set_brightness: set the brightness to a value
+          set_brightness: dim or brighten to a value
           query:          only asks how it is, changes nothing
 state:    {"utterance": "turn off the kitchen light"}
 ```
@@ -223,14 +231,15 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 
 | Decision | Who decides | How |
 |---|---|---|
-| Is it an "if…" sentence? | **Code** | Words like "if/wenn/falls". Not supported: the whole sentence is handed off (`conditional`). |
+| Is it about the home at all? | **Model** | "Something else" at 0.8 or more hands the sentence off (`not_for_home`). |
+| Is it an "if…" sentence? | **Model** | Two questions; when both say "only if or when…" at 0.7 or more, the sentence is handed off (`conditional`). They miss some conditions, and with some models they hand off a few normal commands (see BENCHMARK.md). |
 | Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. |
-| Which devices and rooms were named | **Code** | Exact match against names and aliases, including German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"). |
-| Nothing named: which devices then | **Code** | The previous command's devices ("turn it off"), else the satellite's room. |
+| Which devices, rooms and floors were named | **Code** | Names and aliases from Home Assistant, also with another word ending ("das linke Licht" → "Linkes Licht"), German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"), and a word that is in only one device's name in the whole home ("the right one" → Right Light). |
+| Nothing named: which devices then | **Model**, from what code offers | The previous command's devices, if there was one within the follow-up memory; else here, the speaker's floor or the whole home. |
 | Command or question | **Model** | Asked once. A question can only *ask*; a command can never just *ask*. |
-| Which device in a room | **Model**, from a list made by code | Code offers only devices that can take the number you said, and never locks or garage doors. One device left: no question. |
-| What to do with each device | **Model**, from a list made by code | Code offers only what that kind of device can do, and rules out what contradicts your words. |
-| The value (brightness, temperature…) | **Model** picks one of the numbers you said | Code then checks it fits: 0–100 % for brightness and position, 5–35 ° for temperature. |
+| One device or all of a kind, which kind, which device | **Model**, from lists made by code | Code offers only devices that can take the number you said, and never locks or garage doors. The device picked must be of the kind picked, or the sentence is handed off (`inconsistent`). |
+| What to do with each device | **Model**, from a list made by code | Code offers only what that kind of device can do. A device named among others is asked twice, about the whole sentence and about its own words; the two answers are averaged. |
+| The value (brightness, temperature…) | **Code**, else the **model** | The only spoken number that fits the action, or the one in the device's own words ("the thermostat to 22 and the heating to 24"); otherwise the model picks one of the numbers. Code checks it fits: 0–100 % for brightness and position, 5–35 ° for temperature. |
 | Is the model sure enough? | **Code** | The confidence check, see 3.5. |
 | May this action run on this device? | **Home Assistant** | Allow-list check, then Home Assistant's own exposure check. |
 | What to say back | **Home Assistant** | Its own built-in reply sentences, in English or German. |
@@ -241,18 +250,16 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 ```mermaid
 flowchart TD
     A["Sentence from Home Assistant"] --> B["Normalize text<br/>lowercase, ä→ae, ß→ss, 21,5→21.5"]
-    B --> C["Find device and room names, read numbers"]
-    C --> D{"'if …' sentence?"}
-    D -- yes --> X["Hand off: conditional"]
-    D -- no --> E["1. Which devices?<br/>see 3.4"]
+    B --> C["Find device, room and floor names, read numbers"]
+    C --> E["1. Which devices?<br/>see 3.4"]
     E -- "none found" --> Y["Hand off: no_target"]
-    E --> F["2. Ask: command or question?"]
-    F --> G["3. For each named room:<br/>ask which device"]
-    G --> H["4. For each device:<br/>ask what to do"]
-    H --> I["5. Action needs a number?<br/>ask which one, check it fits"]
-    I --> K{"Every answer sure enough?"}
+    E --> F["2. First call: command or question?<br/>about the home? a condition?<br/>for a place: one or all, which kind, which device?"]
+    F -- "not about the home / a condition" --> X["Hand off: not_for_home / conditional"]
+    F --> G["3. Second call: what to do with each device<br/>(a device named among others: again, with only its own words)"]
+    G --> I["4. Value: the only number that fits,<br/>or the one in the device's own words"]
+    I --> K{"Every answer used sure enough?"}
     K -- no --> Z["Hand off: low_confidence"]
-    K -- yes --> L["Actions, one per device<br/>remember the devices for 60 s"]
+    K -- yes --> L["Actions: one per device,<br/>or one per room for 'all'<br/>remember the devices for 60 s"]
     X --> R["Answer to Home Assistant"]
     Y --> R
     Z --> R
@@ -261,26 +268,29 @@ flowchart TD
 
 ### 3.4 How the devices are chosen
 
-The server tries certain ways first. The model only picks when a room was named.
+Code finds what was named; the model only chooses among what code offers.
 
 ```mermaid
 flowchart TD
-    S["Sentence"] --> A{"A device name<br/>was said?"}
-    A -- "yes" --> DEV["Use that device<br/>(same name in several rooms:<br/>the room said, then the satellite's room)"]
-    S --> R{"A room name<br/>was said?"}
+    S["Sentence"] --> A{"A device name said?<br/>(or another ending,<br/>or a word only its name has)"}
+    A -- "yes" --> DEV["Use that device<br/>(same name in several rooms:<br/>the room said, then the speaker's room)"]
+    S --> R{"A room or floor name said?"}
     R -- "yes, and one of its<br/>devices is named too" --> SKIP["Nothing more:<br/>'the light in the kitchen'"]
-    R -- "yes" --> ROOM["The room's devices<br/>without locks and garage doors"]
+    R -- "yes" --> PLACE["Its devices,<br/>without locks and garage doors"]
     A -- "no" --> N{"Neither said"}
     R -- "no" --> N
-    N --> P{"A previous command within 60 s,<br/>and no kind of device said?<br/>('turn it off', not 'turn on the light')"}
-    P -- yes --> PREV["The same devices as last time"]
-    P -- no --> SAT{"Satellite has a room?"}
-    SAT -- yes --> ROOM
+    N --> P{"A previous command<br/>within 60 s?"}
+    P -- "yes: model says<br/>'the same devices'" --> PREV["The same devices as last time"]
+    P -- "no, or model says 'other'" --> SAT{"Speaker's room known?"}
+    SAT -- yes --> WHERE["Model: here, this floor<br/>or the whole home?"]
+    WHERE --> PLACE
     SAT -- no --> ERR["Hand off: no_target"]
-    ROOM --> FIT["A number said? Keep only devices<br/>that can take it ('fit')"]
+    PLACE --> FIT["A number said? Keep only devices<br/>that can take it ('fit')"]
     FIT --> ONE{"One device left?"}
     ONE -- yes --> USE["Use it"]
-    ONE -- no --> ASK["Ask the model:<br/>'Which device does the user mean?'"]
+    ONE -- no --> ASK["Model: one device or all of a kind?<br/>Which kind? Which device?"]
+    ASK -- "all" --> ALL["Every device of that kind:<br/>one action per room"]
+    ASK -- "one" --> USE
 ```
 
 ### 3.5 What to do with each device
@@ -289,8 +299,9 @@ For every device, the server builds the list of actions the model may choose:
 
 1. **Only what that kind of device can do.** A light: turn on, turn off, set brightness, ask. A blind: open, close, set position, ask. A lock: lock, unlock, ask. A sensor: ask.
 2. **Command or question.** A question allows only "ask"; a command rules "ask" out.
-3. **Your on/off words.** "off", "aus", "close", "zu"… rule out "turn on" and "open". Locks use their own words: "lock", "ab", "zu" lock it; "unlock", "auf", "öffne" unlock it. When you say both an on and an off word, each device follows the one **nearest to its name**: in "turn on the kitchen light and turn off the hallway light", the kitchen light gets "on" and the hallway light "off".
-4. **Actions Home Assistant has.** An action whose intent Home Assistant doesn't have is ruled out.
+3. **Actions Home Assistant has.** An action whose intent Home Assistant doesn't have is ruled out.
+
+There are no on/off word lists: the model decides on, off, open, close, lock and unlock. When you name several devices ("mach das Küchenlicht an und den Fernseher aus"), each one is asked a second time with **only its own words** as the sentence: from halfway after the name before it to halfway before the name after it ("den Fernseher aus"). The two answers are averaged, so a sure answer wins over an unsure one, and when they disagree the confidence drops and the check below hands the sentence off.
 
 The model always sees every action of that kind of device, because models get worse when answers are removed. Ruled-out answers are dropped afterwards, and the rest are scaled back up to 100 %.
 
@@ -298,9 +309,9 @@ The model always sees every action of that kind of device, because models get wo
 `confidence = (number of answers × top likelihood − 1) ÷ (number of answers − 1)`.
 0 means "no better than a random pick", 1 means "certain". Example: 4 answers, top one at 70 % → (4 × 0.7 − 1) ÷ 3 = **0.6**.
 
-**The confidence check.** If any answer in the sentence is below your threshold, **nothing runs** and the whole sentence is handed off. A sentence is done completely or not at all. The default threshold is 0.4 (English) and 0.5 (German); each model has its own best value, see the README's "Which model?".
+**The confidence check.** If any answer the server used is below your threshold, **nothing runs** and the whole sentence is handed off. A sentence is done completely or not at all. Answers it asked but didn't need (say, "which device?" when you meant all of them) don't count. Changing a lock or garage door also needs every answer at 0.5 or more, whatever the threshold. The default threshold is 0.4 (English) and 0.5 (German); each model has its own best value, see the README's [Choose a model](README.md#2-choose-a-model).
 
-A sentence needs **1 + one per device** questions, plus one per room and one per number. One question takes about 15–25 ms with Laya and 0.06–0.4 s with the other models on an Apple M-series GPU. The server answers one request at a time. If more than 4 requests are waiting, it answers "busy".
+**How long it takes.** All questions that need no other answer go to the model in **one call**. A second call follows when a room, a floor or nothing was named, and one more for each device named among others. One call takes about 15–25 ms with Laya and d1-omni-600M, 80 ms with d1-3B and 0.2–0.3 s with Intern-Decision on an Apple M4 Pro. The server answers one request at a time. If more than 4 requests are waiting, it answers "busy".
 
 ### 3.6 What the server sends back
 
@@ -323,7 +334,7 @@ A sentence needs **1 + one per device** questions, plus one per room and one per
 | Field | Meaning | Limits |
 |---|---|---|
 | `status` | `ok` when there are actions, otherwise `escalate` ("hand it off") | |
-| `actions` | What to run, in order: one per device. `slots` are the parameters, always with IDs. `confidence` is the lowest of all answers in the sentence. | up to 10 actions |
+| `actions` | What to run, in order: one per device, or one per room for "all". `slots` are the parameters, always with IDs. `confidence` is the one the check used. | up to 10 actions |
 | `segment` | The sentence, passed to Home Assistant's intent handlers | |
 | `unresolved` | The sentence, when it was handed off | |
 | `reason` | Why it was handed off, see below | |
@@ -339,7 +350,10 @@ A sentence needs **1 + one per device** questions, plus one per room and one per
 | `no_action` | Everything a device can do was ruled out, e.g. "lock" for a light. |
 | `missing_value` | "Dim the light", but no number was said, or the model chose "no value". |
 | `value_not_possible` | The number doesn't fit the action, e.g. 70 degrees for a thermostat. |
-| `conditional` | An "if…" sentence. These are not supported. |
+| `conditional` | The model says it should happen only if or when something happens. These are not supported. |
+| `not_for_home` | The model says the sentence isn't about the home's devices ("tell me a joke"). |
+| `inconsistent` | The model's answers contradict each other: the device picked isn't of the kind picked. |
+| `unsupported` | A question about all devices of a kind ("are all the lights off?"). Not supported yet. |
 | `unsupported_language` | The loaded model does not speak this language. |
 | `no_exposed_entities` | Nothing is exposed to voice assistants. |
 
@@ -388,8 +402,8 @@ flowchart LR
         H3["Speaks the reply"]
     end
     subgraph SRV["Decision server: understands the sentence"]
-        S1["Code: names, numbers,<br/>what each device can do,<br/>on/off words, memory"]
-        S2["Model: command or question?<br/>which device? what to do?<br/>which number?"]
+        S1["Code: names, numbers,<br/>what each device can do,<br/>memory, 'all' per room"]
+        S2["Model: command or question?<br/>about the home? a condition?<br/>one or all? which device?<br/>what to do? which number?"]
     end
     H1 -- "names and IDs" --> S1
     S1 <-->|"one short question,<br/>at most 10 answers"| S2
@@ -398,5 +412,5 @@ flowchart LR
 ```
 
 - **Home Assistant** knows the house and has the final say.
-- **Code on the server** does everything that has a clear rule: matching names, reading numbers, listing what each device can do, applying your on/off words, remembering the last command.
-- **The model** answers short multiple-choice questions about your sentence, and only from answers the code allows. It never sees your whole home.
+- **Code on the server** does everything that has a clear rule: matching names, reading numbers, listing what each device can do, remembering the last command, and turning "all" into one action per room.
+- **The model** answers short multiple-choice questions about your sentence, and only from answers the code allows. It never sees your whole home. There are no word lists in between.

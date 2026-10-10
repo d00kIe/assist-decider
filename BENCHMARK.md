@@ -1,374 +1,621 @@
 # Decision model benchmark
 
-Which small decision model understands home commands best, and what does it cost to run? This page
-compares six models that run locally, on 65 test sentences in English and German.
+How well each of the six decision models understands home commands with the current server, and how
+that compares with the previous server version. The test uses 111 sentences in English and German.
 
-Measured on 2026-10-09 on a MacBook Pro M4 Pro (Apple graphics, 48 GB), with `laya 0.3.26`,
-`transformers 5.18.0` and `torch 2.14.1`, through the server's own code
-(`server/tests/eval/benchmark.py`). How to repeat it is at the [end](#repeat-the-benchmark).
+- **Previous version:** commit `18a86af` (2026-10-09).
+- **Current version:** the server as it is in this repository (2026-10-10).
+
+Both versions were run on 2026-10-10 on the same machine: a MacBook Pro M4 Pro with Apple graphics
+and 48 GB of memory, `laya 0.3.26`, `transformers 5.18.0` and `torch 2.14.1`. Both used the same
+script (`server/tests/eval/benchmark.py`), which sends every sentence through the server's own code.
+How to repeat it is at the [end](#repeat-the-benchmark).
 
 ## Short answer
 
-- **Most accurate: d1-3B** (Liquid AI). It gets 54 of the 55 original sentences right, gets none
-  wrong, and hands the last one off on purpose. It takes 0.3 s per sentence on the Mac, which is
-  faster than Intern-Decision 0.8B. But it needs about **6.8 GB**, so it doesn't fit a 4 GB card.
-- **Best for a 4 GB card: still Intern-Decision 0.8B** (53 of 55, 2.3 GB). With a check of 0.2 it
-  makes no mistakes on the original sentences.
-- **Smallest and fastest new model: d1-omni-600M** (1.0 GB, 51 ms per sentence). Its accuracy is
-  about Laya multilingual's (47 of 55). It mixes up "set" and "turn on" in some German sentences.
-- **The 10 new sentences show what the pipeline can't do yet.** "All the lights in the living
-  room", "all the lights on this floor", "all covers on the second floor" and "the left light …
-  the right one" fail with every model. A room still means one device, floors aren't targets yet,
-  and "the right one" isn't a name. Worse, most of these aren't handed off: one light is switched
-  instead of all of them. Only the polite "can you turn on the light please" works.
-- Kev 0.8B and H2O-Lightning 4B were removed from the server on 2026-10-09. Their results are in
-  this page's git history.
+- **d1-3B is now the most accurate model by a wide margin.** On the 65 tuning sentences it gets 63
+  right, hands 2 off and gets none wrong (previous version: 56 · 3 · 6). On the 46 unseen sentences
+  it gets 38 · 2 · 6 (previous: 27 · 6 · 13). It needs 6.8 GB of graphics memory and takes 0.66 s
+  per sentence on the Mac (previous: 0.22 s).
+- **Intern-Decision 2B is second:** 60 · 2 · 3 on the tuning sentences and 37 · 4 · 5 on the
+  unseen ones. It needs 4.6 GB.
+- **For a 4 GB graphics card, Intern-Decision 0.8B is still the pick**, with a check of 0.3:
+  49 · 12 · 4 on the tuning sentences and 26 · 14 · 6 on the unseen ones. The previous version, at
+  its own best check of 0.2, got 48 · 14 · 3 and 21 · 14 · 11. The gain is on the unseen sentences.
+- **d1-omni-600M now makes fewer mistakes but hands off far more.** It often says a plain command
+  is "not about the home", for example "make it 23 degrees in here" or "wie warm ist es hier".
+- **Both Laya models barely changed overall.** When Laya is wrong it is usually sure, so a check
+  can't catch its mistakes. It now acts on every "if …" sentence; the previous version caught
+  those with a word list.
+- **Every model got better at** "all the lights in …", floors and "the left / the right one".
+  d1-3B goes from 2 to 10 of the 10 such tuning sentences. All models except Laya English also
+  hand off more of the sentences that are not about the home.
+- **Every model got slower**, because the server asks more questions per sentence.
+- **One mistake on a lock gets past every check:** d1-3B locks the front door when told "sperr die
+  Haustür auf" ("unlock the front door"), with a confidence of 0.90. Locking instead of unlocking
+  is the safer direction, but it is still wrong.
 
-## What was tested
+## What changed between the two versions
 
-### The test home
+| | Previous version | Current version |
+|---|---|---|
+| On or off, lock or unlock | Word lists ("on", "aus", "ab", "auf" …) removed the opposite action. | The model decides. A device named among other devices is asked a second time with only its own words ("den Fernseher aus"), and the two answers are averaged. |
+| "If …" sentences | A word list ("if", "wenn" …) handed them off. | The model is asked whether the sentence sets a condition. |
+| Sentences not about the home | Not checked. | The model is asked whether the sentence is about the home's devices. |
+| "All the lights in the living room" | One device was chosen. | One action for every light in that room. |
+| Floors and the whole home | Not understood. | Floor names count as places. With nothing named, the model chooses: here, this floor, or the whole home. |
+| Names | Exact names and aliases only. | Also other word endings ("das linke Licht" for "Linkes Licht"), and a word that only one device's name has ("the right one"). |
+| Follow-ups ("turn it off") | The previous command's devices when no kind of device was said. | The model decides whether the previous command's devices are meant. |
+| Numbers | The model picked which spoken number to use. | A number that is the only one fitting the action is used directly; the model is asked only when there is a choice. |
+| Questions per model call | One at a time. | All questions that don't depend on each other go in one call. |
+| Confidence check | The lowest confidence of all answers. | The lowest confidence of the answers actually used. Changing a lock or garage door also needs 0.5 or more, whatever the check. |
 
-The 55 original sentences use the home of the automatic tests (`server/tests/conftest.py`). It has
-5 rooms and 11 devices: 4 lights, 2 heating thermostats, living room blinds, a garage door, a front
-door lock, a coffee maker and a TV. German names come from each device's alias, such as
-"Küchenlicht".
+How the current version works in detail is in [HOW-IT-WORKS.md](HOW-IT-WORKS.md).
 
-The 10 new sentences use the same home with additions (`HOME_FLOORS` in `benchmark.py`): two
-floors (the bedroom, an office and a kids' room upstairs), a left and a right light in the living
-room, and blinds in the office and kids' room. The original 55 keep the old home, so their results
-stay comparable with earlier runs.
+## How it was measured
 
 ### The sentences
 
-- **32 that name a device or a room**, such as "turn on the kitchen light and turn off the hallway
-  light" or "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein" (20 English, 12
-  German).
-- **23 that name only a room or nothing**, said to a voice satellite in a known room, such as "turn
-  on the light" in the kitchen or "Licht aus" in the bedroom (14 English, 9 German).
-- **10 new ones** (5 English, 5 German): "can you turn on the light please", "turn on all the
-  lights in the living room", "turn off the left light but turn on the right one", "turn on all the
-  lights on the floor" (meaning the speaker's floor) and "close all the covers on the second
-  floor".
+- **65 tuning sentences.** The server's questions were adjusted while looking at the results on
+  these, so they flatter the current version. They have three groups:
+  - 32 name a device ("turn on the kitchen light and turn off the hallway light").
+  - 23 name only a room or nothing, said to a voice satellite in a known room ("Licht aus" in the
+    bedroom).
+  - 10 are polite, or about "all", floors, or left and right.
+- **46 unseen sentences.** They were written before the current version was built and were never
+  used to adjust it. They cover vague requests, three devices in one sentence, conditions and
+  times, sentences not about the home, "all" and floors, follow-ups, the lock and garage door,
+  German short forms ("Rollos runter") and left/right. 15 of them must be handed off. One
+  exception: they exposed two code bugs, which were fixed ("make" read as another ending of
+  "Coffee Maker", and "zweiten" not matching "zweiter"). So the current version's unseen numbers
+  are slightly optimistic.
 
-Laya English only reads English, so it was tested on the 39 English sentences.
+Laya English only reads English, so it was tested on the 39 English tuning sentences and the 22
+English unseen sentences.
+
+### The test home
+
+The first 55 tuning sentences use the home of the automatic tests (`server/tests/conftest.py`). It
+has 5 rooms and 11 devices: 4 lights, 2 heating thermostats, living room blinds, a garage door, a
+front door lock, a coffee maker and a TV. German names come from each device's alias, such as
+"Küchenlicht". The other sentences use the same home with additions (`HOME_FLOORS` in
+`benchmark.py`): two floors, an office and a kids' room upstairs with blinds each, and a left and a
+right light in the living room.
+
+### Right, handed off, wrong
+
+- **Right:** every device, action and value is right, and nothing else is touched. For a sentence
+  that must be handed off (a condition, a joke, "I'm freezing"), handing it off is right.
+- **Handed off:** the server doesn't act and passes the sentence on to Home Assistant's own
+  assistant (or another fallback). Safe, but nothing happens.
+- **Wrong:** the server would have done something that wasn't asked for.
+
+Each result cell reads **right · handed off · wrong**. For example, `49 · 12 · **4**` means 49 right,
+12 handed off and 4 wrong. 🔒 counts the wrong sentences where the front door lock or the garage
+door would have done the wrong thing.
 
 ### The confidence check
 
-Every answer from the model comes with a confidence between 0 (a pure guess) and 1 (certain). When
-any answer for a sentence is below the **confidence check** (the threshold in Home Assistant), the
-sentence is handed to Home Assistant's own assistant instead of being acted on.
+Every answer from the model comes with a confidence between 0 (a pure guess) and 1 (certain). A
+sentence's confidence is the lowest confidence among the answers the server used. When it is below
+the **check** (the confidence threshold you set in Home Assistant), the sentence is handed off.
 
-### How to read the result cells
+In the current version, changing a lock or garage door with a confidence below 0.5 gets a
+confidence of 0.00. So at check 0.0 it still runs, and at any check above 0 it is handed off.
 
-Each cell reads **right/total · handed to Home Assistant · wrong**. For example, `48/65 · 4 · **13**`
-means 48 sentences were right, 4 were handed to Home Assistant and 13 were wrong. 🔒 counts wrong
-sentences in which the front door lock or the garage door would have done the wrong thing. None
-occur in the current results. A sentence counts as right only when every device, action and value
-in it is right.
+The **suggested check** is the one, of 0.0 to 0.5, with the best result on the tuning sentences,
+where one wrong sentence costs as much as three right ones. A tie goes to the higher check.
+"Most right with none wrong" is the most tuning sentences right at any check where none is wrong.
 
-## Results
+## Summary
 
-### All 65 sentences at each confidence check
+| Model | Version | Tuning (65), check 0.0 | Unseen (46), check 0.0 | Suggested check | Tuning, at that check | Unseen, at that check | Most right with none wrong (tuning) | Median time per sentence |
+|---|---|---:|---:|---:|---:|---:|---:|---:|
+| d1-3B | previous | 56 · 3 · **6** | 27 · 6 · **13** | 0.5 | 54 · 7 · **4** | 27 · 10 · **9** | 15 | 217 ms |
+|  | **current** | 63 · 2 · **0** | 38 · 2 · **6** (1 🔒) | 0.0 | 63 · 2 · **0** | 38 · 2 · **6** (1 🔒) | 63 | 657 ms |
+| Intern-Decision 2B | previous | 55 · 3 · **7** | 29 · 5 · **12** | 0.5 | 53 · 11 · **1** | 29 · 13 · **4** | 23 | 717 ms |
+|  | **current** | 60 · 2 · **3** | 37 · 4 · **5** (1 🔒) | 0.0 | 60 · 2 · **3** | 37 · 4 · **5** (1 🔒) | 20 | 712 ms |
+| Intern-Decision 0.8B | previous | 54 · 3 · **8** | 23 · 4 · **19** (2 🔒) | 0.2 | 48 · 14 · **3** | 21 · 14 · **11** | 19 | 534 ms |
+|  | **current** | 55 · 1 · **9** | 26 · 2 · **18** (2 🔒) | 0.3 | 49 · 12 · **4** | 26 · 14 · **6** | 29 | 589 ms |
+| d1-omni-600M | previous | 49 · 7 · **9** | 24 · 6 · **16** | 0.4 | 42 · 19 · **4** | 19 · 19 · **8** | 5 | 43 ms |
+|  | **current** | 45 · 16 · **4** | 29 · 6 · **11** | 0.3 | 37 · 27 · **1** | 24 · 15 · **7** | 30 | 117 ms |
+| Laya multilingual | previous | 48 · 4 · **13** | 19 · 5 · **22** (1 🔒) | 0.4 | 47 · 8 · **10** | 19 · 12 · **15** (1 🔒) | 0 | 36 ms |
+|  | **current** | 53 · 0 · **12** | 19 · 1 · **26** (2 🔒) | 0.5 | 40 · 19 · **6** | 16 · 18 · **12** | 26 | 59 ms |
+| Laya English | previous | 33 · 2 · **4** | 11 · 2 · **9** | 0.5 | 30 · 8 · **1** | 13 · 4 · **5** | 22 | 62 ms |
+|  | **current** | 34 · 1 · **4** | 11 · 2 · **9** | 0.0 | 34 · 1 · **4** | 11 · 2 · **9** | 21 | 108 ms |
 
-| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 | Median |
+## Every check: the 65 tuning sentences
+
+| Model | Version | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| d1-3B | previous | 56 · 3 · **6** | 55 · 4 · **6** | 55 · 4 · **6** | 55 · 4 · **6** | 55 · 5 · **5** | 54 · 7 · **4** |
+|  | current | 63 · 2 · **0** | 61 · 4 · **0** | 59 · 6 · **0** | 59 · 6 · **0** | 55 · 10 · **0** | 50 · 15 · **0** |
+| Intern-Decision 2B | previous | 55 · 3 · **7** | 55 · 3 · **7** | 54 · 6 · **5** | 54 · 7 · **4** | 54 · 9 · **2** | 53 · 11 · **1** |
+|  | current | 60 · 2 · **3** | 55 · 7 · **3** | 54 · 8 · **3** | 52 · 11 · **2** | 47 · 16 · **2** | 46 · 17 · **2** |
+| Intern-Decision 0.8B | previous | 54 · 3 · **8** | 52 · 7 · **6** | 48 · 14 · **3** | 39 · 25 · **1** | 34 · 30 · **1** | 26 · 38 · **1** |
+|  | current | 55 · 1 · **9** | 55 · 1 · **9** | 52 · 6 · **7** | 49 · 12 · **4** | 46 · 15 · **4** | 38 · 25 · **2** |
+| d1-omni-600M | previous | 49 · 7 · **9** | 47 · 9 · **9** | 45 · 12 · **8** | 43 · 16 · **6** | 42 · 19 · **4** | 40 · 21 · **4** |
+|  | current | 45 · 16 · **4** | 42 · 19 · **4** | 40 · 22 · **3** | 37 · 27 · **1** | 36 · 28 · **1** | 30 · 34 · **1** |
+| Laya multilingual | previous | 48 · 4 · **13** | 48 · 4 · **13** | 48 · 5 · **12** | 47 · 6 · **12** | 47 · 8 · **10** | 43 · 13 · **9** |
+|  | current | 53 · 0 · **12** | 53 · 0 · **12** | 46 · 8 · **11** | 46 · 10 · **9** | 43 · 14 · **8** | 40 · 19 · **6** |
+| Laya English | previous | 33 · 2 · **4** | 32 · 3 · **4** | 32 · 4 · **3** | 31 · 5 · **3** | 31 · 5 · **3** | 30 · 8 · **1** |
+|  | current | 34 · 1 · **4** | 33 · 2 · **4** | 30 · 5 · **4** | 27 · 9 · **3** | 27 · 10 · **2** | 25 · 12 · **2** |
+
+## Every check: the 46 unseen sentences
+
+| Model | Version | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| d1-3B | previous | 27 · 6 · **13** | 28 · 7 · **11** | 29 · 7 · **10** | 29 · 7 · **10** | 28 · 8 · **10** | 27 · 10 · **9** |
+|  | current | 38 · 2 · **6** (1 🔒) | 37 · 3 · **6** (1 🔒) | 37 · 3 · **6** (1 🔒) | 34 · 6 · **6** (1 🔒) | 32 · 8 · **6** (1 🔒) | 30 · 10 · **6** (1 🔒) |
+| Intern-Decision 2B | previous | 29 · 5 · **12** | 29 · 5 · **12** | 29 · 7 · **10** | 29 · 10 · **7** | 29 · 12 · **5** | 29 · 13 · **4** |
+|  | current | 37 · 4 · **5** (1 🔒) | 38 · 6 · **2** | 38 · 6 · **2** | 37 · 7 · **2** | 36 · 8 · **2** | 33 · 12 · **1** |
+| Intern-Decision 0.8B | previous | 23 · 4 · **19** (2 🔒) | 22 · 9 · **15** (1 🔒) | 21 · 14 · **11** | 21 · 17 · **8** | 21 · 20 · **5** | 20 · 22 · **4** |
+|  | current | 26 · 2 · **18** (2 🔒) | 26 · 6 · **14** | 26 · 10 · **10** | 26 · 14 · **6** | 23 · 18 · **5** | 19 · 23 · **4** |
+| d1-omni-600M | previous | 24 · 6 · **16** | 23 · 8 · **15** | 24 · 10 · **12** | 20 · 15 · **11** | 19 · 19 · **8** | 18 · 21 · **7** |
+|  | current | 29 · 6 · **11** | 26 · 9 · **11** | 25 · 12 · **9** | 24 · 15 · **7** | 20 · 20 · **6** | 17 · 24 · **5** |
+| Laya multilingual | previous | 19 · 5 · **22** (1 🔒) | 19 · 6 · **21** (1 🔒) | 18 · 8 · **20** (1 🔒) | 17 · 11 · **18** (1 🔒) | 19 · 12 · **15** (1 🔒) | 19 · 14 · **13** |
+|  | current | 19 · 1 · **26** (2 🔒) | 20 · 4 · **22** | 19 · 7 · **20** | 16 · 15 · **15** | 15 · 17 · **14** | 16 · 18 · **12** |
+| Laya English | previous | 11 · 2 · **9** | 11 · 2 · **9** | 13 · 2 · **7** | 13 · 3 · **6** | 13 · 3 · **6** | 13 · 4 · **5** |
+|  | current | 11 · 2 · **9** | 12 · 4 · **6** | 13 · 4 · **5** | 13 · 4 · **5** | 13 · 4 · **5** | 13 · 6 · **3** |
+
+## By kind of sentence (right, check 0.0)
+
+| Kind of sentence | Sentences | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 48/65 · 4 · **13** | 48/65 · 4 · **13** | 48/65 · 5 · **12** | 47/65 · 6 · **12** | 47/65 · 8 · **10** | 43/65 · 13 · **9** | 39 ms |
-| Laya English | 33/39 · 2 · **4** | 32/39 · 3 · **4** | 32/39 · 4 · **3** | 31/39 · 5 · **3** | 31/39 · 5 · **3** | 30/39 · 8 · **1** | 67 ms |
-| Intern-Decision 0.8B | 54/65 · 3 · **8** | 52/65 · 7 · **6** | 48/65 · 14 · **3** | 39/65 · 25 · **1** | 34/65 · 30 · **1** | 26/65 · 38 · **1** | 549 ms |
-| Intern-Decision 2B | 55/65 · 3 · **7** | 55/65 · 3 · **7** | 54/65 · 6 · **5** | 54/65 · 7 · **4** | 54/65 · 9 · **2** | 53/65 · 11 · **1** | 832 ms |
-| **d1-3B** | **56/65 · 3 · 6** | 55/65 · 4 · **6** | 55/65 · 4 · **6** | 55/65 · 4 · **6** | 55/65 · 5 · **5** | 54/65 · 7 · **4** | 331 ms |
-| d1-omni-600M | 49/65 · 7 · **9** | 47/65 · 9 · **9** | 45/65 · 12 · **8** | 43/65 · 16 · **6** | 42/65 · 19 · **4** | 40/65 · 21 · **4** | 51 ms |
+| Tuning: A device is named | 32 | 31 → **32** | 31 → **32** | 31 → **29** | 27 → **27** | 29 → **28** | 19 → **19** (of 20) |
+| Tuning: Only a room or nothing is named | 23 | 23 → **21** | 22 → **21** | 22 → **20** | 20 → **12** | 17 → **20** | 13 → **12** (of 14) |
+| Tuning: Polite, all, floors, left / right | 10 | 2 → **10** | 2 → **7** | 1 → **6** | 2 → **6** | 2 → **5** | 1 → **3** (of 5) |
+| Unseen: Vague requests | 5 | 2 → **3** | 1 → **2** | 1 → **1** | 1 → **3** | 1 → **1** | 1 → **1** (of 3) |
+| Unseen: Three devices in one sentence | 6 | 5 → **6** | 5 → **6** | 4 → **3** | 4 → **4** | 2 → **3** | 2 → **3** (of 3) |
+| Unseen: Conditions and times (must be handed off) | 5 | 4 → **4** | 4 → **4** | 4 → **3** | 4 → **1** | 4 → **0** | 2 → **0** (of 3) |
+| Unseen: Not about the home (must be handed off) | 5 | 0 → **4** | 2 → **4** | 0 → **1** | 1 → **5** | 0 → **1** | 0 → **0** (of 3) |
+| Unseen: All, floors, the whole home | 7 | 1 → **6** | 1 → **6** | 1 → **4** | 1 → **5** | 1 → **2** | 1 → **3** (of 4) |
+| Unseen: Follow-ups | 4 | 4 → **4** | 4 → **4** | 4 → **4** | 4 → **3** | 3 → **3** | 2 → **1** (of 2) |
+| Unseen: Front door lock and garage door | 6 | 5 → **4** | 5 → **4** | 3 → **3** | 6 → **5** | 4 → **3** | 2 → **2** (of 3) |
+| Unseen: German short forms | 5 | 4 → **4** | 5 → **4** | 4 → **4** | 2 → **1** | 3 → **4** | 0 → **0** (of 0) |
+| Unseen: Left / right | 3 | 2 → **3** | 2 → **3** | 2 → **3** | 1 → **2** | 1 → **2** | 1 → **1** (of 1) |
 
-### The original 55 and the 10 new sentences (no confidence check)
+## Memory and speed
 
-| Model | 55 original | 10 new |
-|---|---:|---:|
-| Laya multilingual | 46/55 · 2 · **7** | 2/10 · 2 · **6** |
-| Laya English | 32/34 · 1 · **1** | 1/5 · 1 · **3** |
-| Intern-Decision 0.8B | 53/55 · 1 · **1** | 1/10 · 2 · **7** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 2/10 · 2 · **6** |
-| **d1-3B** | **54/55 · 1 · 0** | 2/10 · 2 · **6** |
-| d1-omni-600M | 47/55 · 3 · **5** | 2/10 · 4 · **4** |
-
-The four models measured before (Laya, Intern-Decision) score exactly as on 2026-10-07 on the 55.
-
-### Memory and speed
-
-| Model | Parameters | Weights | Memory in use (graphics) | Peak RAM while loading | Per question |
+| Model | Parameters | Weights | Memory in use (graphics) | Peak RAM while loading | Per model call |
 |---|---:|---:|---:|---:|---:|
+| d1-3B | 3123 M | 5.8 GB | 6.8 GB | 0.7 GB | 83 ms |
+| Intern-Decision 2B | 2213 M | 4.1 GB | 4.6 GB | 0.7 GB | 273 ms |
+| Intern-Decision 0.8B | 853 M | 1.6 GB | 2.3 GB | 0.7 GB | 208 ms |
+| d1-omni-600M | 381 M | 0.7 GB | 1.0 GB | 3.3 GB | 15 ms |
 | Laya multilingual | 322 M | 1.2 GB | 1.2 GB | 2.5 GB | 13 ms |
-| Laya English | 421 M | 1.6 GB | 2.0 GB | 2.7 GB | 22 ms |
-| d1-omni-600M (text part) | 381 M | 0.7 GB | 1.0 GB | 3.3 GB | 15 ms |
-| Intern-Decision 0.8B | 853 M | 1.6 GB | 2.3 GB | 0.7 GB | 209 ms |
-| Intern-Decision 2B | 2213 M | 4.1 GB | 4.6 GB | 3.0 GB | 276 ms |
-| d1-3B | 3123 M | 5.8 GB | 6.8 GB | 0.6 GB | 112 ms |
+| Laya English | 421 M | 1.6 GB | 2.0 GB | 2.7 GB | 23 ms |
 
-d1-omni-600M also has vision and audio parts (587 M parameters in all). The server never loads
-them. d1-3B's vision tower is loaded with it (about 0.4 B parameters) but never used.
+"Per model call" is the median time for one call with one question. The current version puts
+several questions in one call, so the time per sentence (in the summary) is the number to compare.
+d1-omni-600M also has vision and audio parts, which the server never loads. d1-3B's vision part
+(about 0.4 B parameters) is loaded but never used. On the Mac, Intern-Decision runs without two
+speed-up libraries that only exist for NVIDIA cards. Nothing has been measured on NVIDIA yet.
 
-### The new sentences
+## What the current version still gets wrong
 
-| Sentence | What happens (all models) |
-|---|---|
-| "can you turn on the light please" / "kannst du bitte das Licht einschalten" | Right with every model, except that Intern-Decision 0.8B takes the German one for a question. |
-| "turn on all the lights in the living room" / "schalte alle Lichter im Wohnzimmer ein" | **Wrong: one light is switched on.** A room still means one device. |
-| "turn off the left light but turn on the right one" / "mach das linke Licht aus, aber das rechte an" | **Wrong: only the left light is switched.** "the right one" isn't a name. In German, "linke Licht" doesn't match the alias "Linkes Licht", so the satellite's room is used and some models switch the wrong light. |
-| "turn on all the lights on the floor" / "schalte alle Lichter auf dieser Etage ein" | **Wrong: one light in the speaker's room.** Floors aren't targets. |
-| "close all the covers on the second floor" / "schließ alle Rollläden im Obergeschoss" | Handed off (`no_target`), which is the safe result. |
+- **German "… aus" at the end of a one-device sentence** ("mach das Licht im Flur aus", "Licht im
+  Flur aus") is often read as "on". Intern-Decision 0.8B gets both wrong; d1-3B, d1-omni-600M
+  and Laya multilingual get one of the two wrong.
+- **Conditions and times** are caught only in part. "Turn on the coffee maker at 7 in the morning"
+  is done right away by every model except d1-omni-600M, which hands it off. Laya and d1-omni-600M
+  act on most "if …" sentences.
+- **Sentences not about the home** ("play some jazz", "set a timer for ten minutes") still switch a
+  device in the speaker's room with some models, mostly with low confidence.
+- **"Turn off all the lights in the house"** typed without a speaker's room is handed off by every
+  model: the "where?" question is only asked when the speaker's room is known.
+- **"All the lights on this floor"** without the floor's name is done in the speaker's room only,
+  by every model except d1-3B: the server widens to the floor only when the model is very sure
+  (0.9).
+- **"Open the door"** said in the hallway turns on the hallway light with every model except
+  d1-omni-600M, instead of being handed off.
 
-To get these right, the pipeline needs "all" over a room or a floor, floor names as targets, and
-"the other one" references. See PLAN.md, milestone 2.
+## Every sentence
 
-### Every mistake on the 55 original sentences (no confidence check)
+Each cell shows the previous version's result, an arrow, and the current version's result with its
+confidence, all at check 0.0:
 
-**Laya multilingual**
-
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "dim the desk lamp to 20 and close the garage door": wanted desk_lamp:HassLightSet brightness=20, garage_door:HassTurnOff, got desk_lamp:HassTurnOff, garage_door:HassTurnOff
-- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=22
-- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_blinds:HassTurnOn
-- "dim the light to 30 percent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=30, got handed off (missing_value)
-- "turn on the music" (speaker in living_room): wanted tv:HassTurnOn, got living_room_blinds:HassTurnOn
-- "fahr die Rollos auf 30 Prozent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassTurnOn
-- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassTurnOn
-
-**Laya English**
-
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "open the blinds to 30 percent" (speaker in living_room): wanted living_room_blinds:HassSetPosition position=30, got living_room_floor:HassLightSet brightness=30
-
-**Intern-Decision 0.8B**
-
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_floor:HassGetState
-
-**Intern-Decision 2B**
-
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "mach es heller, 70 Prozent" (speaker in living_room): wanted living_room_floor:HassLightSet brightness=70, got living_room_blinds:HassSetPosition position=70
-
-**d1-3B**
-
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-
-**d1-omni-600M**
-
-- "open the blinds to 30 percent": wanted living_room_blinds:HassSetPosition position=30, got handed off (no_target)
-- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted living_room:HassClimateSetTemperature temperature=22, bathroom:HassClimateSetTemperature temperature=24, got living_room:HassClimateSetTemperature temperature=24, bathroom:HassClimateSetTemperature temperature=24
-- "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an": wanted living_room:HassClimateSetTemperature temperature=23, kitchen_ceiling:HassTurnOn, got living_room:HassTurnOn, kitchen_ceiling:HassTurnOn
-- "schließ das Garagentor": wanted garage_door:HassTurnOff, got handed off (missing_value)
-- "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein": wanted bathroom:HassClimateSetTemperature temperature=22, coffee_maker:HassTurnOn, got bathroom:HassTurnOn, coffee_maker:HassTurnOn
-- "make it 23 degrees in here" (speaker in living_room): wanted living_room:HassClimateSetTemperature temperature=23, got living_room:HassClimateGetTemperature
-- "Licht aus" (speaker in bedroom): wanted desk_lamp:HassTurnOff, got desk_lamp:HassGetState
-- "schließ die Rollläden" (speaker in living_room): wanted living_room_blinds:HassTurnOff, got handed off (missing_value)
-
-What they have in common:
-
-1. **"Open the blinds to 30 percent" with no room known is handed off on purpose** by every model.
-   Nothing in it names a device or a room, and the test gives no speaker's room.
-2. **"Mach es heller, 70 Prozent"** ("make it brighter, 70 percent") fails with Laya and both
-   Intern-Decision models. d1-3B and d1-omni-600M get it right.
-3. **d1-omni-600M often picks "turn on" for a German "stell … auf N Grad"**, and picks a
-   position for "schließ …", which the server then hands off because no number was said.
-
-## What this means for the GeForce plan
-
-| | Fits a 4 GB card? | Right (of 55), no check | Suggested check | At that check (all 65) |
-|---|---|---|---|---|
-| d1-3B | No, about 6.8 GB | 54 | 0.2 | 55 right, 4 handed off, 6 wrong (all among the new sentences) |
-| Intern-Decision 2B | No, about 4.6 GB | 53 | 0.2 | 54 right, 6 handed off, 5 wrong |
-| **Intern-Decision 0.8B** | **Yes, about 2.3 GB** | **53** | **0.2** | **48 right, 14 handed off, 3 wrong** |
-| d1-omni-600M | Yes, about 1.0 GB | 47 | 0.4 | 42 right, 19 handed off, 4 wrong |
-| Laya multilingual | Yes, about 1.2 GB | 46 | 0.4 | 47 right, 8 handed off, 10 wrong |
-
-**Intern-Decision 0.8B is still the pick for the 4 GB card. d1-3B is the pick for any machine with
-8 GB or more** (a Mac, or a larger graphics card).
-
-On the Mac, the Qwen-based Intern-Decision models take 200–280 ms per question because two speed-up
-libraries (`flash-linear-attention`, `causal-conv1d`) only exist for NVIDIA cards. d1-3B is built
-on Liquid AI's LFM2.5, which runs well on the Mac (112 ms per question). Liquid AI reports 8 ms per
-question for d1-3B on an RTX 4090. None of this has been measured on NVIDIA here.
-
-## The best approach in the server
+- ✓ right · ✗ wrong · ✗🔒 wrong on the lock or garage door
+- ↪ handed off, but it should have been done · ✓↪ handed off, as it should be
+- The number is the sentence's confidence. With a check above it, the sentence would be handed
+  off instead. 0.00 on a lock or garage door means the 0.5 lock rule hands it off at any check
+  above 0.
+- · not tested (Laya English doesn't read German)
 
 
-The server does this now, in `server/assist_decider_server/pipeline.py`. Step by step:
+### Tuning: A device is named
 
-1. **Find the devices in code, not with the model.** Match the device and room names (and
-   aliases) from Home Assistant against the sentence (`find_mentions()`). A named
-   device is a target. A named room is a target that the model narrows down in step 3.
-   When nothing is named, use the devices of the previous command ("turn it off", only within
-   the follow-up memory and when no kind of device such as "light" is said), else the speaker's
-   room. When there is no speaker's room either, hand the sentence to Home Assistant.
-2. **Ask once per sentence: "Is the user giving a command or asking a question?"** Keep this as its
-   own question. Without it, the models answer "is the front door locked" with "lock" and
-   "is the light on" with "turn on".
-3. **For a named room, ask "Which device does the user mean?"** over that room's devices. Skip the
-   room when one of its devices is already named. Locks and garage doors are never offered.
-   - ***fit***: first drop the devices that can't take any number in the sentence. A device fits
-     when one of its "set" actions accepts a spoken number: brightness 0–100 (% or a bare number),
-     blinds position 0–100 (% or a bare number), temperature 5–35 (degrees or a bare number). When
-     no device fits, keep them all. When only one is left, don't ask.
-4. **For each device, ask "What does the user want with the <device>?"** Offer only the actions its
-   kind supports. When step 2 said "question", only "query" is allowed; when it said "command",
-   "query" is not. Then the on/off words remove the opposite action:
-   - **Locks use their own words** (`lock_words`, `unlock_words` in `lang.py`): "lock", "close",
-     "ab", "zu" mean lock; "unlock", "open", "auf", "öffne" mean unlock. "Sperr" and "schließ" decide
-     nothing on their own, because "sperr ab" locks and "sperr auf" unlocks.
-   - ***near***: when the sentence has both an "on" and an "off" word, each device follows the one
-     nearest to its name (counted in words, either side). A tie keeps both. Only when one kind of
-     word is said does it apply to every device, as before.
-5. **For an action with a value, ask which number from the sentence is meant**, with "no value" as
-   an option. The server then checks that the number fits the action (brightness and position
-   0–100, temperature 5–35); if not, or if no number was said, it hands the sentence off.
-6. **Hand the sentence to Home Assistant when any answer is unsure.** Take the lowest confidence of
-   all answers in the sentence. Set the check per model: about **0.2** for Intern-Decision 0.8B and
-   2B and d1-3B, 0.4 for d1-omni-600M. The default of 0.4 hands off far too much with the
-   Intern models.
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "set the thermostat to 23 degrees and turn on the light in the kitchen" | ✓ → ✓ 0.51 | ✓ → ✓ 0.40 | ✓ → ✓ 0.46 | ✓ → ✓ 0.95 | ✓ → ✓ 0.57 | ✓ → ✓ 0.47 |
+| "turn on the kitchen light" | ✓ → ✓ 0.98 | ✓ → ✓ 0.80 | ✓ → ✓ 0.53 | ✓ → ✓ 0.99 | ✓ → ✓ 1.00 | ✓ → ✓ 0.96 |
+| "turn off the hallway light" | ✓ → ✓ 0.98 | ✓ → ✓ 0.91 | ✓ → ✓ 0.88 | ✓ → ✓ 0.98 | ✓ → ✓ 1.00 | ✓ → ✓ 0.98 |
+| "turn on the kitchen light and turn off the hallway light" | ✓ → ✓ 0.95 | ✓ → ✓ 0.68 | ✓ → ✗ 0.24 | ✓ → ✓ 0.65 | ✓ → ✓ 0.73 | ✓ → ✓ 0.88 |
+| "turn off the kitchen and hallway lights" | ✓ → ✓ 0.42 | ✓ → ✓ 0.54 | ✓ → ✓ 0.29 | ✓ → ✓ 0.62 | ✓ → ✓ 0.19 | ✓ → ✓ 0.29 |
+| "set the kitchen light to 40 percent" | ✓ → ✓ 0.98 | ✓ → ✓ 0.89 | ✓ → ✓ 0.80 | ✓ → ✓ 0.96 | ✓ → ✓ 0.98 | ✓ → ✓ 0.96 |
+| "set the bathroom heating to 21 degrees" | ✓ → ✓ 0.97 | ✓ → ✓ 0.90 | ✓ → ✓ 0.81 | ✓ → ✓ 0.99 | ✓ → ✓ 1.00 | ✓ → ✓ 0.95 |
+| "close the living room blinds" | ✓ → ✓ 0.98 | ✓ → ✓ 0.88 | ✓ → ✓ 0.84 | ✓ → ✓ 0.84 | ✓ → ✓ 1.00 | ✓ → ✓ 0.98 |
+| "open the blinds to 30 percent" | ↪ → ✓ 0.97 | ↪ → ✓ 0.84 | ↪ → ✓ 0.74 | ↪ → ✓ 0.46 | ↪ → ✗ 0.98 | ↪ → ✗ 0.78 |
+| "lock the front door" | ✓ → ✓ 0.98 | ✓ → ✓ 0.85 | ✓ → ✓ 0.81 | ✓ → ✓ 0.83 | ✓ → ✓ 1.00 | ✓ → ✓ 0.95 |
+| "unlock the front door" | ✓ → ✓ 0.96 | ✓ → ✓ 0.86 | ✓ → ✓ 0.82 | ✓ → ✓ 0.97 | ✓ → ✓ 1.00 | ✓ → ✓ 0.95 |
+| "start the coffee maker and turn off the tv" | ✓ → ✓ 0.97 | ✓ → ✓ 0.80 | ✓ → ✓ 0.20 | ✓ → ✓ 0.01 | ✓ → ✓ 0.82 | ✓ → ✓ 0.79 |
+| "is the kitchen light on" | ✓ → ✓ 0.87 | ✓ → ✓ 0.82 | ✓ → ✓ 0.56 | ✓ → ↪ | ✓ → ✓ 0.99 | ✓ → ✓ 0.95 |
+| "what's the temperature in the bathroom" | ✓ → ✓ 0.92 | ✓ → ✓ 0.80 | ✓ → ✓ 0.79 | ✓ → ↪ | ✓ → ✓ 0.95 | ✓ → ✓ 0.58 |
+| "dim the desk lamp to 20 and close the garage door" | ✓ → ✓ 0.96 | ✓ → ✓ 0.86 | ✓ → ✓ 0.58 | ✓ → ✓ 0.63 | ✗ → ✓ 1.00 | ✓ → ✓ 0.98 |
+| "switch off the tv, the floor lamp and the hallway light" | ✓ → ✓ 0.42 | ✓ → ✓ 0.32 | ✓ → ✓ 0.42 | ✓ → ✓ 0.52 | ✓ → ✓ 0.30 | ✓ → ✓ 0.47 |
+| "set the thermostat to 22 degrees and the bathroom heating to 24" | ✓ → ✓ 0.75 | ✓ → ✓ 0.88 | ✓ → ✓ 0.72 | ✗ → ↪ | ✗ → ✓ 1.00 | ✓ → ✓ 0.86 |
+| "turn on the coffee maker" | ✓ → ✓ 0.98 | ✓ → ✓ 0.94 | ✓ → ✓ 0.56 | ✓ → ✓ 0.98 | ✓ → ✓ 1.00 | ✓ → ✓ 0.97 |
+| "is the front door locked" | ✓ → ✓ 0.90 | ✓ → ✓ 0.71 | ✓ → ✓ 0.43 | ✓ → ✓ 0.98 | ✓ → ✓ 0.99 | ✓ → ✓ 0.93 |
+| "turn the floor lamp off and open the garage door" | ✓ → ✓ 0.97 | ✓ → ✓ 0.85 | ✓ → ✓ 0.72 | ✓ → ✓ 1.00 | ✓ → ✓ 1.00 | ✓ → ✓ 0.93 |
+| "schalte das Küchenlicht ein" | ✓ → ✓ 0.97 | ✓ → ✓ 0.74 | ✓ → ✓ 0.75 | ✓ → ✓ 0.80 | ✓ → ✓ 0.99 | · |
+| "mach das Licht im Flur aus" | ✓ → ✓ 0.97 | ✓ → ✓ 0.69 | ✓ → ✗ 0.49 | ✓ → ✓ 0.14 | ✓ → ✗ 0.92 | · |
+| "stell die Heizung Wohnzimmer auf 23 Grad und mach das Küchenlicht an" | ✓ → ✓ 0.95 | ✓ → ✓ 0.69 | ✓ → ✓ 0.52 | ✗ → ✓ 0.36 | ✓ → ✓ 0.96 | · |
+| "mach das Küchenlicht an und den Fernseher aus" | ✓ → ✓ 0.90 | ✓ → ✓ 0.75 | ✓ → ✓ 0.14 | ✓ → ✓ 0.55 | ✓ → ✗ 0.14 | · |
+| "fahr den Rollladen Wohnzimmer auf 30 Prozent" | ✓ → ✓ 0.97 | ✓ → ✓ 0.80 | ✓ → ✓ 0.73 | ✓ → ✓ 0.52 | ✓ → ✓ 0.92 | · |
+| "schließ das Garagentor" | ✓ → ✓ 0.70 | ✓ → ✓ 0.81 | ✓ → ✓ 0.67 | ↪ → ↪ | ✓ → ✓ 0.99 | · |
+| "sperr die Haustür ab" | ✓ → ✓ 0.95 | ✓ → ✓ 0.00 | ✓ → ✓ 0.88 | ✓ → ✓ 0.00 | ✓ → ✓ 0.87 | · |
+| "ist das Küchenlicht an" | ✓ → ✓ 0.46 | ✓ → ✓ 0.23 | ✓ → ✓ 0.64 | ✓ → ✓ 0.55 | ✓ → ✓ 0.94 | · |
+| "dimme die Schreibtischlampe auf 20 Prozent" | ✓ → ✓ 0.98 | ✓ → ✓ 0.83 | ✓ → ✓ 0.71 | ✓ → ✓ 0.94 | ✓ → ✓ 0.99 | · |
+| "stell die Heizung Bad auf 22 Grad und schalte die Kaffeemaschine ein" | ✓ → ✓ 0.97 | ✓ → ✓ 0.89 | ✓ → ✓ 0.26 | ✗ → ✓ 0.59 | ✓ → ✓ 0.99 | · |
+| "wie warm ist es im Bad" | ✓ → ✓ 0.95 | ✓ → ✓ 0.82 | ✓ → ✓ 0.90 | ✓ → ↪ | ✓ → ✓ 1.00 | · |
+| "mach die Stehlampe und das Küchenlicht aus" | ✓ → ✓ 0.30 | ✓ → ✓ 0.59 | ✓ → ✗ 0.17 | ✓ → ✓ 0.28 | ✓ → ✗ 0.28 | · |
 
-Why these two rules and not others: *near* fixed the two sentences that turn one thing on and
-another off ("turn on the kitchen light and turn off the hallway light", "Küchenlicht an und den
-Fernseher aus") for Intern-Decision 0.8B and Laya multilingual. Over the six models tested then, it
-turned 4 wrong sentences right and no right sentence wrong. *fit* stopped
-Intern-Decision 2B from setting the heating to 70 degrees. Its answer is still wrong (the blinds),
-but now with low confidence, so a check of 0.2 hands it off. Both rules cost no extra model
-questions, so the best approach is as fast as the new approach.
+### Tuning: Only a room or nothing is named
 
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "turn on the light" *(in kitchen)* | ✓ → ✓ 0.41 | ✓ → ✓ 0.06 | ✓ → ✓ 0.48 | ✓ → ✓ 0.04 | ✓ → ✓ 0.47 | ✓ → ✓ 0.18 |
+| "open the blinds to 30 percent" *(in living room)* | ✓ → ✓ 0.97 | ✓ → ✓ 0.84 | ✓ → ✓ 0.74 | ✓ → ✓ 0.46 | ✗ → ✗ 0.98 | ✗ → ✗ 0.78 |
+| "set the temperature to 22 degrees" *(in bathroom)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.80 | ✓ → ✓ 0.86 | ✓ → ↪ | ✓ → ✓ 0.99 | ✓ → ✓ 0.96 |
+| "make it 23 degrees in here" *(in living room)* | ✓ → ✓ 0.97 | ✓ → ✓ 0.77 | ✓ → ✓ 0.70 | ✗ → ↪ | ✓ → ✓ 0.99 | ✓ → ✓ 0.30 |
+| "turn off the lights" *(in bedroom)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.82 | ✓ → ✓ 0.83 | ✓ → ✓ 0.76 | ✓ → ✓ 1.00 | ✓ → ✓ 0.95 |
+| "close the blinds" *(in living room)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.87 | ✓ → ✓ 0.81 | ✓ → ✓ 0.56 | ✓ → ✓ 0.99 | ✓ → ✓ 0.97 |
+| "dim the light to 30 percent" *(in living room)* | ✓ → ✓ 0.12 | ✓ → ✓ 0.47 | ✓ → ✓ 0.41 | ✓ → ✓ 0.45 | ↪ → ✓ 0.45 | ✓ → ✓ 0.10 |
+| "turn on the coffee" *(in kitchen)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.95 | ✓ → ✓ 0.44 | ✓ → ↪ | ✓ → ✓ 0.99 | ✓ → ✓ 0.97 |
+| "switch off the light in the bedroom" *(in kitchen)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.84 | ✓ → ✓ 0.89 | ✓ → ✓ 1.00 | ✓ → ✓ 0.99 | ✓ → ✓ 0.96 |
+| "turn off the kitchen and hallway lights" | ✓ → ✓ 0.42 | ✓ → ✓ 0.54 | ✓ → ✓ 0.29 | ✓ → ✓ 0.62 | ✓ → ✓ 0.19 | ✓ → ✓ 0.29 |
+| "what's the temperature in here" *(in bathroom)* | ✓ → ↪ | ✓ → ✓ 0.79 | ✓ → ✓ 0.77 | ✓ → ↪ | ✓ → ✓ 0.89 | ✓ → ✓ 0.77 |
+| "is the light on" *(in kitchen)* | ✓ → ✓ 0.12 | ✓ → ↪ | ✓ → ✓ 0.51 | ✓ → ↪ | ✓ → ✓ 0.30 | ✓ → ↪ |
+| "turn off the tv" *(in kitchen)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.90 | ✓ → ✓ 0.90 | ✓ → ✓ 0.91 | ✓ → ✓ 1.00 | ✓ → ✓ 0.98 |
+| "turn on the music" *(in living room)* | ✓ → ✓ 0.70 | ✓ → ✓ 0.32 | ✓ → ✓ 0.73 | ✓ → ↪ | ✗ → ✓ 0.13 | ✓ → ✓ 0.17 |
+| "mach das Licht an" *(in kitchen)* | ✓ → ✓ 0.06 | ✓ → ✓ 0.03 | ✓ → ✓ 0.39 | ✓ → ✓ 0.27 | ✓ → ✓ 0.55 | · |
+| "fahr die Rollos auf 30 Prozent" *(in living room)* | ✓ → ✓ 0.70 | ✓ → ↪ | ✓ → ✓ 0.39 | ✓ → ✓ 0.15 | ✗ → ✓ 0.32 | · |
+| "stell die Heizung auf 22 Grad" *(in bathroom)* | ✓ → ✓ 0.97 | ✓ → ✓ 0.67 | ✓ → ✓ 0.64 | ✓ → ✓ 0.94 | ✓ → ✓ 0.99 | · |
+| "Licht aus" *(in bedroom)* | ✓ → ✓ 0.97 | ✓ → ✓ 0.60 | ✓ → ↪ | ✗ → ✗ 0.20 | ✗ → ✗ 0.40 | · |
+| "schließ die Rollläden" *(in living room)* | ✓ → ✓ 0.36 | ✓ → ✓ 0.81 | ✓ → ✓ 0.44 | ↪ → ↪ | ✓ → ✓ 0.14 | · |
+| "mach die Kaffeemaschine an" *(in hallway)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.20 | ✓ → ✓ 0.73 | ✓ → ↪ | ✓ → ✓ 0.97 | · |
+| "mach das Licht im Schlafzimmer aus" *(in kitchen)* | ✓ → ✓ 0.95 | ✓ → ✓ 0.74 | ✓ → ✗ 0.44 | ✓ → ✓ 0.46 | ✓ → ✗ 0.98 | · |
+| "wie warm ist es hier" *(in bathroom)* | ✓ → ↪ | ✓ → ✓ 0.86 | ✓ → ✓ 0.90 | ✓ → ↪ | ✓ → ✓ 0.98 | · |
+| "mach es heller, 70 Prozent" *(in living room)* | ✓ → ✓ 0.36 | ✗ → ✓ 0.06 | ✗ → ✗ 0.24 | ✓ → ↪ | ✗ → ✓ 0.14 | · |
 
-## How the best approach was chosen (2026-10-07)
+### Tuning: Polite, all, floors, left / right
 
-These tables compared four ways of understanding a sentence on the 55 original sentences. They were
-measured with a probe script that was removed once the best approach was built into the server.
-The script is in the git history (commit `9849dde`, `server/tests/eval/probe_device_tree.py`). The
-d1 models came later and are not in these tables.
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "can you turn on the light please" *(in kitchen)* | ✓ → ✓ 0.67 | ✓ → ✓ 0.18 | ✓ → ✓ 0.56 | ✓ → ✓ 0.45 | ✓ → ✓ 0.12 | ✓ → ✓ 0.03 |
+| "turn on all the lights in the living room" | ✗ → ✓ 0.83 | ✗ → ✓ 0.08 | ✗ → ✓ 0.50 | ✗ → ✓ 0.93 | ✗ → ✓ 0.42 | ✗ → ✓ 0.54 |
+| "turn off the left light but turn on the right one" *(in living room)* | ✗ → ✓ 0.77 | ✗ → ✓ 0.37 | ✗ → ✗ 0.21 | ✗ → ✗ 0.28 | ✗ → ✓ 0.85 | ✗ → ✗ 0.29 |
+| "turn on all the lights on the floor" *(in living room)* | ✗ → ✓ 0.73 | ✗ → ✗ 0.73 | ✗ → ✗ 0.63 | ✗ → ✓ 0.82 | ✗ → ✗ 0.22 | ✗ → ✗ 0.38 |
+| "close all the covers on the second floor" | ↪ → ✓ 0.69 | ↪ → ✓ 0.51 | ↪ → ✓ 0.14 | ↪ → ✓ 0.73 | ↪ → ✗ 0.48 | ↪ → ✓ 0.78 |
+| "kannst du bitte das Licht einschalten" *(in kitchen)* | ✓ → ✓ 0.06 | ✓ → ✓ 0.34 | ✗ → ✓ 0.48 | ✓ → ✓ 0.25 | ✓ → ✓ 0.19 | · |
+| "schalte alle Lichter im Wohnzimmer ein" | ✗ → ✓ 0.64 | ✗ → ✓ 0.50 | ✗ → ✓ 0.53 | ↪ → ✓ 0.42 | ✗ → ✗ 0.38 | · |
+| "mach das linke Licht aus, aber das rechte an" *(in living room)* | ✗ → ✓ 0.38 | ✗ → ✗ 0.26 | ✗ → ✗ 0.19 | ✗ → ✗ 0.24 | ✗ → ✗ 0.96 | · |
+| "schalte alle Lichter auf dieser Etage ein" *(in living room)* | ✗ → ✓ 0.70 | ✗ → ✗ 0.82 | ✗ → ✗ 0.59 | ↪ → ✗ 0.51 | ✗ → ✗ 0.64 | · |
+| "schließ alle Rollläden im Obergeschoss" | ↪ → ✓ 0.86 | ↪ → ✓ 0.61 | ↪ → ✓ 0.39 | ↪ → ↪ | ↪ → ✓ 0.77 | · |
 
-| Name in the tables | What it does |
-|---|---|
-| **Today's pipeline** | The code before 2026-10-07. Word lists split the sentence at "and"/"und", and remove actions that can't fit. The model then picks the action and the device from what is left. |
-| **New approach** | Devices found by your device and room names. The model decides: command or question, which device in a named room, what to do with each device, which number. |
-| **Best approach** | The new approach plus *near* and *fit* (above). This is what the server does now. |
-| **Model-only tree** | The model is asked about every device, then the action for each, then the value. No word lists and no name matching. |
+### Unseen: Vague requests
 
-#### Whole sentences: today's pipeline against the new approach
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "it's too dark in here" *(in kitchen)* | ✓ → ✓ 0.06 | ✗ → ↪ | ✗ → ✗ 0.24 | ✗ → ✗ 0.25 | ✗ → ✗ 0.26 | ✗ → ✗ 0.03 |
+| "hier ist es viel zu dunkel" *(in bedroom)* | ↪ → ↪ | ↪ → ↪ | ✗ → ✗ 0.71 | ✗ → ✗ 0.66 | ✗ → ✗ 0.93 | · |
+| "I'm freezing" *(in bathroom)* | ✗ → ✗ 0.56 | ✗ → ✗ 0.09 | ✗ → ✗ 0.41 | ✗ → ✓↪ | ✗ → ✗ 0.75 | ✗ → ✗ 0.92 |
+| "mir ist zu warm" *(in living room)* | ✗ → ✓↪ | ✗ → ✓↪ | ✗ → ✗ 0.29 | ✗ → ✓↪ | ✗ → ✗ 0.09 | · |
+| "make it a bit brighter" *(in bedroom)* | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ |
 
-Confidence check at **0.0**:
+### Unseen: Three devices in one sentence
 
-| Model | Today's pipeline | New approach | Best approach |
-|---|---:|---:|---:|
-| Laya multilingual | 48/55 · 5 · **2** | 45/55 · 1 · **9** | 46/55 · 1 · **8** |
-| Laya English | 32/34 · 0 · **2** | 32/34 · 1 · **1** | 32/34 · 1 · **1** |
-| Intern-Decision 0.8B | 50/55 · 2 · **3** | 51/55 · 1 · **3** | 53/55 · 1 · **1** |
-| Intern-Decision 2B | 50/55 · 3 · **2** | 53/55 · 1 · **1** | 53/55 · 1 · **1** |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "turn off the tv, close the living room blinds and set the thermostat to 21 degrees" | ✓ → ✓ 0.41 | ✓ → ✓ 0.44 | ✓ → ✓ 0.35 | ✓ → ↪ | ✗ → ✓ 0.27 | ✓ → ✓ 0.44 |
+| "mach das Küchenlicht an, die Stehlampe aus und stell die Heizung Bad auf 23 Grad" | ✓ → ✓ 0.91 | ✓ → ✓ 0.73 | ✓ → ✓ 0.40 | ✓ → ✓ 0.34 | ✓ → ✗ 0.30 | · |
+| "switch on the coffee maker and the kitchen light and turn off the hallway light" | ✗ → ✓ 0.82 | ✗ → ✓ 0.61 | ✗ → ✗ 0.24 | ✗ → ✓ 0.66 | ✗ → ✓ 0.97 | ✗ → ✓ 0.72 |
+| "schalte den Fernseher und die Stehlampe aus und öffne den Rollladen Wohnzimmer" | ✓ → ✓ 0.29 | ✓ → ✓ 0.44 | ✓ → ✓ 0.51 | ✓ → ✗ 0.17 | ✓ → ✗ 0.30 | · |
+| "dim the floor lamp to 30 percent and set the bathroom heating to 22 degrees" | ✓ → ✓ 0.98 | ✓ → ✓ 0.91 | ✓ → ↪ | ↪ → ✓ 0.99 | ↪ → ✓ 1.00 | ✓ → ✓ 0.94 |
+| "Schreibtischlampe auf 40 Prozent und Küchenlicht aus" | ✓ → ✓ 0.95 | ✓ → ✓ 0.41 | ✗ → ✗ 0.10 | ✓ → ✓ 0.40 | ✗ → ✗ 0.14 | · |
 
-Confidence check at **0.4**:
+### Unseen: Conditions and times (must be handed off)
 
-| Model | Today's pipeline | New approach | Best approach |
-|---|---:|---:|---:|
-| Laya multilingual | 46/55 · 7 · **2** | 43/55 · 5 · **7** | 45/55 · 5 · **5** |
-| Laya English | 28/34 · 5 · **1** | 31/34 · 2 · **1** | 31/34 · 3 · **0** |
-| Intern-Decision 0.8B | 46/55 · 7 · **2** | 34/55 · 21 · **0** | 37/55 · 18 · **0** |
-| Intern-Decision 2B | 49/55 · 4 · **2** | 52/55 · 3 · **0** | 52/55 · 3 · **0** |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "if it gets dark turn on the floor lamp" | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✗ 1.00 | ✓↪ → ✗ 0.99 | ✓↪ → ✗ 0.44 |
+| "wenn ich nach Hause komme, mach das Küchenlicht an" | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✗ 0.41 | ✓↪ → ✗ 0.93 | · |
+| "turn on the coffee maker at 7 in the morning" | ✗ → ✗ 0.98 | ✗ → ✗ 0.94 | ✗ → ✗ 0.55 | ✗ → ✓↪ | ✗ → ✗ 1.00 | ✗ → ✗ 0.94 |
+| "sobald es kalt wird, stell die Heizung Bad auf 22 Grad" | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✗ 0.54 | ✓↪ → ✗ 0.62 | ✓↪ → ✗ 0.99 | · |
+| "close the living room blinds when the tv turns off" | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✗ 0.93 | ✓↪ → ✗ 1.00 | ✓↪ → ✗ 0.96 |
 
-#### Best approach by sentence type and language (no confidence check)
+### Unseen: Not about the home (must be handed off)
 
-| Model | Device named | Only a room / nothing | English | German |
-|---|---:|---:|---:|---:|
-| Laya multilingual | 29/32 · 1 · **2** | 17/23 · 0 · **6** | 28/34 · 1 · **5** | 18/21 · 0 · **3** |
-| Laya English | 19/20 · 1 · **0** | 13/14 · 0 · **1** | 32/34 · 1 · **1** | 0/0 · 0 · **0** |
-| Intern-Decision 0.8B | 31/32 · 1 · **0** | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 20/21 · 0 · **1** |
-| Intern-Decision 2B | 31/32 · 1 · **0** | 22/23 · 0 · **1** | 33/34 · 1 · **0** | 20/21 · 0 · **1** |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "tell me a joke" *(in kitchen)* | ✗ → ✓↪ | ✓↪ → ✓↪ | ✗ → ✗ 0.12 | ✗ → ✓↪ | ✗ → ✗ 0.14 | ✗ → ✗ 0.18 |
+| "wie spät ist es" *(in living room)* | ✗ → ✓↪ | ✗ → ✓↪ | ✗ → ✓↪ | ✗ → ✓↪ | ✗ → ✓↪ | · |
+| "set a timer for ten minutes" *(in kitchen)* | ✗ → ✓↪ | ✓↪ → ✓↪ | ✗ → ✗ 0.02 | ✓↪ → ✓↪ | ✗ → ✗ 0.02 | ✗ → ✗ 0.05 |
+| "play some jazz" *(in living room)* | ✗ → ✗ 0.64 | ✗ → ✗ 0.00 | ✗ → ✗ 0.24 | ✗ → ✓↪ | ✗ → ✗ 0.47 | ✗ → ✗ 0.01 |
+| "was ist die Hauptstadt von Frankreich" *(in bedroom)* | ✗ → ✓↪ | ✗ → ✓↪ | ✗ → ✗ 0.85 | ✗ → ✓↪ | ✗ → ✗ 0.99 | · |
 
-#### Confidence check: what each setting does to the new approach
+### Unseen: All, floors, the whole home
 
-| Model | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
-|---|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 45/55 · 1 · **9** | 45/55 · 1 · **9** | 45/55 · 1 · **9** | 44/55 · 3 · **8** | 43/55 · 5 · **7** | 42/55 · 6 · **7** |
-| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 31/34 · 2 · **1** | 31/34 · 2 · **1** | 30/34 · 3 · **1** |
-| Intern-Decision 0.8B | 51/55 · 1 · **3** | 49/55 · 3 · **3** | 46/55 · 7 · **2** | 41/55 · 13 · **1** | 34/55 · 21 · **0** | 28/55 · 27 · **0** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 3 · **0** | 50/55 · 5 · **0** |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "turn off all the lights in the house" | ↪ → ↪ | ↪ → ↪ | ↪ → ↪ | ↪ → ↪ | ↪ → ↪ | ↪ → ↪ |
+| "schalte alle Lichter im Erdgeschoss aus" | ↪ → ✓ 0.64 | ↪ → ✓ 0.81 | ↪ → ✓ 0.48 | ↪ → ✓ 0.27 | ↪ → ✗ 0.69 | · |
+| "close the blinds in the office and in the kids room" | ✓ → ✓ 0.52 | ✓ → ✓ 0.36 | ✓ → ✓ 0.37 | ✓ → ✓ 0.36 | ✓ → ✓ 0.35 | ✓ → ✓ 0.42 |
+| "fahr alle Rollos im zweiten Stock runter" | ↪ → ✓ 0.50 | ↪ → ✓ 0.61 | ↪ → ✓ 0.27 | ↪ → ↪ | ↪ → ✗ 0.85 | · |
+| "turn on the lights" *(in living room)* | ✗ → ✓ 0.24 | ✗ → ✓ 0.53 | ✗ → ✗ 0.15 | ✗ → ✓ 0.45 | ✗ → ✗ 0.22 | ✗ → ✓ 0.07 |
+| "mach die Lichter im Wohnzimmer aus" | ✗ → ✓ 0.24 | ✗ → ✓ 0.63 | ✗ → ✗ 0.09 | ✗ → ✓ 0.20 | ✗ → ✗ 0.27 | · |
+| "open all the blinds on the second floor" | ↪ → ✓ 0.91 | ↪ → ✓ 0.59 | ↪ → ✓ 0.31 | ↪ → ✓ 0.89 | ↪ → ✓ 0.14 | ↪ → ✓ 0.75 |
 
-#### Extra context for the model (no confidence check)
+### Unseen: Follow-ups
 
-| Model | plain | + devices described | + numbers in options | + model splits sentence | all three |
-|---|---:|---:|---:|---:|---:|
-| Laya multilingual | 45/55 · 1 · **9** | 40/55 · 1 · **14** | 45/55 · 1 · **9** | 44/55 · 1 · **10** | 40/55 · 1 · **14** (1🔒) |
-| Laya English | 32/34 · 1 · **1** | 31/34 · 1 · **2** | 31/34 · 1 · **2** | 32/34 · 1 · **1** | 30/34 · 1 · **3** |
-| Intern-Decision 0.8B | 51/55 · 1 · **3** | 51/55 · 1 · **3** | 51/55 · 1 · **3** | 50/55 · 1 · **4** | 49/55 · 1 · **5** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 54/55 · 1 · **0** | 53/55 · 1 · **1** | 52/55 · 1 · **2** | 53/55 · 1 · **1** |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "turn it off again" *(after "turn on the kitchen light")* | ✓ → ✓ 0.97 | ✓ → ✓ 0.90 | ✓ → ✓ 0.74 | ✓ → ✓ 0.96 | ✓ → ✓ 0.99 | ✓ → ✓ 0.98 |
+| "und jetzt wieder aus" *(after "mach die Stehlampe an")* | ✓ → ✓ 0.93 | ✓ → ✓ 0.74 | ✓ → ✓ 0.29 | ✓ → ✓ 0.04 | ✓ → ✓ 0.13 | · |
+| "make it 23" *(after "set the bathroom heating to 21 degrees")* | ✓ → ✓ 0.94 | ✓ → ✓ 0.83 | ✓ → ✓ 0.49 | ✓ → ↪ | ✓ → ✓ 0.77 | ✓ → ↪ |
+| "mach sie auf 50 Prozent" *(after "schalte die Schreibtischlampe ein")* | ✓ → ✓ 0.95 | ✓ → ✓ 0.56 | ✓ → ✓ 0.33 | ✓ → ✓ 0.41 | ✗ → ✗ 0.46 | · |
 
-#### Other ways of asking (no confidence check)
+### Unseen: Front door lock and garage door
 
-| Model | plain | near | fit | near + fit | no command/question step | options asked twice |
-|---|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 45/55 · 1 · **9** | 46/55 · 1 · **8** | 45/55 · 1 · **9** | 46/55 · 1 · **8** | 39/55 · 1 · **15** (1🔒) | 45/55 · 1 · **9** |
-| Laya English | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 32/34 · 1 · **1** | 30/34 · 1 · **3** (1🔒) | 32/34 · 1 · **1** |
-| Intern-Decision 0.8B | 51/55 · 1 · **3** | 53/55 · 1 · **1** | 51/55 · 1 · **3** | 53/55 · 1 · **1** | 47/55 · 1 · **7** (1🔒) | 52/55 · 1 · **2** |
-| Intern-Decision 2B | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 53/55 · 1 · **1** | 52/55 · 1 · **2** | 53/55 · 1 · **1** |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "did I lock the front door" | ✓ → ✓ 0.93 | ✓ → ✓ 0.42 | ✗🔒 → ✗🔒 0.00 | ✓ → ↪ | ✗🔒 → ✗🔒 0.00 | ✓ → ✓ 0.91 |
+| "ist die Haustür zu" | ✓ → ✓ 0.69 | ✓ → ✗🔒 0.00 | ✗🔒 → ✗🔒 0.00 | ✓ → ✓ 0.49 | ✓ → ✓ 0.93 | · |
+| "sperr die Haustür auf" | ✓ → ✗🔒 0.90 | ✓ → ✓ 0.73 | ✓ → ✓ 0.00 | ✓ → ✓ 0.00 | ✓ → ✗🔒 0.00 | · |
+| "schließ die Haustür ab" | ✓ → ✓ 0.94 | ✓ → ✓ 0.00 | ✓ → ✓ 0.76 | ✓ → ✓ 0.00 | ✓ → ✓ 0.92 | · |
+| "open the door" *(in hallway)* | ✗ → ✗ 0.78 | ✗ → ✗ 0.42 | ✗ → ✗ 0.32 | ✓↪ → ✓↪ | ✗ → ✗ 1.00 | ✗ → ✗ 0.45 |
+| "close the garage" | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ | ✓↪ → ✓↪ |
 
-#### The model-only tree, step by step
+### Unseen: German short forms
 
-| Model | Devices, yes ≥ 0.5 | Devices, best cut-off | Devices, top-ranked (count known) | Action per device | Value | Vague change | Whole sentence | Wrong on lock/garage |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| Laya multilingual | 3/32 | 9/32 (at 0.80) | 21/32 | 35/45 | 9/11 | 1/5 | 2/32 | 12 |
-| Laya English | 2/20 | 5/20 (at 0.60) | 13/20 | 26/29 | 7/7 | 2/3 | 2/20 | 7 |
-| Intern-Decision 0.8B | 5/32 | 20/32 (at 0.60) | 28/32 | 38/45 | 11/11 | 1/5 | 3/32 | 7 |
-| Intern-Decision 2B | 26/32 | 28/32 (at 0.60) | 30/32 | 42/45 | 11/11 | 4/5 | 23/32 | 2 |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "Rollos runter" *(in living room)* | ↪ → ✓ 0.46 | ✓ → ↪ | ✓ → ✓ 0.43 | ✗ → ✗ 0.17 | ✓ → ✓ 0.26 | · |
+| "mach die Rollläden im Wohnzimmer auf" | ✓ → ✓ 0.36 | ✓ → ✓ 0.76 | ✓ → ✓ 0.15 | ↪ → ↪ | ✗ → ✓ 0.07 | · |
+| "dreh die Heizung im Bad auf 22 Grad" | ✓ → ✓ 0.98 | ✓ → ✓ 0.84 | ✓ → ✓ 0.45 | ✓ → ✓ 0.30 | ✗ → ✓ 0.61 | · |
+| "Licht im Flur aus" | ✓ → ✗ 0.76 | ✓ → ✓ 0.63 | ✗ → ✗ 0.16 | ✗ → ✗ 0.31 | ✓ → ✓ 0.20 | · |
+| "schalte den Fernseher ab" | ✓ → ✓ 0.98 | ✓ → ✓ 0.86 | ✓ → ✓ 0.88 | ✓ → ✗ 0.68 | ✓ → ✗ 0.98 | · |
 
-#### Time per sentence (median)
+### Unseen: Left / right
 
-| Model | Today's pipeline | New approach | Best approach | Options asked twice |
-|---|---:|---:|---:|---:|
-| Laya multilingual | 16 ms | 37 ms | 36 ms | 62 ms |
-| Laya English | 31 ms | 63 ms | 63 ms | 118 ms |
-| Intern-Decision 0.8B | 267 ms | 538 ms | 537 ms | 912 ms |
-| Intern-Decision 2B | 351 ms | 715 ms | 712 ms | 1211 ms |
+| Sentence | d1-3B | Intern 2B | Intern 0.8B | d1-omni | Laya multi | Laya EN |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|
+| "mach das rechte Licht an" *(in living room)* | ✓ → ✓ 0.96 | ✓ → ✓ 0.50 | ✓ → ✓ 0.57 | ✗ → ✗ 0.26 | ✗ → ✓ 0.95 | · |
+| "turn off the right light" *(in living room)* | ✓ → ✓ 0.98 | ✓ → ✓ 0.90 | ✓ → ✓ 0.88 | ✓ → ✓ 0.93 | ✓ → ✓ 1.00 | ✓ → ✓ 0.70 |
+| "schalte das linke Licht und die Stehlampe aus" | ✗ → ✓ 0.36 | ✗ → ✓ 0.26 | ✗ → ✓ 0.57 | ✗ → ✓ 0.31 | ✗ → ✗ 0.26 | · |
 
-## The lock fix
+## Mistakes of the current version (check 0.0)
 
-Locks turn the on/off words around. "Close" and "ab"/"zu" are "off" words for a light, but for a
-lock they mean *lock*, which Home Assistant does with "turn on". "Open" and "auf" are "on" words,
-but for a lock they mean *unlock*. So before the fix, "sperr die Haustür ab", "schließ die Haustür
-ab", "öffne die Haustür" and "open the front door" all did the opposite of what was said.
-Now, for a lock, the server uses `lock_words` and `unlock_words` instead of the on/off words
-(`server/assist_decider_server/lang.py`, used in `Decider.polarity()` in `pipeline.py`). A test
-covers all four sentences.
+What each model did wrong at check 0.0, with the sentence's confidence after the dot. "(in …)" is the speaker's room. Click a model to open its list.
+
+<details><summary>d1-3B: 10</summary>
+
+- "what's the temperature in here" (in bathroom): wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "wie warm ist es hier" (in bathroom): wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got handed off (no value)
+- "I'm freezing" (in bathroom): wanted handed off; got Bathroom Heating: ask the temperature · 0.56
+- "turn on the coffee maker at 7 in the morning": wanted handed off; got Coffee Maker: on · 0.98
+- "play some jazz" (in living room): wanted handed off; got TV: on · 0.64
+- "turn off all the lights in the house": wanted Desk Lamp: off, Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "sperr die Haustür auf": wanted Front Door: unlock; got Front Door: lock · 0.90
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 0.78
+- "Licht im Flur aus": wanted Hallway Light: off; got Hallway Light: on · 0.76
+
+</details>
+
+<details><summary>Intern-Decision 2B: 14</summary>
+
+- "is the light on" (in kitchen): wanted Kitchen Light: ask how it is; got handed off (not supported)
+- "fahr die Rollos auf 30 Prozent" (in living room): wanted Living Room Blinds: to 30 %; got handed off (not about the home)
+- "turn on all the lights on the floor" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.73
+- "mach das linke Licht aus, aber das rechte an" (in living room): wanted Left Light: off, Right Light: on; got Left Light: off, Right Light: off · 0.26
+- "schalte alle Lichter auf dieser Etage ein" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.82
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got handed off (not supported)
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got handed off (no value)
+- "I'm freezing" (in bathroom): wanted handed off; got Bathroom Heating: off · 0.09
+- "turn on the coffee maker at 7 in the morning": wanted handed off; got Coffee Maker: on · 0.94
+- "play some jazz" (in living room): wanted handed off; got TV: on · 0.00
+- "turn off all the lights in the house": wanted Desk Lamp: off, Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "ist die Haustür zu": wanted Front Door: ask how it is; got Front Door: unlock · 0.00
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 0.42
+- "Rollos runter" (in living room): wanted Living Room Blinds: close; got handed off (not about the home)
+
+</details>
+
+<details><summary>Intern-Decision 0.8B: 30</summary>
+
+- "turn on the kitchen light and turn off the hallway light": wanted Hallway Light: off, Kitchen Light: on; got Hallway Light: off, Kitchen Light: off · 0.24
+- "mach das Licht im Flur aus": wanted Hallway Light: off; got Hallway Light: on · 0.49
+- "mach die Stehlampe und das Küchenlicht aus": wanted Kitchen Light: off, Floor Lamp: off; got Kitchen Light: on, Floor Lamp: off · 0.17
+- "Licht aus" (in bedroom): wanted Desk Lamp: off; got handed off (no value)
+- "mach das Licht im Schlafzimmer aus" (in kitchen): wanted Desk Lamp: off; got Desk Lamp: on · 0.44
+- "mach es heller, 70 Prozent" (in living room): wanted Floor Lamp: to 70 %; got Floor Lamp: ask how it is · 0.24
+- "turn off the left light but turn on the right one" (in living room): wanted Left Light: off, Right Light: on; got Left Light: off, Right Light: off · 0.21
+- "turn on all the lights on the floor" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.63
+- "mach das linke Licht aus, aber das rechte an" (in living room): wanted Left Light: off, Right Light: on; got Left Light: on, Right Light: on · 0.19
+- "schalte alle Lichter auf dieser Etage ein" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.59
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got Kitchen Light: ask how it is · 0.24
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got Desk Lamp: ask how it is · 0.71
+- "I'm freezing" (in bathroom): wanted handed off; got Bathroom Heating: ask the temperature · 0.41
+- "mir ist zu warm" (in living room): wanted handed off; got Thermostat: ask the temperature · 0.29
+- "switch on the coffee maker and the kitchen light and turn off the hallway light": wanted Hallway Light: off, Kitchen Light: on, Coffee Maker: on; got Hallway Light: off, Kitchen Light: off, Coffee Maker: on · 0.24
+- "dim the floor lamp to 30 percent and set the bathroom heating to 22 degrees": wanted Bathroom Heating: to 22 °, Floor Lamp: to 30 %; got handed off (a condition)
+- "Schreibtischlampe auf 40 Prozent und Küchenlicht aus": wanted Desk Lamp: to 40 %, Kitchen Light: off; got Desk Lamp: to 40 %, Kitchen Light: to 40 % · 0.10
+- "turn on the coffee maker at 7 in the morning": wanted handed off; got Coffee Maker: on · 0.55
+- "sobald es kalt wird, stell die Heizung Bad auf 22 Grad": wanted handed off; got Bathroom Heating: to 22 ° · 0.54
+- "tell me a joke" (in kitchen): wanted handed off; got Kitchen Light: off · 0.12
+- "set a timer for ten minutes" (in kitchen): wanted handed off; got Kitchen Light: on · 0.02
+- "play some jazz" (in living room): wanted handed off; got TV: on · 0.24
+- "was ist die Hauptstadt von Frankreich" (in bedroom): wanted handed off; got Desk Lamp: ask how it is · 0.85
+- "turn off all the lights in the house": wanted Desk Lamp: off, Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "turn on the lights" (in living room): wanted Floor Lamp: on, Left Light: on, Right Light: on; got Left Light: on · 0.15
+- "mach die Lichter im Wohnzimmer aus": wanted Floor Lamp: off, Left Light: off, Right Light: off; got Floor Lamp: on, Left Light: on, Right Light: on · 0.09
+- "did I lock the front door": wanted Front Door: ask how it is; got Front Door: lock · 0.00
+- "ist die Haustür zu": wanted Front Door: ask how it is; got Front Door: unlock · 0.00
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 0.32
+- "Licht im Flur aus": wanted Hallway Light: off; got Hallway Light: on · 0.16
+
+</details>
+
+<details><summary>d1-omni-600M: 37</summary>
+
+- "is the kitchen light on": wanted Kitchen Light: ask how it is; got handed off (a condition)
+- "what's the temperature in the bathroom": wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "set the thermostat to 22 degrees and the bathroom heating to 24": wanted Bathroom Heating: to 24 °, Thermostat: to 22 °; got handed off (not about the home)
+- "schließ das Garagentor": wanted Garage Door: close; got handed off (no value)
+- "wie warm ist es im Bad": wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "set the temperature to 22 degrees" (in bathroom): wanted Bathroom Heating: to 22 °; got handed off (not about the home)
+- "make it 23 degrees in here" (in living room): wanted Thermostat: to 23 °; got handed off (not about the home)
+- "turn on the coffee" (in kitchen): wanted Coffee Maker: on; got handed off (not about the home)
+- "what's the temperature in here" (in bathroom): wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "is the light on" (in kitchen): wanted Kitchen Light: ask how it is; got handed off (not supported)
+- "turn on the music" (in living room): wanted TV: on; got handed off (not about the home)
+- "Licht aus" (in bedroom): wanted Desk Lamp: off; got Desk Lamp: ask how it is · 0.20
+- "schließ die Rollläden" (in living room): wanted Living Room Blinds: close; got handed off (no value)
+- "mach die Kaffeemaschine an" (in hallway): wanted Coffee Maker: on; got handed off (not about the home)
+- "wie warm ist es hier" (in bathroom): wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "mach es heller, 70 Prozent" (in living room): wanted Floor Lamp: to 70 %; got handed off (not about the home)
+- "turn off the left light but turn on the right one" (in living room): wanted Left Light: off, Right Light: on; got Left Light: off, Right Light: off · 0.28
+- "mach das linke Licht aus, aber das rechte an" (in living room): wanted Left Light: off, Right Light: on; got Left Light: off, Right Light: off · 0.24
+- "schalte alle Lichter auf dieser Etage ein" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.51
+- "schließ alle Rollläden im Obergeschoss": wanted Kids Room Blinds: close, Office Blinds: close; got handed off (no value)
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got Kitchen Light: ask how it is · 0.25
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got Desk Lamp: ask how it is · 0.66
+- "turn off the tv, close the living room blinds and set the thermostat to 21 degrees": wanted Thermostat: to 21 °, Living Room Blinds: close, TV: off; got handed off (value doesn't fit)
+- "schalte den Fernseher und die Stehlampe aus und öffne den Rollladen Wohnzimmer": wanted Living Room Blinds: open, Floor Lamp: off, TV: off; got Living Room Blinds: open, Floor Lamp: off, TV: on · 0.17
+- "if it gets dark turn on the floor lamp": wanted handed off; got Floor Lamp: on · 1.00
+- "wenn ich nach Hause komme, mach das Küchenlicht an": wanted handed off; got Kitchen Light: on · 0.41
+- "sobald es kalt wird, stell die Heizung Bad auf 22 Grad": wanted handed off; got Bathroom Heating: to 22 ° · 0.62
+- "close the living room blinds when the tv turns off": wanted handed off; got Living Room Blinds: close, TV: off · 0.93
+- "turn off all the lights in the house": wanted Desk Lamp: off, Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "fahr alle Rollos im zweiten Stock runter": wanted Kids Room Blinds: close, Office Blinds: close; got handed off (not supported)
+- "make it 23" (after "set the bathroom heating to 21 degrees"): wanted Bathroom Heating: to 23 °; got handed off (not about the home)
+- "did I lock the front door": wanted Front Door: ask how it is; got handed off (a condition)
+- "Rollos runter" (in living room): wanted Living Room Blinds: close; got Living Room Blinds: ask how it is · 0.17
+- "mach die Rollläden im Wohnzimmer auf": wanted Living Room Blinds: open; got handed off (no value)
+- "Licht im Flur aus": wanted Hallway Light: off; got Hallway Light: ask how it is · 0.31
+- "schalte den Fernseher ab": wanted TV: off; got TV: on · 0.68
+- "mach das rechte Licht an" (in living room): wanted Right Light: on; got Right Light: ask how it is · 0.26
+
+</details>
+
+<details><summary>Laya multilingual: 39</summary>
+
+- "open the blinds to 30 percent": wanted Living Room Blinds: to 30 %; got Living Room Blinds: open · 0.98
+- "mach das Licht im Flur aus": wanted Hallway Light: off; got Hallway Light: on · 0.92
+- "mach das Küchenlicht an und den Fernseher aus": wanted Kitchen Light: on, TV: off; got Kitchen Light: on, TV: on · 0.14
+- "mach die Stehlampe und das Küchenlicht aus": wanted Kitchen Light: off, Floor Lamp: off; got Kitchen Light: off, Floor Lamp: on · 0.28
+- "open the blinds to 30 percent" (in living room): wanted Living Room Blinds: to 30 %; got Living Room Blinds: open · 0.98
+- "Licht aus" (in bedroom): wanted Desk Lamp: off; got Desk Lamp: ask how it is · 0.40
+- "mach das Licht im Schlafzimmer aus" (in kitchen): wanted Desk Lamp: off; got Desk Lamp: on · 0.98
+- "turn on all the lights on the floor" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.22
+- "close all the covers on the second floor": wanted Kids Room Blinds: close, Office Blinds: close; got Office Blinds: close · 0.48
+- "schalte alle Lichter im Wohnzimmer ein": wanted Floor Lamp: on, Left Light: on, Right Light: on; got Thermostat: on · 0.38
+- "mach das linke Licht aus, aber das rechte an" (in living room): wanted Left Light: off, Right Light: on; got Left Light: on, Right Light: on · 0.96
+- "schalte alle Lichter auf dieser Etage ein" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Thermostat: on · 0.64
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got Kitchen Light: ask how it is · 0.26
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got Desk Lamp: ask how it is · 0.93
+- "I'm freezing" (in bathroom): wanted handed off; got Bathroom Heating: ask the temperature · 0.75
+- "mir ist zu warm" (in living room): wanted handed off; got Thermostat: ask the temperature · 0.09
+- "mach das Küchenlicht an, die Stehlampe aus und stell die Heizung Bad auf 23 Grad": wanted Bathroom Heating: to 23 °, Kitchen Light: on, Floor Lamp: off; got Bathroom Heating: to 23 °, Kitchen Light: on, Floor Lamp: on · 0.30
+- "schalte den Fernseher und die Stehlampe aus und öffne den Rollladen Wohnzimmer": wanted Living Room Blinds: open, Floor Lamp: off, TV: off; got Living Room Blinds: open, Floor Lamp: on, TV: on · 0.30
+- "Schreibtischlampe auf 40 Prozent und Küchenlicht aus": wanted Desk Lamp: to 40 %, Kitchen Light: off; got Desk Lamp: ask how it is, Kitchen Light: ask how it is · 0.14
+- "if it gets dark turn on the floor lamp": wanted handed off; got Floor Lamp: on · 0.99
+- "wenn ich nach Hause komme, mach das Küchenlicht an": wanted handed off; got Kitchen Light: on · 0.93
+- "turn on the coffee maker at 7 in the morning": wanted handed off; got Coffee Maker: on · 1.00
+- "sobald es kalt wird, stell die Heizung Bad auf 22 Grad": wanted handed off; got Bathroom Heating: to 22 ° · 0.99
+- "close the living room blinds when the tv turns off": wanted handed off; got Living Room Blinds: close, TV: off · 1.00
+- "tell me a joke" (in kitchen): wanted handed off; got Coffee Maker: off · 0.14
+- "set a timer for ten minutes" (in kitchen): wanted handed off; got Coffee Maker: on · 0.02
+- "play some jazz" (in living room): wanted handed off; got TV: on · 0.47
+- "was ist die Hauptstadt von Frankreich" (in bedroom): wanted handed off; got Desk Lamp: ask how it is · 0.99
+- "turn off all the lights in the house": wanted Desk Lamp: off, Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "schalte alle Lichter im Erdgeschoss aus": wanted Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got Coffee Maker: on · 0.69
+- "fahr alle Rollos im zweiten Stock runter": wanted Kids Room Blinds: close, Office Blinds: close; got Kids Room Blinds: open, Office Blinds: open · 0.85
+- "turn on the lights" (in living room): wanted Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on · 0.22
+- "mach die Lichter im Wohnzimmer aus": wanted Floor Lamp: off, Left Light: off, Right Light: off; got Left Light: on · 0.27
+- "mach sie auf 50 Prozent" (after "schalte die Schreibtischlampe ein"): wanted Desk Lamp: to 50 %; got Desk Lamp: on · 0.46
+- "did I lock the front door": wanted Front Door: ask how it is; got Front Door: lock · 0.00
+- "sperr die Haustür auf": wanted Front Door: unlock; got Front Door: lock · 0.00
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 1.00
+- "schalte den Fernseher ab": wanted TV: off; got TV: on · 0.98
+- "schalte das linke Licht und die Stehlampe aus": wanted Floor Lamp: off, Left Light: off; got Floor Lamp: on, Left Light: on · 0.26
+
+</details>
+
+<details><summary>Laya English: 16</summary>
+
+- "open the blinds to 30 percent": wanted Living Room Blinds: to 30 %; got Living Room Blinds: open · 0.78
+- "open the blinds to 30 percent" (in living room): wanted Living Room Blinds: to 30 %; got Living Room Blinds: open · 0.78
+- "is the light on" (in kitchen): wanted Kitchen Light: ask how it is; got handed off (not supported)
+- "turn off the left light but turn on the right one" (in living room): wanted Left Light: off, Right Light: on; got Left Light: off, Right Light: off · 0.29
+- "turn on all the lights on the floor" (in living room): wanted Hallway Light: on, Kitchen Light: on, Floor Lamp: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.38
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got Kitchen Light: ask how it is · 0.03
+- "I'm freezing" (in bathroom): wanted handed off; got Bathroom Heating: ask the temperature · 0.92
+- "if it gets dark turn on the floor lamp": wanted handed off; got Floor Lamp: on · 0.44
+- "turn on the coffee maker at 7 in the morning": wanted handed off; got Coffee Maker: on · 0.94
+- "close the living room blinds when the tv turns off": wanted handed off; got Living Room Blinds: close, TV: off · 0.96
+- "tell me a joke" (in kitchen): wanted handed off; got Kitchen Light: on · 0.18
+- "set a timer for ten minutes" (in kitchen): wanted handed off; got Coffee Maker: on · 0.05
+- "play some jazz" (in living room): wanted handed off; got TV: on · 0.01
+- "turn off all the lights in the house": wanted Desk Lamp: off, Hallway Light: off, Kitchen Light: off, Floor Lamp: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "make it 23" (after "set the bathroom heating to 21 degrees"): wanted Bathroom Heating: to 23 °; got handed off (a condition)
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 0.45
+
+</details>
+
 
 ## Limits of this benchmark
 
-- **65 sentences and one test home.** A difference of one or two sentences between models is noise.
-- **The suggested checks were picked on these same sentences.** Confirm them on your own commands
-  with the live log.
-- **The d1 providers rebuild the models' text path in the server's own code**, from the
-  checkpoints' `prompt.py`, `runner.py` and `encoder.py`. They were not compared number by number
-  with Liquid AI's own code.
+- **111 sentences and one test home.** A difference of one or two sentences between models or
+  versions is noise.
+- **The tuning sentences flatter the current version**, and so do the suggested checks, which were
+  picked on them. The unseen sentences are the fairer comparison. Check your own commands in the
+  server's live log.
+- **Intern-Decision answers depend on the other questions in the same call.** Small changes to the
+  questions can move its results by a sentence or two.
 - **Time and memory were measured on the Mac only.** "Memory in use" is what the Apple graphics
-  driver reports. "Peak RAM while loading" is the most memory the process used.
+  driver reports. "Peak RAM while loading" is the most memory the process used. 1 GB here is
+  2³⁰ bytes.
+- **The d1 providers rebuild the models' prompt and, for d1-omni-600M, the network** in the
+  server's own code, from the checkpoints' published code. They were not compared number by number
+  with Liquid AI's own code.
 
 ## The models
 
-| Model | Made by | Built on | License |
-|---|---|---|---|
-| [Laya multilingual](https://huggingface.co/convaiinnovations/laya-multilingual) | ConvAI Innovations | mmBERT-base | Apache-2.0 |
-| [Laya English](https://huggingface.co/convaiinnovations/laya) | ConvAI Innovations | ModernBERT-large | Apache-2.0 |
-| [Intern-Decision 0.8B](https://huggingface.co/internlm/Intern-Decision-0.8B) | InternLM | Qwen3.5-0.8B | Apache-2.0 |
-| [Intern-Decision 2B](https://huggingface.co/internlm/Intern-Decision-2B) | InternLM | Qwen3.5-2B | Apache-2.0 |
-| [d1-3B](https://huggingface.co/LiquidAI/d1-3B) | Liquid AI | LFM2.5-VL-3B | LFM Open License v1.0 |
-| [d1-omni-600M](https://huggingface.co/LiquidAI/d1-omni-600M) | Liquid AI | LFM2.5-Encoder-350M + decision head | LFM Open License v1.0 |
+| Model | `--model` | Made by | Built on | License |
+|---|---|---|---|---|
+| [d1-3B](https://huggingface.co/LiquidAI/d1-3B) | `d1-3b` | Liquid AI | LFM2.5-VL-3B | LFM Open License v1.0 |
+| [Intern-Decision 2B](https://huggingface.co/internlm/Intern-Decision-2B) | `intern-decision-2b` | InternLM | Qwen3.5-2B | Apache-2.0 |
+| [Intern-Decision 0.8B](https://huggingface.co/internlm/Intern-Decision-0.8B) | `intern-decision-0.8b` | InternLM | Qwen3.5-0.8B | Apache-2.0 |
+| [d1-omni-600M](https://huggingface.co/LiquidAI/d1-omni-600M) | `d1-omni-600m` | Liquid AI | LFM2.5-Encoder-350M + decision head | LFM Open License v1.0 |
+| [Laya multilingual](https://huggingface.co/convaiinnovations/laya-multilingual) | `multilingual` | ConvAI Innovations | mmBERT-base | Apache-2.0 |
+| [Laya English](https://huggingface.co/convaiinnovations/laya) | `english` | ConvAI Innovations | ModernBERT-large | Apache-2.0 |
 
-Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`).
-For Intern-Decision and d1, the server runs no code from the download. It rebuilds the prompt (and
-for d1-omni-600M the network, in `d1_omni.py`) itself. The LFM Open License is free to use unless
-your organization makes $10M or more a year.
+Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`). For
+Intern-Decision and d1, the server runs no code from the download. The LFM Open License is free to
+use unless your organization makes $10M or more a year.
 
 ## Repeat the benchmark
 
 From the `server` folder:
 
 ```bash
-# right / handed off / wrong at every check, and every mistake (big models: a few minutes each)
-uv run python tests/eval/benchmark.py multilingual english \
-    intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m
+# the current version: right / handed off / wrong at every check, and every mistake.
+# One model per process; the big ones take a few minutes each.
+for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m; do
+    uv run python tests/eval/benchmark.py $m    # --out=FILE also saves every result as JSON
+done
 
 # memory and speed, one process per model
 for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m; do
@@ -376,5 +623,6 @@ for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-o
 done
 ```
 
-To switch the server to another model, set `model = "d1-3b"` in the config file, or start it with
-`--model d1-3b`.
+For the previous version, check out commit `18a86af` in a second folder (`git worktree add
+../prev 18a86af`), copy the current `tests/eval/benchmark.py` into it, and run the same loop
+there with this folder's environment.

@@ -26,36 +26,78 @@ def tokenize(folded: str) -> list[str]:
 
 @dataclass(frozen=True)
 class Lang:
-    # The questions the model answers, and the wording of their options.
+    # The questions the model answers, and the wording of their options. The model decides;
+    # there are no word lists. Wording was chosen by probing Laya and Intern-Decision on the
+    # benchmark's dev sentences (BENCHMARK.md): both are sensitive to it, so change it only with
+    # the benchmark. Laya reads at most 48 tokens per option.
     kind_question: str
     kinds: dict[str, str]  # "command" / "question" -> description
+    # Two questions that must both pick "later" to hand off an "if/when …" sentence.
+    condition_question: str
+    conditions: dict[str, str]  # "none" / "condition"
+    when_question: str
+    whens: dict[str, str]  # "now" / "later"
+    topic_question: str
+    topics: dict[str, str]  # "home" / "other": not about the home's devices
+    # A room, a floor or the speaker's surroundings: one device or all of a kind, which kind,
+    # which device. Nothing named: here, this floor or the whole home; or the previous devices.
+    scope_question: str
+    scopes: dict[str, str]  # "one" / "all"
+    device_kind_question: str  # its options: the kinds present, worded by `domains`
     which_question: str
+    place_question: str
+    places: dict[str, str]  # "here" / "floor" / "home"
+    reference_question: str  # format(previous=): the previous command
+    references: dict[str, str]  # "previous" / "other"
     action_question: str  # format(device=)
     actions: dict[str, str]  # action (see intents.ACTIONS) -> description
     value_question: str  # format(device=)
     no_value: str
     entity_option: str  # format(name=, kind=, area=)
     entity_option_no_area: str
-    # domain -> (spoken label, words). Words >= 5 chars also match inside compounds
-    # ("kuechenlicht" contains "licht"); shorter words must match a whole token.
-    domains: dict[str, tuple[str, tuple[str, ...]]]
-    on_words: frozenset[str]
-    off_words: frozenset[str]
-    # Used instead of on/off words for a lock: "close/zu/ab" lock it, "open/auf" unlock it.
-    lock_words: frozenset[str]
-    unlock_words: frozenset[str]
-    condition_words: frozenset[str]  # "if": unsupported
+    # domain -> (label in the "which device?" options, description in "which kind?")
+    domains: dict[str, tuple[str, str]]
 
 
 EN = Lang(
     kind_question="Is the user giving a command or asking a question?",
     kinds={"command": "a command to do something", "question": "a question about how something is"},
+    condition_question="Does the user set a condition?",
+    conditions={
+        "none": "no, do it now",
+        "condition": "yes, only if or when something happens (if, when, as soon as)",
+    },
+    when_question="When should it happen?",
+    whens={
+        "now": "right away",
+        "later": "only if or when something happens first ('if …', 'when …', 'as soon as …')",
+    },
+    topic_question="What is the user talking about?",
+    topics={
+        "home": "lights, heating, blinds, locks, the TV, music, plugs or other devices at home",
+        "other": "something else: chit-chat, knowledge, weather, timers, reminders, shopping lists",
+    },
+    scope_question="Does the user mean one device or all of one kind?",
+    scopes={"one": "one device", "all": "all devices of one kind ('all the lights', 'the blinds')"},
+    device_kind_question="Which kind of device does the user mean?",
     which_question="Which device does the user mean?",
+    place_question="Where does the user want it?",
+    places={
+        "here": "here, in this room",
+        "floor": "on this whole floor",
+        "home": "in the whole home",
+    },
+    reference_question="The user's previous command was: '{previous}'. "
+    "Does the user mean the same devices again?",
+    references={
+        "previous": "yes, the same devices ('it', 'them', 'again', 'too')",
+        "other": "no, other devices",
+    },
     action_question="What does the user want with the {device}?",
     actions={
         "turn_on": "turn on, switch on, start",
         "turn_off": "turn off, switch off, stop",
-        "set_brightness": "set the brightness to a value",
+        "set_brightness": "dim or brighten to a value",
         "set_temperature": "set the temperature to a value",
         "open": "open",
         "close": "close",
@@ -69,68 +111,71 @@ EN = Lang(
     entity_option="{name} ({kind}) in {area}",
     entity_option_no_area="{name} ({kind})",
     domains={
-        "light": ("light", ("light", "lights", "lamp", "lamps", "lighting")),
-        "switch": ("switch", ("switch", "plug", "socket", "outlet")),
-        "fan": ("fan", ("fan", "fans")),
-        "cover": (
-            "blind",
-            (
-                "blind",
-                "blinds",
-                "shutter",
-                "shutters",
-                "shade",
-                "shades",
-                "curtain",
-                "curtains",
-                "cover",
-                "covers",
-                "awning",
-                "garage",
-                "gate",
-            ),
-        ),
-        "climate": (
-            "thermostat",
-            ("thermostat", "heating", "heater", "heat", "climate", "ac", "air conditioning"),
-        ),
-        "media_player": (
-            "media player",
-            ("tv", "television", "speaker", "speakers", "music", "radio", "player"),
-        ),
-        "lock": ("lock", ("lock", "locks")),
-        "valve": ("valve", ("valve", "valves", "sprinkler", "sprinklers")),
-        "humidifier": ("humidifier", ("humidifier",)),
-        "scene": ("scene", ("scene",)),
-        "script": ("script", ("script",)),
-        "automation": ("automation", ("automation",)),
-        "input_boolean": ("switch", ()),
-        "sensor": ("sensor", ("sensor",)),
-        "weather": ("weather", ("weather",)),
-        "binary_sensor": ("sensor", ()),
+        "light": ("light", "lights, lamps"),
+        "switch": ("switch", "switches, plugs, sockets"),
+        "fan": ("fan", "fans"),
+        "cover": ("blind", "blinds, shutters, shades, curtains, awnings"),
+        "climate": ("thermostat", "heating, thermostat, air conditioning"),
+        "media_player": ("media player", "TV, speakers, music, radio"),
+        "lock": ("lock", "locks"),
+        "valve": ("valve", "valves, sprinklers"),
+        "humidifier": ("humidifier", "humidifiers"),
+        "scene": ("scene", "scenes"),
+        "script": ("script", "scripts"),
+        "automation": ("automation", "automations"),
+        "input_boolean": ("switch", "switches"),
+        "sensor": ("sensor", "sensors"),
+        "weather": ("weather", "the weather"),
+        "binary_sensor": ("sensor", "sensors"),
     },
-    on_words=frozenset({"on", "open", "activate", "start", "lock"}),
-    off_words=frozenset({"off", "close", "shut", "deactivate", "stop", "unlock"}),
-    condition_words=frozenset({"if", "when", "whenever"}),
-    lock_words=frozenset({"lock", "close", "shut"}),
-    unlock_words=frozenset({"unlock", "open"}),
 )
 
 DE = Lang(
     kind_question="Gibt der Nutzer einen Befehl oder stellt er eine Frage?",
     kinds={"command": "ein Befehl, etwas zu tun", "question": "eine Frage, wie etwas ist"},
+    condition_question="Stellt der Nutzer eine Bedingung?",
+    conditions={
+        "none": "nein, jetzt tun",
+        "condition": "ja, nur wenn oder sobald etwas passiert (wenn, falls, sobald)",
+    },
+    when_question="Wann soll es passieren?",
+    whens={
+        "now": "sofort",
+        "later": "erst wenn oder sobald etwas passiert („wenn …“, „falls …“, „sobald …“)",
+    },
+    topic_question="Worüber spricht der Nutzer?",
+    topics={
+        "home": "Licht, Heizung, Rollläden, Schlösser, Fernseher, Musik, Steckdosen "
+        "oder andere Geräte im Haus",
+        "other": "etwas anderes: Plaudern, Wissen, Wetter, Timer, Erinnerungen, Einkaufslisten",
+    },
+    scope_question="Meint der Nutzer ein Gerät oder alle einer Art?",
+    scopes={"one": "ein Gerät", "all": "alle Geräte einer Art („alle Lichter“, „die Rollläden“)"},
+    device_kind_question="Welche Art von Gerät meint der Nutzer?",
     which_question="Welches Gerät meint der Nutzer?",
+    place_question="Wo will der Nutzer es?",
+    places={
+        "here": "hier, in diesem Raum",
+        "floor": "auf dieser ganzen Etage",
+        "home": "im ganzen Haus",
+    },
+    reference_question="Der vorige Befehl des Nutzers war: „{previous}“. "
+    "Meint der Nutzer wieder dieselben Geräte?",
+    references={
+        "previous": "ja, dieselben Geräte („es“, „sie“, „wieder“, „auch“)",
+        "other": "nein, andere Geräte",
+    },
     action_question="Was will der Nutzer mit {device}?",
     actions={
-        "turn_on": "einschalten, anmachen, starten",
-        "turn_off": "ausschalten, ausmachen, stoppen",
-        "set_brightness": "Helligkeit auf einen Wert stellen",
+        "turn_on": "einschalten, anmachen, starten (an, ein)",
+        "turn_off": "ausschalten, ausmachen, stoppen (aus, ab)",
+        "set_brightness": "dimmen oder heller machen auf einen Wert",
         "set_temperature": "Temperatur auf einen Wert stellen",
-        "open": "öffnen",
-        "close": "schließen",
+        "open": "öffnen, hochfahren (auf, hoch)",
+        "close": "schließen, runterfahren (zu, runter)",
         "set_position": "auf eine Position oder Prozent fahren",
-        "lock": "abschließen",
-        "unlock": "aufschließen",
+        "lock": "abschließen, zusperren („sperr … ab“)",
+        "unlock": "aufschließen, entsperren („sperr … auf“)",
         "query": "fragt nur, wie es ist, ändert nichts",
     },
     value_question="Auf welchen Wert soll {device} gestellt werden?",
@@ -138,110 +183,23 @@ DE = Lang(
     entity_option="{name} ({kind}) in {area}",
     entity_option_no_area="{name} ({kind})",
     domains={
-        "light": (
-            "Licht",
-            ("licht", "lichter", "lampe", "lampen", "leuchte", "leuchten", "beleuchtung"),
-        ),
-        "switch": ("Schalter", ("schalter", "steckdose", "stecker")),
-        "fan": ("Ventilator", ("ventilator", "luefter")),
-        "cover": (
-            "Rollladen",
-            (
-                "rollladen",
-                "rolladen",
-                "rolllaeden",
-                "rollaeden",
-                "rollo",
-                "rollos",
-                "jalousie",
-                "jalousien",
-                "markise",
-                "vorhang",
-                "vorhaenge",
-                "garagentor",
-                "tor",
-            ),
-        ),
-        "climate": ("Heizung", ("heizung", "thermostat", "klima", "klimaanlage")),
-        "media_player": ("Mediaplayer", ("fernseher", "tv", "lautsprecher", "musik", "radio")),
-        "lock": ("Schloss", ("schloss", "tuerschloss")),
-        "valve": ("Ventil", ("ventil", "bewaesserung")),
-        "humidifier": ("Luftbefeuchter", ("luftbefeuchter",)),
-        "scene": ("Szene", ("szene",)),
-        "script": ("Skript", ("skript",)),
-        "automation": ("Automatisierung", ("automatisierung",)),
-        "input_boolean": ("Schalter", ()),
-        "sensor": ("Sensor", ("sensor",)),
-        "weather": ("Wetter", ("wetter",)),
-        "binary_sensor": ("Sensor", ()),
+        "light": ("Licht", "Licht, Lampen, Leuchten"),
+        "switch": ("Schalter", "Schalter, Steckdosen"),
+        "fan": ("Ventilator", "Ventilatoren, Lüfter"),
+        "cover": ("Rollladen", "Rollläden, Rollos, Jalousien, Vorhänge, Markisen"),
+        "climate": ("Heizung", "Heizung, Thermostat, Klimaanlage"),
+        "media_player": ("Mediaplayer", "Fernseher, Lautsprecher, Musik, Radio"),
+        "lock": ("Schloss", "Schlösser"),
+        "valve": ("Ventil", "Ventile, Bewässerung"),
+        "humidifier": ("Luftbefeuchter", "Luftbefeuchter"),
+        "scene": ("Szene", "Szenen"),
+        "script": ("Skript", "Skripte"),
+        "automation": ("Automatisierung", "Automatisierungen"),
+        "input_boolean": ("Schalter", "Schalter"),
+        "sensor": ("Sensor", "Sensoren"),
+        "weather": ("Wetter", "das Wetter"),
+        "binary_sensor": ("Sensor", "Sensoren"),
     },
-    on_words=frozenset(
-        {
-            "an",
-            "ein",
-            "einschalten",
-            "anschalten",
-            "anmachen",
-            "oeffne",
-            "oeffnen",
-            "aktiviere",
-            "auf",
-            "starte",
-            "sperre",
-            "zusperren",
-        }
-    ),
-    off_words=frozenset(
-        {
-            "aus",
-            "ab",
-            "ausschalten",
-            "abschalten",
-            "ausmachen",
-            "schliesse",
-            "schliess",
-            "schliessen",
-            "zu",
-            "deaktiviere",
-            "stoppe",
-            "entsperre",
-        }
-    ),
-    condition_words=frozenset({"wenn", "falls", "sobald"}),
-    # "sperr"/"schliess" are neutral: the particle decides ("sperr ab" vs "sperr auf").
-    lock_words=frozenset(
-        {"ab", "zu", "zusperren", "absperren", "abschliessen", "verriegle", "verriegeln"}
-    ),
-    unlock_words=frozenset(
-        {
-            "auf",
-            "entsperre",
-            "entsperr",
-            "entsperren",
-            "aufsperren",
-            "aufschliessen",
-            "entriegle",
-            "entriegeln",
-            "oeffne",
-            "oeffnen",
-        }
-    ),
 )
 
 LANGS: dict[str, Lang] = {"en": EN, "de": DE}
-
-
-def domain_words_in(tokens: list[str], lang: Lang) -> set[str]:
-    """Domains whose words occur in `tokens` (whole token, or inside a compound for long words)."""
-    found: set[str] = set()
-    joined = " ".join(tokens)
-    for domain, (_label, words) in lang.domains.items():
-        for word in words:
-            if " " in word:
-                if f" {word} " in f" {joined} ":
-                    found.add(domain)
-                    break
-            elif word in tokens or (len(word) >= 5 and any(word in t for t in tokens)):
-                found.add(domain)
-                break
-    return found

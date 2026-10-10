@@ -27,19 +27,18 @@ class NumberSlot:
 @dataclass(frozen=True)
 class ActionSpec:
     intent: str  # the Home Assistant intent that performs it
-    polarity: str | None = None  # "on" / "off": ruled out when only the opposite word is said
     number: NumberSlot | None = None
 
 
 PCT = frozenset({"pct", ""})
 
 ACTIONS: dict[str, ActionSpec] = {
-    "turn_on": ActionSpec("HassTurnOn", "on"),
-    "turn_off": ActionSpec("HassTurnOff", "off"),
-    "open": ActionSpec("HassTurnOn", "on"),
-    "close": ActionSpec("HassTurnOff", "off"),
-    "lock": ActionSpec("HassTurnOn", "on"),  # HassTurnOn locks a lock
-    "unlock": ActionSpec("HassTurnOff", "off"),
+    "turn_on": ActionSpec("HassTurnOn"),
+    "turn_off": ActionSpec("HassTurnOff"),
+    "open": ActionSpec("HassTurnOn"),
+    "close": ActionSpec("HassTurnOff"),
+    "lock": ActionSpec("HassTurnOn"),  # HassTurnOn locks a lock
+    "unlock": ActionSpec("HassTurnOff"),
     "set_brightness": ActionSpec("HassLightSet", number=NumberSlot("brightness", PCT, 0, 100)),
     # ponytail: Celsius only; 70 °F does not fit. Widen the range when Fahrenheit homes matter.
     "set_temperature": ActionSpec(
@@ -73,6 +72,10 @@ DOMAIN_ACTIONS: dict[str, tuple[str, ...]] = {
     "binary_sensor": QUERY_ONLY,
     "weather": QUERY_ONLY,
 }
+
+
+# Home Assistant's climate intents take an area but no domain slot.
+NO_DOMAIN_SLOT = frozenset({"HassClimateSetTemperature", "HassClimateGetTemperature"})
 
 
 def intent_for(action: str, domain: str) -> str:

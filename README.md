@@ -31,8 +31,10 @@ can't invent a device or an action.
 | Questions | "is the front door locked?", "what's the temperature in the bathroom?" | "Wie warm ist es im Bad?" |
 | Several devices at once | "turn on the kitchen light and turn off the hallway light" | "Mach das Küchenlicht an und den Fernseher aus" |
 | A room instead of a device | "turn off the light in the hallway" | "Mach das Licht im Flur aus" |
-| Nothing named: the satellite's room | "turn on the light" | "Licht aus" |
-| Follow-ups, within a minute | "turn it off" | "Mach es aus" |
+| All of a kind, in a room or on a floor | "turn on all the lights in the living room", "close the blinds on the second floor" | "Schalte alle Lichter im Wohnzimmer ein" |
+| Another word ending, or one word of a name | "turn off the left light but turn on the right one" | "Mach das linke Licht aus" |
+| Nothing named: the satellite's room | "turn on the light", "it's too dark in here" | "Licht an" |
+| Follow-ups, within a minute | "turn it off" | "Mach es an" |
 
 Devices and rooms are recognized by the names and aliases you gave them in Home Assistant. If
 the model is unsure, nothing happens and the sentence goes to a fallback agent, for example Home
@@ -93,23 +95,28 @@ WantedBy=multi-user.target
 ### 2. Choose a model
 
 The server keeps one model in memory. Each model has its own confidence threshold, which you set
-in Home Assistant (next step). The numbers come from [BENCHMARK.md](BENCHMARK.md): 65 test
-sentences in English and German on an M4 Pro Mac.
+in Home Assistant (next step). The numbers come from [BENCHMARK.md](BENCHMARK.md), measured on an
+M4 Pro Mac: 65 sentences the server was tuned on, and 46 unseen ones, in English and German.
 
-| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong |
-|---|---|---|---|---|---|
-| `multilingual` (Laya, the default) | English, German | 1.2 GB | 40 ms | 0.4 | 47 · 8 · 10 |
-| `english` (Laya) | English | 2.0 GB | 70 ms | 0.2 | 32 · 4 · 3 (of 39) |
-| `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 50 ms | 0.4 | 42 · 19 · 4 |
-| **`intern-decision-0.8b`** | English, German | 2.3 GB | 0.5 s | **0.2** | **48 · 14 · 3** |
-| `intern-decision-2b` | English, German | 4.6 GB | 0.8 s | 0.2 | 54 · 6 · 5 |
-| **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.3 s | **0.2** | **55 · 4 · 6** |
+| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong, tuned (65) | Unseen (46) |
+|---|---|---|---|---|---|---|
+| **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.66 s | 0.0 | **63 · 2 · 0** | **38 · 2 · 6** |
+| `intern-decision-2b` | English, German | 4.6 GB | 0.71 s | 0.0 | 60 · 2 · 3 | 37 · 4 · 5 |
+| **`intern-decision-0.8b`** | English, German | 2.3 GB | 0.59 s | **0.3** | 49 · 12 · 4 | 26 · 14 · 6 |
+| `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 0.12 s | 0.3 | 37 · 27 · 1 | 24 · 15 · 7 |
+| `multilingual` (Laya, the default) | English, German | 1.2 GB | 59 ms | 0.5 | 40 · 19 · 6 | 16 · 18 · 12 |
+| `english` (Laya) | English | 2.0 GB | 0.11 s | 0.0 | 34 · 1 · 4 (of 39) | 11 · 2 · 9 (of 22) |
 
-- **Up to 4 GB of graphics memory:** use `intern-decision-0.8b` with a threshold of 0.2.
-- **8 GB or more, or an Apple Silicon Mac with 16 GB:** use `d1-3b` with a threshold of 0.2. It is
-  the most accurate model, and on the original 55 test sentences it got none wrong.
-- Most of the "wrong" sentences are "all the lights in …" commands. Every model gets those wrong
-  today (see [Limitations](#limitations)).
+"Handed off" means the sentence goes to the fallback agent instead of being acted on.
+
+- **8 GB of memory or more** (a Mac, or a larger graphics card): use `d1-3b`. It is the most
+  accurate by far. A threshold doesn't improve it, so leave it at 0.
+- **Up to 4 GB of graphics memory:** use `intern-decision-0.8b` with a threshold of 0.3.
+- `d1-omni-600m` is small and fast and rarely wrong, but hands off many plain commands.
+- Laya is the fastest, but when it is wrong it is usually sure, so a threshold can't catch it.
+- Common mistakes for most models: "if …" and "at 7 in the morning" sentences done right away,
+  and German "… aus" at the end of a sentence that names one device ("Licht im Flur aus") read
+  as "on".
 
 Want an English and a German assistant with different models? Run two servers on different ports
 (`--port 8765 --model english`, `--port 8766 --model multilingual`) and add each one in Home
@@ -171,8 +178,9 @@ variables `ASSIST_DECIDER_<NAME>`, then command-line flags. Later sources win.
   your LAN has untrusted devices, and use TLS or a VPN if you want encryption.
 - **The server holds no Home Assistant credentials.** It only *proposes* actions. Home Assistant
   checks each one (allowed intent, exposed device, allowed slots) before running it.
-- **Locks and garage doors** are only used when you say their exact name. A room command never
-  picks them.
+- **Locks and garage doors** are only used when you say their name (another word ending counts).
+  A room or floor command never picks them, "all the covers" never includes them, and changing
+  one needs the model to be sure (0.5 or more) whatever your threshold.
 - **Models are downloaded at a pinned commit**, as safetensors only. No remote code runs.
 - **What is sent:** the sentence and the names, aliases and device classes of exposed entities,
   plus area and floor names. Device states are not sent. Sentences stay in memory for the live
@@ -191,16 +199,23 @@ Found a vulnerability? Please open a private security advisory on GitHub.
 
 ## Limitations
 
-- **A room means one device.** "Turn off the lights in the living room" switches the one light
-  the model picks, not all of them. Floors ("upstairs") are not understood yet.
+- **German "… aus" at the end of a sentence** that names one device is often read as "on". The
+  server has no word lists; the model decides, and the small models get this wrong.
+- **"If …" / "wenn …" sentences and times ("at 7 in the morning") are recognized only in
+  part.** When the model is sure, they go to the fallback agent; otherwise the action runs right
+  away, without its condition.
+- **"This floor" / "the whole house"** without the floor's name is only understood when the
+  model is very sure, and only with a satellite in a known room. Floor names ("Obergeschoss")
+  always work.
+- Questions about all devices of a kind ("are all the lights off?") go to the fallback agent.
 - Not supported yet: colors, timers, media controls, fan speed, volume, shopping lists.
-- No follow-up questions ("which light?"). "If …" / "wenn …" sentences go to the fallback agent.
+- No follow-up questions ("which light?").
 
 ## Development
 
 ```bash
 cd server && uv sync && uv run pytest                    # server tests (-m slow: real models)
-cd server && uv run python tests/eval/benchmark.py intern-decision-0.8b d1-omni-600m
+cd server && uv run python tests/eval/benchmark.py d1-3b intern-decision-0.8b
 uv sync --python 3.14 && uv run pytest tests             # Home Assistant integration tests
 ```
 

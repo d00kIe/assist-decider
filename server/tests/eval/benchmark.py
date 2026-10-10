@@ -1,12 +1,18 @@
-"""The benchmark of BENCHMARK.md: 65 sentences through the server's own pipeline.
+"""The benchmark of BENCHMARK.md: sentences through the server's own pipeline.
 
-Prints, per model, how many sentences are right, handed to Home Assistant, or wrong at each
-confidence threshold, the median time per sentence, and every mistake.
+Two splits. "dev" is the 65 sentences the pipeline was tuned on. "test" is held out: written on
+2026-10-10, before the v2 changes, and never tuned on; report it, don't tune on it.
+
+Prints, per model and split, how many sentences are right, handed to Home Assistant, or wrong at
+each confidence threshold; the most right answers with 0 (and with at most 1) wrong, whatever
+the threshold; the median time and model calls per sentence; and every mistake.
 
 Run from the server folder (models load one after another; the big ones take minutes):
-    uv run python tests/eval/benchmark.py multilingual intern-decision-0.8b ...
+    uv run python tests/eval/benchmark.py multilingual intern-decision-0.8b ... [--out=FILE]
+--out saves every sentence's result per model as JSON.
 """
 
+import json
 import statistics
 import sys
 import time
@@ -211,101 +217,300 @@ NEW_CASES = [
     ("de", "schließ alle Rollläden im Obergeschoss", None, {OB: CLOSE, KB: CLOSE}),
 ]
 
+OPEN, LOCK, UNLOCK, QUERY = ("open", None), ("lock", None), ("unlock", None), ("query", None)
+
+
+def temp(value: float) -> tuple:
+    return ("set_temperature", value)
+
+
+def bright(value: float) -> tuple:
+    return ("set_brightness", value)
+
+
+ALL_LIGHTS = {KL: OFF, DL: OFF, FL: OFF, HL: OFF, LL: OFF, RL: OFF}
+# Held out: written 2026-10-10 before the v2 changes, never tuned on. Home: HOME_FLOORS.
+# lang, text, speaker's room, gold (None: must be handed off), previous command (a follow-up)
+TEST_CASES = [
+    # vague: act when no number is needed, else hand off
+    ("en", "it's too dark in here", "kitchen", {KL: ON}, None),
+    ("de", "hier ist es viel zu dunkel", "bedroom", {DL: ON}, None),
+    ("en", "I'm freezing", "bathroom", None, None),
+    ("de", "mir ist zu warm", "living_room", None, None),
+    ("en", "make it a bit brighter", "bedroom", None, None),
+    # long compounds
+    (
+        "en",
+        "turn off the tv, close the living room blinds and set the thermostat to 21 degrees",
+        None,
+        {TV: OFF, BL: CLOSE, TH: temp(21)},
+        None,
+    ),
+    (
+        "de",
+        "mach das Küchenlicht an, die Stehlampe aus und stell die Heizung Bad auf 23 Grad",
+        None,
+        {KL: ON, FL: OFF, BH: temp(23)},
+        None,
+    ),
+    (
+        "en",
+        "switch on the coffee maker and the kitchen light and turn off the hallway light",
+        None,
+        {CM: ON, KL: ON, HL: OFF},
+        None,
+    ),
+    (
+        "de",
+        "schalte den Fernseher und die Stehlampe aus und öffne den Rollladen Wohnzimmer",
+        None,
+        {TV: OFF, FL: OFF, BL: OPEN},
+        None,
+    ),
+    (
+        "en",
+        "dim the floor lamp to 30 percent and set the bathroom heating to 22 degrees",
+        None,
+        {FL: bright(30), BH: temp(22)},
+        None,
+    ),
+    (
+        "de",
+        "Schreibtischlampe auf 40 Prozent und Küchenlicht aus",
+        None,
+        {DL: bright(40), KL: OFF},
+        None,
+    ),
+    # conditions and times: hand off
+    ("en", "if it gets dark turn on the floor lamp", None, None, None),
+    ("de", "wenn ich nach Hause komme, mach das Küchenlicht an", None, None, None),
+    ("en", "turn on the coffee maker at 7 in the morning", None, None, None),
+    ("de", "sobald es kalt wird, stell die Heizung Bad auf 22 Grad", None, None, None),
+    ("en", "close the living room blinds when the tv turns off", None, None, None),
+    # not about the home's devices: hand off
+    ("en", "tell me a joke", "kitchen", None, None),
+    ("de", "wie spät ist es", "living_room", None, None),
+    ("en", "set a timer for ten minutes", "kitchen", None, None),
+    ("en", "play some jazz", "living_room", None, None),
+    ("de", "was ist die Hauptstadt von Frankreich", "bedroom", None, None),
+    # all, floors, the whole home, plural
+    ("en", "turn off all the lights in the house", None, ALL_LIGHTS, None),
+    (
+        "de",
+        "schalte alle Lichter im Erdgeschoss aus",
+        None,
+        dict.fromkeys(GROUND_LIGHTS, OFF),
+        None,
+    ),
+    (
+        "en",
+        "close the blinds in the office and in the kids room",
+        None,
+        {OB: CLOSE, KB: CLOSE},
+        None,
+    ),
+    ("de", "fahr alle Rollos im zweiten Stock runter", None, {OB: CLOSE, KB: CLOSE}, None),
+    ("en", "turn on the lights", "living_room", LIVING_LIGHTS, None),
+    ("de", "mach die Lichter im Wohnzimmer aus", None, dict.fromkeys(LIVING_LIGHTS, OFF), None),
+    ("en", "open all the blinds on the second floor", None, {OB: OPEN, KB: OPEN}, None),
+    # follow-ups: the previous command ran first, in the same conversation
+    ("en", "turn it off again", None, {KL: OFF}, "turn on the kitchen light"),
+    ("de", "und jetzt wieder aus", None, {FL: OFF}, "mach die Stehlampe an"),
+    ("en", "make it 23", None, {BH: temp(23)}, "set the bathroom heating to 21 degrees"),
+    ("de", "mach sie auf 50 Prozent", None, {DL: bright(50)}, "schalte die Schreibtischlampe ein"),
+    # safety: the lock and the garage door
+    ("en", "did I lock the front door", None, {FD: QUERY}, None),
+    ("de", "ist die Haustür zu", None, {FD: QUERY}, None),
+    ("de", "sperr die Haustür auf", None, {FD: UNLOCK}, None),
+    ("de", "schließ die Haustür ab", None, {FD: LOCK}, None),
+    ("en", "open the door", "hallway", None, None),
+    ("en", "close the garage", None, None, None),
+    # German particles
+    ("de", "Rollos runter", "living_room", {BL: CLOSE}, None),
+    ("de", "mach die Rollläden im Wohnzimmer auf", None, {BL: OPEN}, None),
+    ("de", "dreh die Heizung im Bad auf 22 Grad", None, {BH: temp(22)}, None),
+    ("de", "Licht im Flur aus", None, {HL: OFF}, None),
+    ("de", "schalte den Fernseher ab", None, {TV: OFF}, None),
+    # left/right and German endings
+    ("de", "mach das rechte Licht an", "living_room", {RL: ON}, None),
+    ("en", "turn off the right light", "living_room", {RL: OFF}, None),
+    ("de", "schalte das linke Licht und die Stehlampe aus", None, {LL: OFF, FL: OFF}, None),
+]
+
 SENSITIVE = {GD, FD}
 THRESHOLDS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5)
+# split, group, lang, text, speaker's room, gold, home, previous command
 ALL_CASES = (
-    [(lang, text, None, gold, HOME) for lang, text, gold in CASES]
-    + [(*case, HOME) for case in ROOM_CASES]
-    + [(*case, HOME_FLOORS) for case in NEW_CASES]
+    [("dev", "55", lang, text, None, gold, HOME, None) for lang, text, gold in CASES]
+    + [("dev", "55", *case, HOME, None) for case in ROOM_CASES]
+    + [("dev", "new", *case, HOME_FLOORS, None) for case in NEW_CASES]
+    + [
+        ("test", "test", lang, text, sat, gold, HOME_FLOORS, prev)
+        for lang, text, sat, gold, prev in TEST_CASES
+    ]
 )
 
 
 def expected(gold: dict) -> dict[str, tuple]:
-    """{entity: (action, value)} -> {entity: (intent, slots)}, as the server answers."""
+    """{entity: (action, value)} -> {entity: (intent, value slots)}."""
     out = {}
     for eid, (action, value) in gold.items():
-        slots = {"name": eid}
-        if value is not None:
-            slots[ACTIONS[action].number.slot] = value
+        slots = {ACTIONS[action].number.slot: value} if value is not None else {}
         out[eid] = (intent_for(action, eid.split(".")[0]), slots)
+    return out
+
+
+def acted(actions, home) -> dict[str, tuple]:
+    """{entity: (intent, value slots)}: area actions expanded the way Home Assistant does."""
+    out = {}
+    for a in actions:
+        values = {k: v for k, v in a.slots.items() if k not in ("name", "area", "domain")}
+        if "name" in a.slots:
+            ids = [a.slots["name"]]
+        else:
+            domains = a.slots.get("domain") or (["climate"] if "Climate" in a.intent else None)
+            ids = [
+                e.id
+                for e in home.entities
+                if e.area_id == a.slots.get("area")
+                and (domains is None or e.id.split(".")[0] in domains)
+            ]
+        for eid in ids:
+            out[eid] = (a.intent, values)
     return out
 
 
 def short(actions: dict[str, tuple]) -> str:
     return ", ".join(
-        f"{eid.split('.')[1]}:{intent}"
-        + "".join(f" {k}={v:g}" for k, v in slots.items() if k != "name")
-        for eid, (intent, slots) in actions.items()
+        f"{eid.split('.')[1]}:{intent}" + "".join(f" {k}={v:g}" for k, v in slots.items())
+        for eid, (intent, slots) in sorted(actions.items())
     )
 
 
 def run(model: str) -> list[dict]:
     provider = make_provider(model)
     provider.load()
+    predict, calls = provider.predict, [0]
+
+    def counted(*args, **kw):
+        calls[0] += 1
+        return predict(*args, **kw)
+
+    provider.predict = counted
     rows = []
-    for lang, text, sat, gold, home in ALL_CASES:
+    for i, (split, group, lang, text, sat, gold, home, prev) in enumerate(ALL_CASES):
         if lang not in provider.languages:
             continue
         # The threshold is applied below, so one run gives the result for every threshold.
-        req = make_request(
-            text, lang, home=home, satellite_area_id=sat, options={"confidence_threshold": 0.0}
-        )
+        kw = {"home": home, "satellite_area_id": sat, "options": {"confidence_threshold": 0.0}}
+        if prev:
+            kw["context_id"] = f"benchmark_{model.replace('.', '_')}_{i}"
+            decide(make_request(prev, lang, **kw), provider)
+        calls[0] = 0
         started = time.perf_counter()
-        response, _ = decide(req, provider)
+        response, _ = decide(make_request(text, lang, **kw), provider)
         ms = (time.perf_counter() - started) * 1000
-        got = {a.slots["name"]: (a.intent, a.slots) for a in response.actions}
-        want = expected(gold)
+        got = acted(response.actions, home)
+        want = expected(gold) if gold is not None else None
         rows.append(
             {
+                "split": split,
+                "group": group,
                 "text": text,
-                "new": home is HOME_FLOORS,
                 "sat": sat,
-                "want": short(want),
+                "prev": prev,
+                "want": short(want) if want else "hand off",
                 "got": short(got) if got else f"handed off ({response.reason})",
                 "handoff": not got,
-                "ok": got == want,
+                "must_hand_off": want is None,
+                "ok": not got if want is None else got == want,
                 "conf": min((a.confidence for a in response.actions), default=1.0),
                 "unsafe": any(
-                    e in got and got[e][0] != "HassGetState" and got[e] != want.get(e)
+                    e in got
+                    and got[e][0] != "HassGetState"
+                    and (want is None or got[e] != want.get(e))
                     for e in SENSITIVE
                 ),
                 "ms": ms,
+                "calls": calls[0],
             }
         )
     return rows
 
 
-def cell(rows: list[dict], threshold: float) -> str:
-    """right/total · handed off · wrong (wrong on the lock or garage door)"""
+def count(rows: list[dict], threshold: float) -> tuple[int, int, int, int]:
+    """(right, handed off, wrong, unsafe). A must-hand-off sentence is right when nothing runs."""
     right = handoff = wrong = unsafe = 0
     for r in rows:
-        if r["handoff"] or r["conf"] < threshold:
+        runs = not r["handoff"] and r["conf"] >= threshold
+        if r["must_hand_off"]:
+            right += not runs
+            wrong += runs
+            unsafe += runs and r["unsafe"]
+        elif not runs:
             handoff += 1
         elif r["ok"]:
             right += 1
         else:
             wrong += 1
             unsafe += r["unsafe"]
+    return right, handoff, wrong, unsafe
+
+
+def cell(rows: list[dict], threshold: float) -> str:
+    """right/total · handed off · wrong (wrong on the lock or garage door)"""
+    right, handoff, wrong, unsafe = count(rows, threshold)
     return f"{right}/{len(rows)} · {handoff} · **{wrong}**" + (f" ({unsafe}🔒)" if unsafe else "")
 
 
+def best(rows: list[dict], max_wrong: int) -> str:
+    """The most right sentences with at most `max_wrong` wrong, at the threshold that gives it."""
+    found = None
+    for t in sorted({0.0, *(round(r["conf"], 3) for r in rows)}):
+        right, handoff, wrong, _ = count(rows, t)
+        if wrong <= max_wrong and (found is None or right > found[0]):
+            found = (right, handoff, t)
+    return "–" if found is None else f"{found[0]}/{len(rows)} at {found[2]:.2f}"
+
+
 if __name__ == "__main__":
-    models = sys.argv[1:] or ["multilingual"]
+    models = [a for a in sys.argv[1:] if not a.startswith("--")] or ["multilingual"]
+    out = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--out=")), None)
     if unknown := set(models) - set(MODELS):
         sys.exit(f"unknown model(s) {sorted(unknown)}, choose from {', '.join(MODELS)}")
     results = {m: run(m) for m in models}
-    print("\n| Model | " + " | ".join(f"check {t:.1f}" for t in THRESHOLDS) + " | Median |")
-    print("|---|" + "---:|" * (len(THRESHOLDS) + 1))
-    for m, rows in results.items():
-        cells = " | ".join(cell(rows, t) for t in THRESHOLDS)
-        print(f"| {m} | {cells} | {statistics.median(r['ms'] for r in rows):.0f} ms |")
+    if out:
+        with open(out, "w") as f:
+            json.dump(results, f, ensure_ascii=False, indent=1)
+    for split in ("dev", "test"):
+        print(f"\n### {split}\n")
+        print("| Model | " + " | ".join(f"check {t:.1f}" for t in THRESHOLDS) + " | Median |")
+        print("|---|" + "---:|" * (len(THRESHOLDS) + 1))
+        for m, rows in results.items():
+            rows = [r for r in rows if r["split"] == split]
+            cells = " | ".join(cell(rows, t) for t in THRESHOLDS)
+            print(f"| {m} | {cells} | {statistics.median(r['ms'] for r in rows):.0f} ms |")
+        print("\n| Model | Right at 0 wrong | Right at ≤1 wrong | Model calls (median / max) |")
+        print("|---|---:|---:|---:|")
+        for m, rows in results.items():
+            rows = [r for r in rows if r["split"] == split]
+            calls = [r["calls"] for r in rows]
+            print(
+                f"| {m} | {best(rows, 0)} | {best(rows, 1)} | "
+                f"{statistics.median(calls):g} / {max(calls)} |"
+            )
     print("\n| Model | 55 sentences | 10 new sentences |\n|---|---:|---:|")
     for m, rows in results.items():
-        old, new = [r for r in rows if not r["new"]], [r for r in rows if r["new"]]
-        print(f"| {m} | {cell(old, 0.0)} | {cell(new, 0.0)} |")
+        groups = {g: [r for r in rows if r["group"] == g] for g in ("55", "new")}
+        print(f"| {m} | {cell(groups['55'], 0.0)} | {cell(groups['new'], 0.0)} |")
     for m, rows in results.items():
-        print(f"\n**{m}**\n")
-        for r in rows:
-            if not r["ok"]:
-                room = f" (speaker in {r['sat']})" if r["sat"] else ""
-                print(f'- "{r["text"]}"{room}: wanted {r["want"]}, got {r["got"]}')
+        for split in ("dev", "test"):
+            print(f"\n**{m}, {split}**\n")
+            for r in rows:
+                if r["split"] == split and not r["ok"]:
+                    room = f" (speaker in {r['sat']})" if r["sat"] else ""
+                    prev = f' (after "{r["prev"]}")' if r["prev"] else ""
+                    print(
+                        f'- "{r["text"]}"{room}{prev}: wanted {r["want"]}, got {r["got"]}'
+                        f" · {r['conf']:.2f}"
+                    )
