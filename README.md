@@ -33,6 +33,7 @@ can't invent a device or an action.
 | A room instead of a device | "turn off the light in the hallway" | "Mach das Licht im Flur aus" |
 | All of a kind, in a room or on a floor | "turn on all the lights in the living room", "close the blinds on the second floor" | "Schalte alle Lichter im Wohnzimmer ein" |
 | Another word ending, or one word of a name | "turn off the left light but turn on the right one" | "Mach das linke Licht aus" |
+| A name with a typo, or run together | "turn off the kichen light", "the livingroom lamp" | "Mach die Kafeemaschine an" |
 | Nothing named: the satellite's room | "turn on the light", "it's too dark in here" | "Licht an" |
 | Follow-ups, within a minute | "turn it off" | "Mach es an" |
 

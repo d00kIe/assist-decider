@@ -526,3 +526,58 @@ def test_endings_swap_but_short_or_different_words_do_not_match():
 
     assert _same("zweiten", "zweiter") and _same("linke", "linkes") and _same("licht", "lichter")
     assert not _same("bad", "bade") and not _same("hall", "halt") and not _same("room", "roomy1x")
+
+
+# ---------------------------------------------------------------- spoken numbers and near names
+
+
+def test_hundred_percent_without_one():
+    response, *_ = run("set the kitchen light to hundred percent", answer(action="set_brightness"))
+    assert acts(response) == [("HassLightSet", KITCHEN_LIGHT | {"brightness": 100})]
+    response, *_ = run("Küchenlicht auf hundert Prozent", answer(action="set_brightness"), "de")
+    assert acts(response) == [("HassLightSet", KITCHEN_LIGHT | {"brightness": 100})]
+
+
+def test_a_name_with_a_typo_names_the_device():
+    response, trace, provider = run("turn off the kichen light", answer(action="turn_off"))
+    assert acts(response) == [("HassTurnOff", KITCHEN_LIGHT)]
+    assert provider.asked() == ["action"]
+    assert "spelled like: light.kitchen_ceiling" in trace["steps"][0]["result"]
+    response, *_ = run("mach die Kafeemaschine an", language="de")
+    assert acts(response) == [("HassTurnOn", {"name": "switch.coffee_maker"})]
+
+
+def test_a_room_said_as_one_word_names_the_room():
+    response, *_ = run("turn on the livingroom lamp", answer(device="Floor Lamp"))
+    assert acts(response) == [("HassTurnOn", {"name": "light.living_room_floor"})]
+
+
+def test_names_as_near_as_each_other_are_left_to_the_model():
+    home = HOME.model_copy(
+        update={
+            "entities": [
+                Entity(id="light.desk", name="Desk Lamp", area_id="bedroom"),
+                Entity(id="light.dusk", name="Dusk Lamp", area_id="hallway"),
+            ]
+        }
+    )
+    response, _, provider = run("turn on the dask lamp", answer(device="Dusk"), home=home)
+    assert acts(response) == [("HassTurnOn", {"name": "light.dusk"})]
+    assert set(question(provider, "which").options) == {"light.desk", "light.dusk"}
+
+
+def test_near_names_never_name_a_lock_or_garage_door():
+    for text, language in (
+        ("unlock the front dor", "en"),
+        ("open the garage dor", "en"),
+        ("sperr die Hausstür auf", "de"),  # one letter off "Haustür"
+    ):
+        response, *_ = run(text, answer(action="open"), language=language)
+        assert response.reason == "no_target", text
+
+
+def test_ordinary_words_are_not_near_names():
+    for text in ("turn on the light", "what time is it", "tell me a joke"):
+        response, trace, _ = run(text)
+        assert response.reason == "no_target", text
+        assert trace["said"] == []

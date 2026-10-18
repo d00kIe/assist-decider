@@ -232,8 +232,8 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 |---|---|---|
 | Is it about the home at all? | **Model** | "Something else" at 0.8 or more hands the sentence off (`not_for_home`). |
 | Is it an "if…" sentence? | Nobody | Not checked. "If it gets dark, turn on the floor lamp" turns the lamp on right away. |
-| Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. |
-| Which devices, rooms and floors were named | **Code** | Names and aliases from Home Assistant, also with another word ending ("das linke Licht" → "Linkes Licht"), German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"), and a word that is in only one device's name in the whole home ("the right one" → Right Light). |
+| Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. "hundred percent" and "hundert Prozent" → 100 %. "half" or "halb" on its own → 50 %. |
+| Which devices, rooms and floors were named | **Code** | Names and aliases from Home Assistant, also with another word ending ("das linke Licht" → "Linkes Licht"), German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"), a word that is in only one device's name in the whole home ("the right one" → Right Light), and words spelled almost like a name ("kichen light" → Kitchen Light, "livingroom" → Living Room): one typo per 5 letters of the name, never a lock or garage door. When several names are equally close, the model picks one. |
 | Nothing named: which devices then | **Model**, from what code offers | The previous command's devices, if there was one within the follow-up memory; else here, the speaker's floor or the whole home. |
 | Command or question | **Model** | Asked once. A question can only *ask*; a command can never just *ask*. |
 | One device or all of a kind, which kind, which device | **Model**, from lists made by code | Code offers only devices that can take the number you said, and never locks or garage doors. The device picked must be of the kind picked, or the sentence is handed off (`inconsistent`). |
