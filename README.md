@@ -58,7 +58,7 @@ and start it:
 
 ```bash
 curl -O https://raw.githubusercontent.com/d00kIe/assist-decider/main/deploy/compose.yaml
-echo MODEL=intern-decision-0.8b > .env
+echo MODEL=d3-lite > .env
 docker compose up -d
 docker compose logs -f    # wait for "Ready: provider=…"
 ```
@@ -86,8 +86,8 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
 uv tool install "git+https://github.com/d00kIe/assist-decider#subdirectory=server"
-assist-decider download --model intern-decision-0.8b    # once, 1.6 GB (see "Choose a model")
-assist-decider --host 0.0.0.0 --model intern-decision-0.8b
+assist-decider download --model d3-lite    # once, 1.4 GB (see "Choose a model")
+assist-decider --host 0.0.0.0 --model d3-lite
 ```
 
 `--host 0.0.0.0` lets Home Assistant on another machine connect. On macOS, allow incoming
@@ -112,7 +112,7 @@ To keep the server running:
   limit, and restarts it if it stops (PowerShell):
 
   ```powershell
-  $action = New-ScheduledTaskAction -Execute "$env:USERPROFILE\.local\bin\assist-decider.exe" -Argument "--host 0.0.0.0 --model intern-decision-0.8b"
+  $action = New-ScheduledTaskAction -Execute "$env:USERPROFILE\.local\bin\assist-decider.exe" -Argument "--host 0.0.0.0 --model d3-lite"
   $settings = New-ScheduledTaskSettingsSet -ExecutionTimeLimit ([TimeSpan]::Zero) -RestartCount 999 -RestartInterval (New-TimeSpan -Minutes 1) -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries
   Register-ScheduledTask assist-decider -Action $action -Trigger (New-ScheduledTaskTrigger -AtLogOn) -Settings $settings
   ```
@@ -123,7 +123,7 @@ To keep the server running:
 # /etc/systemd/system/assist-decider.service
 [Service]
 User=assist
-ExecStart=/home/assist/.local/bin/assist-decider --host 0.0.0.0 --model intern-decision-0.8b
+ExecStart=/home/assist/.local/bin/assist-decider --host 0.0.0.0 --model d3-lite
 Restart=on-failure
 [Install]
 WantedBy=multi-user.target

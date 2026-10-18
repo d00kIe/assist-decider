@@ -13,7 +13,7 @@
   <array>
     <string>/bin/sh</string>
     <string>-c</string>
-    <string>exec "$HOME/.local/bin/assist-decider" --host 0.0.0.0 --model d1-3b &gt;&gt; "$HOME/Library/Logs/assist-decider.log" 2&gt;&amp;1</string>
+    <string>exec "$HOME/.local/bin/assist-decider" --host 0.0.0.0 --model d3-lite &gt;&gt; "$HOME/Library/Logs/assist-decider.log" 2&gt;&amp;1</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
