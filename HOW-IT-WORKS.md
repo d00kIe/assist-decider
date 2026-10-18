@@ -310,7 +310,7 @@ The model always sees every action of that kind of device, because models get wo
 
 **The confidence check.** If any answer the server used is below your threshold, **nothing runs** and the whole sentence is handed off. A sentence is done completely or not at all. Answers it asked but didn't need (say, "which device?" when you meant all of them) don't count. Changing a lock or garage door also needs every answer at 0.5 or more, whatever the threshold. The default threshold is 0.4 (English) and 0.5 (German); each model has its own best value, see the README's [Choose a model](README.md#2-choose-a-model).
 
-**How long it takes.** All questions that need no other answer go to the model in **one call**. A second call follows when a room, a floor or nothing was named, and one more for each device named among others. One call takes about 15–25 ms with Laya and d1-omni-600M, 80 ms with d1-3B and 0.2–0.3 s with Intern-Decision on an Apple M4 Pro. The server answers one request at a time. If more than 4 requests are waiting, it answers "busy".
+**How long it takes.** All questions that need no other answer go to the model in **one call**. A second call follows when a room, a floor or nothing was named, and one more for each device named among others. One call takes about 15–25 ms with Laya and d1-omni-600M, 80 ms with d1-3B and 0.2–0.3 s with Intern-Decision on an Apple M4 Pro. The d3 models answer each question of a call in its own pass: d3-lite takes about 50 ms per question on an NVIDIA RTX 3060 laptop GPU. The server answers one request at a time. If more than 4 requests are waiting, it answers "busy".
 
 ### 3.6 What the server sends back
 

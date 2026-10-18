@@ -31,6 +31,125 @@ How to repeat it is at the [end](#repeat-the-benchmark).
   the floor lamp" turns the lamp on right away.
 - **One mistake on a lock is still there:** d1-3B locks the front door when told "sperr die
   Haustür auf" ("unlock the front door"), with a confidence of 0.90.
+- **Added 2026-10-18: the Decision 3.0 models d3-lite (0.8B) and d3-nano (2B).** d3-lite is the
+  new pick for a small graphics card: with a check of 0.2 it gets 57 · 6 · **2** on the tuning
+  sentences and 35 · 4 · **2** on the unseen ones, against 46 · 17 · **2** and 25 · 13 · **3** for
+  Intern-Decision 0.8B, in 1.5 GB. They were measured on another machine; see
+  [Decision 3.0](#decision-30-d3-lite-and-d3-nano).
+
+## Decision 3.0: d3-lite and d3-nano
+
+[d3-lite](https://huggingface.co/vllm-sr/d3-lite) and [d3-nano](https://huggingface.co/vllm-sr/d3-nano)
+are the Decision 3.0 models of vLLM Semantic Router. Despite the names, d3-lite is the smaller
+one (0.8B, built on Qwen3.5-0.8B) and d3-nano the larger (2B, built on Qwen3.5-2B). The server
+answers each question with its own pass through the model, so a sentence takes as many passes as
+it has questions.
+
+**How they were measured.** On 2026-10-18, with the current server and the same script and
+sentences as above, but on another machine: a laptop with an NVIDIA GeForce RTX 3060 Laptop GPU
+(6 GB), Linux, in the server's Docker image, `transformers 5.18.0` and `torch 2.14.1`, without the
+`flash-linear-attention` and `causal-conv1d` speed-up libraries. Nothing else used the graphics
+card during the d3-nano run. (d3-nano was first run on the CPU, while other programs held part of
+the graphics memory: the same results at its suggested check, and one sentence apart in two cells
+below it.)
+
+To check that results from the two machines can be compared, Intern-Decision 0.8B was run on the
+laptop too. At its suggested check of 0.3 the results are identical (46 · 17 · **2** and
+25 · 13 · **3**). At the other checks, a few cells differ by one or two sentences, for example
+56 · 2 · **7** instead of 55 · 2 · **8** on the tuning sentences at check 0.0.
+
+| Model | Tuning (65), check 0.0 | Unseen (41), check 0.0 | Suggested check | Tuning, at that check | Unseen, at that check | Most right with none wrong (tuning) | Median time per sentence (RTX 3060) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| d3-nano | 61 · 2 · **2** | 34 · 3 · **4** (1 🔒) | 0.3 | 60 · 4 · **1** | 34 · 4 · **3** (1 🔒) | 44 | 321 ms |
+| d3-lite | 60 · 3 · **2** | 36 · 3 · **2** | 0.2 * | 57 · 6 · **2** | 35 · 4 · **2** | 43 | 260 ms |
+| Intern-Decision 0.8B, for comparison | 56 · 2 · **7** | 27 · 2 · **12** (2 🔒) | 0.3 | 46 · 17 · **2** | 25 · 13 · **3** | 31 | 113 ms |
+
+\* The rule above suggests 0.0 for d3-lite, where it does best on both sentence sets. 0.2 is
+suggested instead because the server's end-to-end test (`tests/test_live.py`) found a wrong
+action there with a confidence of 0.04: "Schalte das Licht in der Küche und im Flur aus" turned
+off the kitchen's *switches* (the coffee maker). A variant with "die Lichter" got 0.18. At 0.1 and
+0.2 the benchmark result is the same.
+
+**Every check:**
+
+| Model | Sentences | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| d3-nano | tuning | 61 · 2 · **2** | 61 · 2 · **2** | 61 · 2 · **2** | 60 · 4 · **1** | 57 · 7 · **1** | 57 · 7 · **1** |
+|  | unseen | 34 · 3 · **4** (1 🔒) | 34 · 4 · **3** (1 🔒) | 34 · 4 · **3** (1 🔒) | 34 · 4 · **3** (1 🔒) | 31 · 8 · **2** (1 🔒) | 30 · 9 · **2** (1 🔒) |
+| d3-lite | tuning | 60 · 3 · **2** | 57 · 6 · **2** | 57 · 6 · **2** | 56 · 7 · **2** | 53 · 10 · **2** | 52 · 11 · **2** |
+|  | unseen | 36 · 3 · **2** | 35 · 4 · **2** | 35 · 4 · **2** | 31 · 8 · **2** | 31 · 8 · **2** | 29 · 10 · **2** |
+
+**By kind of sentence** (right, check 0.0; d1-3B and Intern-Decision from the Mac):
+
+| Kind of sentence | Sentences | d3-nano | d3-lite | d1-3B | Intern 0.8B |
+|---|---:|---:|---:|---:|---:|
+| Tuning: A device is named | 32 | 31 | 31 | 32 | 30 |
+| Tuning: Only a room or nothing is named | 23 | 21 | 21 | 22 | 20 |
+| Tuning: Polite, all, floors, left / right | 10 | 9 | 8 | 10 | 5 |
+| Unseen: Vague requests | 5 | 2 | 3 | 3 | 1 |
+| Unseen: Three devices in one sentence | 6 | 6 | 6 | 6 | 4 |
+| Unseen: Not about the home (must be handed off) | 5 | 5 | 5 | 5 | 3 |
+| Unseen: All, floors, the whole home | 7 | 6 | 6 | 6 | 5 |
+| Unseen: Follow-ups | 4 | 3 | 3 | 4 | 4 |
+| Unseen: Front door lock and garage door | 6 | 4 | 5 | 4 | 3 |
+| Unseen: German short forms | 5 | 5 | 5 | 4 | 4 |
+| Unseen: Left / right | 3 | 3 | 3 | 3 | 3 |
+
+**Memory and speed:**
+
+| Model | Parameters loaded | Weights | Graphics memory at peak | Peak RAM while loading | Per model call |
+|---|---:|---:|---:|---:|---:|
+| d3-nano | 1882 M | 3.5 GB | 3.5 GB | 4.4 GB | 57 ms |
+| d3-lite | 752 M | 1.4 GB | 1.5 GB | 2.3 GB | 48 ms |
+| Intern-Decision 0.8B, for comparison | 853 M | 1.6 GB | 1.7 GB | 2.3 GB | 54 ms (Mac: 208 ms) |
+
+The server loads only the text part of the d3 models: their vision part (0.10B parameters in
+d3-lite, 0.33B in d3-nano) is dropped after loading. "Per model call" is one question, as above.
+d3-lite needs about as long per question as Intern-Decision 0.8B but asks one question per pass,
+so a sentence takes about twice as long.
+
+**What they do better, and what they still get wrong:**
+
+- Both get **German "… aus" at the end of a sentence** right: "mach das Licht im Flur aus" and
+  "Licht im Flur aus" turn the light off. d3-nano reads "mach die Stehlampe und das Küchenlicht
+  aus" as "lamp on" (0.26), which a check of 0.3 hands off.
+- Both hand off all 5 sentences that are not about the home.
+- **d3-nano locks the front door when told "sperr die Haustür auf"** ("unlock the front door"),
+  with a confidence of 0.74, the same mistake as d1-3B. d3-lite gets it right.
+- "Wie warm ist es hier" and "make it 23" (a follow-up) are taken as not about the home and handed
+  off; "all the lights on this floor" is done in the speaker's room only (0.76–0.92); "open the
+  door" in the hallway turns on the hallway light (d3-lite 0.59, d3-nano 0.32).
+
+<details><summary>d3-lite: 10 mistakes at check 0.0</summary>
+
+- "wie warm ist es im Bad": wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "wie warm ist es hier" (in bathroom): wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "mach es heller, 70 Prozent" (in living room): wanted Floor Lamp: to 70 %; got handed off (not supported)
+- "turn on all the lights on the floor" (in living room): wanted Floor Lamp: on, Hallway Light: on, Kitchen Light: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.76
+- "schalte alle Lichter auf dieser Etage ein" (in living room): wanted Floor Lamp: on, Hallway Light: on, Kitchen Light: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.77
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got handed off (not supported)
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got Desk Lamp: ask how it is · 0.90
+- "turn off all the lights in the house": wanted Desk Lamp: off, Floor Lamp: off, Hallway Light: off, Kitchen Light: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "make it 23" (after "set the bathroom heating to 21 degrees"): wanted Bathroom Heating: to 23 °; got handed off (not about the home)
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 0.59
+
+</details>
+
+<details><summary>d3-nano: 11 mistakes at check 0.0</summary>
+
+- "mach die Stehlampe und das Küchenlicht aus": wanted Floor Lamp: off, Kitchen Light: off; got Floor Lamp: on, Kitchen Light: off · 0.26
+- "wie warm ist es hier" (in bathroom): wanted Bathroom Heating: ask the temperature; got handed off (not about the home)
+- "mach es heller, 70 Prozent" (in living room): wanted Floor Lamp: to 70 %; got handed off (not about the home)
+- "turn on all the lights on the floor" (in living room): wanted Floor Lamp: on, Hallway Light: on, Kitchen Light: on, Left Light: on, Right Light: on; got Floor Lamp: on, Left Light: on, Right Light: on · 0.92
+- "it's too dark in here" (in kitchen): wanted Kitchen Light: on; got handed off (not supported)
+- "hier ist es viel zu dunkel" (in bedroom): wanted Desk Lamp: on; got Desk Lamp: ask how it is · 0.78
+- "mir ist zu warm" (in living room): wanted handed off; got Thermostat: ask the temperature · 0.10
+- "turn off all the lights in the house": wanted Desk Lamp: off, Floor Lamp: off, Hallway Light: off, Kitchen Light: off, Left Light: off, Right Light: off; got handed off (no device or room found)
+- "make it 23" (after "set the bathroom heating to 21 degrees"): wanted Bathroom Heating: to 23 °; got handed off (not about the home)
+- "sperr die Haustür auf": wanted Front Door: unlock; got Front Door: lock · 0.74
+- "open the door" (in hallway): wanted handed off; got Hallway Light: on · 0.32
+
+</details>
 
 ## What changed between the two versions
 
@@ -534,12 +653,17 @@ What each model did wrong at check 0.0, with the sentence's confidence after the
   server's live log.
 - **Intern-Decision answers depend on the other questions in the same call.** Small changes to the
   questions can move its results by a sentence or two.
-- **Time and memory were measured on the Mac only.** "Memory in use" is what the Apple graphics
+- **Time and memory were measured on the Mac only,** except for the d3 models, which were
+  measured on an RTX 3060 laptop. "Memory in use" is what the Apple graphics
   driver reports. "Peak RAM while loading" is the most memory the process used. 1 GB here is
   2³⁰ bytes.
 - **The d1 providers rebuild the models' prompt and, for d1-omni-600M, the network** in the
   server's own code, from the checkpoints' published code. They were not compared number by number
   with Liquid AI's own code.
+- **The d3 provider rebuilds the models' text path** (prompt, attention without the causal mask in
+  the full-attention layers, and the answer readout) from the checkpoints' `d3_format.py` and
+  `d3_runtime.py`. Its prompt tokens were checked against `d3_format.py`; its numbers were not
+  compared with vLLM Semantic Router's own code.
 
 ## The models
 
@@ -548,12 +672,14 @@ What each model did wrong at check 0.0, with the sentence's confidence after the
 | [d1-3B](https://huggingface.co/LiquidAI/d1-3B) | `d1-3b` | Liquid AI | LFM2.5-VL-3B | LFM Open License v1.0 |
 | [Intern-Decision 2B](https://huggingface.co/internlm/Intern-Decision-2B) | `intern-decision-2b` | InternLM | Qwen3.5-2B | Apache-2.0 |
 | [Intern-Decision 0.8B](https://huggingface.co/internlm/Intern-Decision-0.8B) | `intern-decision-0.8b` | InternLM | Qwen3.5-0.8B | Apache-2.0 |
+| [d3-nano](https://huggingface.co/vllm-sr/d3-nano) | `d3-nano` | vLLM Semantic Router | Qwen3.5-2B | Apache-2.0 |
+| [d3-lite](https://huggingface.co/vllm-sr/d3-lite) | `d3-lite` | vLLM Semantic Router | Qwen3.5-0.8B | Apache-2.0 |
 | [d1-omni-600M](https://huggingface.co/LiquidAI/d1-omni-600M) | `d1-omni-600m` | Liquid AI | LFM2.5-Encoder-350M + decision head | LFM Open License v1.0 |
 | [Laya multilingual](https://huggingface.co/convaiinnovations/laya-multilingual) | `multilingual` | ConvAI Innovations | mmBERT-base | Apache-2.0 |
 | [Laya English](https://huggingface.co/convaiinnovations/laya) | `english` | ConvAI Innovations | ModernBERT-large | Apache-2.0 |
 
 Every download is pinned to a reviewed commit (`server/assist_decider_server/providers.py`). For
-Intern-Decision and d1, the server runs no code from the download. The LFM Open License is free to
+Intern-Decision, d1 and d3, the server runs no code from the download. The LFM Open License is free to
 use unless your organization makes $10M or more a year.
 
 ## Repeat the benchmark
@@ -563,12 +689,12 @@ From the `server` folder:
 ```bash
 # the current version: right / handed off / wrong at every check, and every mistake.
 # One model per process; the big ones take a few minutes each.
-for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m; do
+for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m d3-lite d3-nano; do
     uv run python tests/eval/benchmark.py $m    # --out=FILE also saves every result as JSON
 done
 
 # memory and speed, one process per model
-for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m; do
+for m in multilingual english intern-decision-0.8b intern-decision-2b d1-3b d1-omni-600m d3-lite d3-nano; do
     uv run python tests/eval/measure_memory.py $m
 done
 ```

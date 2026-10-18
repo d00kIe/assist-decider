@@ -74,7 +74,7 @@ Intern-Decision, Liquid AI d1), running on a separate machine. It needs to be:
 - [x] uv project, pinned dependencies, CLI `assist-decider` (serve, download)
 - [x] Settings: defaults < TOML < `ASSIST_DECIDER_*` env < CLI; validation
 - [x] `protocol.py` v3 (strict requests, lenient responses, length and ID limits)
-- [x] Providers: Laya (multilingual, English), Intern-Decision 0.8B/2B, d1-3B, d1-omni-600M;
+- [x] Providers: Laya (multilingual, English), Intern-Decision 0.8B/2B, d1-3B, d1-omni-600M, d3-lite/nano;
       pinned revisions, safetensors only, no remote code, warm-up, device auto
 - [x] Numbers EN/DE: digits, words (unicode-rbnf), decimal comma, `komma`/`point`, %, °,
       durations, halves/quarters

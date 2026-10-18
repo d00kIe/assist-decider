@@ -133,13 +133,16 @@ WantedBy=multi-user.target
 
 The server keeps one model in memory. Each model has its own confidence threshold, which you set
 in Home Assistant (next step). The numbers come from [BENCHMARK.md](BENCHMARK.md), measured on an
-M4 Pro Mac: 65 sentences the server was tuned on, and 41 unseen ones, in English and German.
+M4 Pro Mac (the d3 models: on an RTX 3060 laptop): 65 sentences the server was tuned on, and 41
+unseen ones, in English and German.
 
 | `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong, tuned (65) | Unseen (41) |
 |---|---|---|---|---|---|---|
 | **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.50 s | 0.0 | **64 · 1 · 0** | **35 · 2 · 4** |
 | `intern-decision-2b` | English, German | 4.6 GB | 0.64 s | 0.2 | 58 · 5 · 2 | 35 · 5 · 1 |
-| **`intern-decision-0.8b`** | English, German | 2.3 GB | 0.49 s | **0.3** | 46 · 17 · 2 | 25 · 13 · 3 |
+| `d3-nano` (vLLM Semantic Router) | English, German | 3.5 GB | 0.32 s (RTX 3060) | 0.3 | 60 · 4 · 1 | 34 · 4 · 3 |
+| **`d3-lite`** (vLLM Semantic Router) | English, German | 1.5 GB | 0.26 s (RTX 3060) | **0.2** | 57 · 6 · 2 | 35 · 4 · 2 |
+| `intern-decision-0.8b` | English, German | 2.3 GB | 0.49 s (RTX 3060: 0.11 s) | 0.3 | 46 · 17 · 2 | 25 · 13 · 3 |
 | `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 93 ms | 0.3 | 40 · 24 · 1 | 22 · 14 · 5 |
 | `multilingual` (Laya, the default) | English, German | 1.2 GB | 45 ms | 0.5 | 40 · 19 · 6 | 17 · 18 · 6 |
 | `english` (Laya) | English | 2.0 GB | 95 ms | 0.0 | 34 · 1 · 4 (of 39) | 12 · 1 · 6 (of 19) |
@@ -148,7 +151,10 @@ M4 Pro Mac: 65 sentences the server was tuned on, and 41 unseen ones, in English
 
 - **8 GB of memory or more** (a Mac, or a larger graphics card): use `d1-3b`. It is the most
   accurate by far. A threshold doesn't improve it, so leave it at 0.
-- **Up to 4 GB of graphics memory:** use `intern-decision-0.8b` with a threshold of 0.3.
+- **Up to 4 GB of graphics memory:** use `d3-lite` with a threshold of 0.2. It gets far more
+  right than `intern-decision-0.8b` in less memory, and also understands German "… aus" at the
+  end of a sentence. `d3-nano` gets the most tuning sentences right after `d1-3b`, but no more
+  unseen ones than `d3-lite`, and it locked the front door when told to unlock it.
 - `d1-omni-600m` is small and fast and rarely wrong, but hands off many plain commands.
 - Laya is the fastest, but when it is wrong it is usually sure, so a threshold can't catch it.
 - Common mistakes: "if …" and "at 7 in the morning" sentences done right away, and German
@@ -268,6 +274,8 @@ their own licenses:
 
 - [Laya](https://github.com/NandhaKishorM/laya) by Convai Innovations and
   [Intern-Decision](https://huggingface.co/internlm/Intern-Decision-0.8B) by InternLM: Apache-2.0
+- [d3-lite](https://huggingface.co/vllm-sr/d3-lite) and [d3-nano](https://huggingface.co/vllm-sr/d3-nano)
+  by vLLM Semantic Router: Apache-2.0
 - [d1-3B](https://huggingface.co/LiquidAI/d1-3B) and [d1-omni-600M](https://huggingface.co/LiquidAI/d1-omni-600M)
   by Liquid AI: LFM Open License v1.0, free unless your organization makes $10M or more a year
 - [home-assistant-laya](https://github.com/allenporter/home-assistant-laya) by Allen Porter inspired

@@ -106,6 +106,7 @@ THRESHOLDS = {
     "intern-decision-0.8b": 0.3,
     "d1-3b": 0.2,
     "d1-omni-600m": 0.4,
+    "d3-lite": 0.2,
 }
 # Mistakes BENCHMARK.md already lists for a model. Any other wrong action is a regression.
 KNOWN_WRONG = {
