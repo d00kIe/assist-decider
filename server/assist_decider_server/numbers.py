@@ -28,6 +28,9 @@ _FRACTIONS = [
     (re.compile(r"(?<!\w)(?:a\s+)?quarter\s+(?:of\s+)?(?:an\s+)?hour(?!\w)"), "15 min"),
     (re.compile(r"(?<!\w)(?:anderthalb|eineinhalb)(?!\w)"), "1.5"),
 ]
+# "half" on its own, after the fractions and "and a half" are read: half brightness, "Rollladen
+# halb auf". A percentage, so it never fits a temperature.
+_HALF = re.compile(r"(?<!\w)(?:half|halb|halbe|halben|halber|halbes)(?!\w)")
 _UNITS = {
     "pct": r"%|prozent|percent|pct",
     "deg": r"°\s*[cf]?|grad(?:\s+celsius)?|degrees?(?:\s+(?:celsius|fahrenheit))?|celsius",
@@ -52,11 +55,18 @@ class Num:
 def _words(lang: str) -> tuple[dict[str, int], re.Pattern[str]]:
     engine = RbnfEngine.for_language(lang)
     table: dict[str, int] = {}
+    spelled: dict[int, set[str]] = {}
     for n in range(101):
         for text in engine.format_number(n).text_by_ruleset.values():
             word = fold(text).replace("-", " ").strip()
+            spelled.setdefault(n, set()).add(word)
             if word and word not in _AMBIGUOUS_ONE:
                 table.setdefault(word, n)
+    # rbnf only says "one hundred" / "einhundert"; people also say "hundred" / "hundert".
+    for hundred in spelled[100]:
+        for one in spelled[1] | _AMBIGUOUS_ONE:
+            if hundred.startswith(one) and (rest := hundred[len(one) :].strip()):
+                table.setdefault(rest, 100)
     alternation = "|".join(re.escape(w) for w in sorted(table, key=len, reverse=True))
     return table, re.compile(rf"(?<!\w)({alternation})(?!\w)")
 
@@ -75,6 +85,7 @@ def _digits(text: str, lang: str) -> str:
     )
     text = re.sub(r"(?<!\w)(\d+)\s+(?:komma|point)\s+(\d+)(?!\w)", r"\1.\2", text)
     text = re.sub(r"(?<!\w)(\d+)\s+and\s+a\s+half(?!\w)", r"\1.5", text)
+    text = _HALF.sub("50 %", text)
     return _ONE_BEFORE_UNIT.sub("1 ", text)
 
 

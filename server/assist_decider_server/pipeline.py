@@ -3,7 +3,9 @@
 No word lists: code finds the names the home has and the numbers said, and the model answers
 short choice questions about the sentence (HOW-IT-WORKS.md explains it, BENCHMARK.md measures it).
   1. Code: the devices, rooms and floors named, give or take a word's ending ("das linke Licht"),
-     and a word that is in only one device's name ("the right one"). Nothing named: the previous
+     and a word that is in only one device's name ("the right one"). Words left over that are
+     spelled almost like a name ("kichen light", "livingroom") name it too; when several names
+     are that close, the model picks one of them. Nothing named: the previous
      command's devices ("turn it off"), or the speaker's room, its floor or the whole home.
   2. Model, one call with every question that needs no other answer: command or question; is it
      about the home at all (else hand off); for a place: one device or all of a kind, which
@@ -25,7 +27,7 @@ import re
 import time
 import unicodedata
 import uuid
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -51,6 +53,11 @@ OTHER_AT = 0.8
 # kind" and gives that place at least PLACE_AT. Widening acts in other rooms, and Laya answers
 # "the whole home" for many plain sentences ("turn on the light"); otherwise it stays here.
 PLACE_AT = 0.9
+# Words spelled almost like a name ("kichen light", "livingroom", a speech-to-text slip) name it:
+# spaces left out, at most one typo (a letter added, dropped, changed or two swapped) per
+# NEAR_LETTERS letters of the name, and the name has at least NEAR_LETTERS letters. When several
+# names are as close, the model picks one of them. Never a lock or garage door.
+NEAR_LETTERS = 5
 
 
 class HandOff(Exception):
@@ -93,6 +100,9 @@ class Index:
     owners: dict[str, set[tuple[str, str]]]  # a word of a name -> whose names have it
     longest: int
     domains: set[str]
+    # For near names: a name's letters without spaces -> its phrases, and 3 letters -> names.
+    joined: dict[str, list[tuple[str, ...]]] = field(default_factory=dict)
+    grams: dict[str, set[str]] = field(default_factory=dict)
 
 
 def _phrase(text: str) -> tuple[str, ...]:
@@ -101,6 +111,39 @@ def _phrase(text: str) -> tuple[str, ...]:
 
 def _stems(words: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(w[:4] for w in words)
+
+
+def _grams(word: str) -> set[str]:
+    return {word[i : i + 3] for i in range(len(word) - 2)}
+
+
+def _usable(ref: tuple[str, str], entities: dict[str, EntityRec]) -> bool:
+    """A name a near spelling may stand for: a room, a floor, or a device that is not a lock or
+    garage door and that we can act on."""
+    if ref[0] != "entity":
+        return True
+    e = entities[ref[1]]
+    return not e.sensitive and e.domain in DOMAIN_ACTIONS
+
+
+def _typos(a: str, b: str, limit: int) -> int:
+    """Letters added, dropped, changed or two swapped to turn `a` into `b` (Damerau-Levenshtein,
+    optimal string alignment); `limit + 1` as soon as it is more than `limit`."""
+    if abs(len(a) - len(b)) > limit:
+        return limit + 1
+    before, row = None, list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        new = [i]
+        for j, cb in enumerate(b, 1):
+            cost = new[j - 1] + 1, row[j] + 1, row[j - 1] + (ca != cb)
+            best = min(cost)
+            if before and i > 1 and j > 1 and ca == b[j - 2] and a[i - 2] == cb:
+                best = min(best, before[j - 2] + 1)
+            new.append(best)
+        if min(new) > limit:
+            return limit + 1
+        before, row = row, new
+    return row[-1]
 
 
 def _same(a: str, b: str) -> bool:
@@ -143,10 +186,18 @@ def build_index(home: Home) -> Index:
                 phrases[p].append(("entity", e.id))
     stems: dict[tuple[str, ...], list[tuple[str, ...]]] = {}
     owners: dict[str, set[tuple[str, str]]] = {}
+    joined: dict[str, list[tuple[str, ...]]] = {}
+    grams: dict[str, set[str]] = {}
     for p, refs in phrases.items():
         stems.setdefault(_stems(p), []).append(p)
         for word in p:
             owners.setdefault(word, set()).update(refs)
+        letters = "".join(p)
+        usable = any(_usable(ref, entities) for ref in refs)
+        if usable and len(letters) >= NEAR_LETTERS and letters.isalpha():
+            joined.setdefault(letters, []).append(p)
+            for g in _grams(letters):
+                grams.setdefault(g, set()).add(letters)
     return Index(
         entities,
         areas,
@@ -156,6 +207,8 @@ def build_index(home: Home) -> Index:
         owners,
         max((len(p) for p in phrases), default=1),
         {e.domain for e in entities.values()},
+        joined,
+        grams,
     )
 
 
@@ -182,6 +235,7 @@ class Mention:
     end: int
     refs: list[tuple[str, str]]  # [(kind, id)]: kind is "entity", "area" or "floor"
     partial: bool = False  # one word of the name ("the right one")
+    near: bool = False  # spelled almost like the name ("kichen light")
 
 
 def find_mentions(tokens: list[str], index: Index) -> list[Mention]:
@@ -219,6 +273,51 @@ def find_mentions(tokens: list[str], index: Index) -> list[Mention]:
             if refs:
                 mentions.append(Mention(i, i + 1, refs))
             i += 1
+    return mentions
+
+
+def near_mentions(tokens: list[str], index: Index, taken: set[int]) -> list[Mention]:
+    """Words outside `taken` spelled almost like a name: "kichen light" for "Kitchen Light",
+    "livingroom" for "Living Room". The closest spans win; a span may stand for several names
+    that are about as close, and the model then picks. Never a lock or garage door."""
+    found: list[tuple[int, int, int, list[tuple[str, str]]]] = []  # (typos, n, start, refs)
+    for n in range(1, index.longest + 2):  # one word more than a name: "living room" said apart
+        for i in range(len(tokens) - n + 1):
+            words = tokens[i : i + n]
+            if taken.intersection(range(i, i + n)) or not all(w.isalpha() for w in words):
+                continue
+            said = "".join(words)
+            if len(said) < NEAR_LETTERS:
+                continue
+            # A typo changes at most 3 of a name's 3-letter pieces: most names fail that count.
+            shared = Counter(name for g in _grams(said) for name in index.grams.get(g, ()))
+            scored = []
+            for name, count in shared.items():
+                limit = len(name) // NEAR_LETTERS
+                if abs(len(said) - len(name)) > limit or count < len(_grams(name)) - 3 * limit:
+                    continue
+                if (typos := _typos(said, name, limit)) <= limit:
+                    scored.append((typos, name))
+            if not scored:
+                continue
+            best = min(typos for typos, _ in scored)
+            refs = dict.fromkeys(
+                ref
+                for typos, name in sorted(scored)
+                if typos == best
+                for p in index.joined[name]
+                for ref in index.phrases[p]
+                if _usable(ref, index.entities)
+            )
+            if refs:
+                found.append((best, n, i, list(refs)))
+    mentions, used = [], set(taken)
+    for _, n, i, refs in sorted(found, key=lambda f: (f[0], -f[1], f[2])):
+        if used.isdisjoint(range(i, i + n)):
+            used.update(range(i, i + n))
+            ents = [r for r in refs if r[0] == "entity"]
+            # A device name wins over a room or floor that is as close; at most MAX_OPTIONS.
+            mentions.append(Mention(i, i + n, (ents or refs)[:MAX_OPTIONS], near=True))
     return mentions
 
 
@@ -309,7 +408,10 @@ class Decider:
         spans = [m.span() for m in TOKEN_RE.finditer(re.sub(r"(?<=\d),(?=\d)", ".", self.text))]
         self.spans = spans if len(spans) == len(self.tokens) else None
         mentions = find_mentions(self.tokens, index)
-        self.mentions = sorted(mentions + self.partials(mentions), key=lambda m: m.start)
+        mentions += self.partials(mentions)
+        taken = {i for m in mentions for i in range(m.start, m.end)}
+        mentions += near_mentions(self.tokens, index, taken)
+        self.mentions = sorted(mentions, key=lambda m: m.start)
         inside = {i for m in self.mentions for i in range(m.start, m.end)}
         self.free = [i for i in range(len(self.tokens)) if i not in inside]  # outside names
         self.nums = numbers.extract(" ".join(self.tokens[i] for i in self.free), req.language)
@@ -458,7 +560,8 @@ class Decider:
                         self.step("devices", "same name in several rooms", f"kept by {label}")
                         ents = narrowed
                         break
-            groups.append(Group(ents, m, "part of a name" if m.partial else "named"))
+            source = "part of a name" if m.partial else "spelled like" if m.near else "named"
+            groups.append(Group(ents, m, source))
         named_areas = said_areas | {e.area_id for g in groups for e in g.devices}
         for kind, ref, m in places:
             if kind == "area":

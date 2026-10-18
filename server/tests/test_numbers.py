@@ -23,6 +23,15 @@ from assist_decider_server.numbers import Num, extract
         ("eine halbe Stunde", "de", [Num(30, "min")]),
         ("eine Stunde", "de", [Num(1, "h")]),
         ("Rollladen auf dreißig", "de", [Num(30, "")]),
+        # "hundred" without "one", which number spellers leave out
+        ("set the light to hundred percent", "en", [Num(100, "pct")]),
+        ("a hundred percent", "en", [Num(100, "pct")]),
+        ("Licht auf hundert Prozent", "de", [Num(100, "pct")]),
+        ("Licht auf einhundert Prozent", "de", [Num(100, "pct")]),
+        # "half" on its own is 50 %; as part of a duration it stays a duration
+        ("half brightness", "en", [Num(50, "pct")]),
+        ("Rollladen halb auf", "de", [Num(50, "pct")]),
+        ("a quarter of an hour and a half", "en", [Num(15, "min"), Num(50, "pct")]),
         # "ein" is the separable particle of "einschalten", not the number one.
         ("Schalte das Licht ein", "de", []),
         ("Küche, Flur", "de", []),
