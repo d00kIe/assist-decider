@@ -42,7 +42,7 @@ def test_process_ok(client):
 
 def test_info(client):
     r = client.get("/v1/info")
-    assert r.json()["protocol_version"] == 3
+    assert r.json()["protocol_version"] == 4
     assert r.json()["languages"] == ["en", "de"]
 
 

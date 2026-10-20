@@ -28,6 +28,9 @@ class NumberSlot:
 class ActionSpec:
     intent: str  # the Home Assistant intent that performs it
     number: NumberSlot | None = None
+    # A change by this much from the current value: (slot, step). Home Assistant's intents take
+    # no steps, so the integration reads the current value and sends the new one.
+    step: tuple[str, float] | None = None
 
 
 PCT = frozenset({"pct", ""})
@@ -39,7 +42,11 @@ ACTIONS: dict[str, ActionSpec] = {
     "close": ActionSpec("HassTurnOff"),
     "lock": ActionSpec("HassTurnOn"),  # HassTurnOn locks a lock
     "unlock": ActionSpec("HassTurnOff"),
+    "brighter": ActionSpec("HassLightSet", step=("brightness_step", 25)),
+    "dimmer": ActionSpec("HassLightSet", step=("brightness_step", -25)),
     "set_brightness": ActionSpec("HassLightSet", number=NumberSlot("brightness", PCT, 0, 100)),
+    "warmer": ActionSpec("HassClimateSetTemperature", step=("temperature_step", 1)),
+    "cooler": ActionSpec("HassClimateSetTemperature", step=("temperature_step", -1)),
     # ponytail: Celsius only; 70 °F does not fit. Widen the range when Fahrenheit homes matter.
     "set_temperature": ActionSpec(
         "HassClimateSetTemperature",
@@ -55,8 +62,8 @@ QUERY_ONLY = ("query",)
 
 # Device kind (Home Assistant domain) -> the actions offered to the model, in this order.
 DOMAIN_ACTIONS: dict[str, tuple[str, ...]] = {
-    "light": ("turn_on", "turn_off", "set_brightness", "query"),
-    "climate": ("turn_on", "turn_off", "set_temperature", "query"),
+    "light": ("turn_on", "turn_off", "brighter", "dimmer", "set_brightness", "query"),
+    "climate": ("turn_on", "turn_off", "warmer", "cooler", "set_temperature", "query"),
     "cover": OPEN_CLOSE,
     "valve": OPEN_CLOSE,
     "lock": ("lock", "unlock", "query"),
@@ -73,6 +80,13 @@ DOMAIN_ACTIONS: dict[str, tuple[str, ...]] = {
     "weather": QUERY_ONLY,
 }
 
+# With a number that fits, these mean setting it: "turn the light on to 50 %", "dim the light to
+# 30 %" and "set the light to 50 %" are the same action, so their likelihoods are added up.
+IMPLIED_BY_SET: dict[str, tuple[str, ...]] = {
+    "set_brightness": ("turn_on", "brighter", "dimmer"),
+    "set_temperature": ("turn_on", "warmer", "cooler"),
+    "set_position": ("open",),
+}
 
 # Home Assistant's climate intents take an area but no domain slot.
 NO_DOMAIN_SLOT = frozenset({"HassClimateSetTemperature", "HassClimateGetTemperature"})

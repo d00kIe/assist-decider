@@ -37,6 +37,7 @@ from .const import (
     DOMAIN,
     MESSAGES,
     QUERY_INTENTS,
+    STEP_SLOTS,
     SUPPORTED_INTENTS,
     THRESHOLD_OPTIONS,
 )
@@ -199,20 +200,22 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
         known = {e.id for e in home.entities}
         known_areas = {a.id for a in home.areas}
         responses = []
-        for action in result.actions:
-            if not self._valid(action, known, known_areas):
+        for proposed in result.actions:
+            if not self._valid(proposed, known, known_areas):
                 continue
-            responses.append(
-                await self._execute(
-                    action, user_input, language, device_id, satellite_area_id, intents_json
+            for action in self._absolute(proposed, home):
+                responses.append(
+                    await self._execute(
+                        action, user_input, language, device_id, satellite_area_id, intents_json
+                    )
                 )
-            )
         if not responses:
             return await self._fallback_or_error(user_input, chat_log, language, "no_intent")
 
         messages = MESSAGES.get(language, MESSAGES["en"])
         response = _merge(responses, language)
-        speech = " ".join(s for r in responses if (s := _speech(r)))
+        # One "Brightness set" for three lights made brighter, not three.
+        speech = " ".join(dict.fromkeys(s for r in responses if (s := _speech(r))))
         if result.unresolved:
             speech = f"{speech} {messages['rest_not_understood']}".strip()
         response.async_set_speech(speech)
@@ -236,11 +239,53 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
             problem = "entity not exposed"
         elif "area" in action.slots and action.slots["area"] not in known_areas:
             problem = "unknown area"
+        elif steps := [s for s in STEP_SLOTS if s in action.slots]:
+            step, (absolute, _, largest) = steps[0], STEP_SLOTS[steps[0]]
+            value = action.slots[step]
+            if absolute in action.slots or len(steps) > 1:
+                problem = "a step and a value together"
+            elif not isinstance(value, int | float) or not 0 < abs(value) <= largest:
+                problem = f"{step} out of range"
         if problem:
             _LOGGER.warning(
                 "Ignoring server action %s %s: %s", action.intent, action.slots, problem
             )
         return problem is None
+
+    def _absolute(self, action: Action, home: Home) -> list[Action]:
+        """A step ("brighter", "warmer") as the absolute value for each entity it targets, read
+        from the entity's state. Brighter on a light that is off turns it on; darker on one that
+        is off, or a step on an entity without a value, does nothing."""
+        step = next((s for s in STEP_SLOTS if s in action.slots), None)
+        if step is None:
+            return [action]
+        absolute, domain, _ = STEP_SLOTS[step]
+        by = float(action.slots[step])
+        if "name" in action.slots:
+            targets = [action.slots["name"]]
+        else:
+            domains = action.slots.get("domain") or [domain]
+            targets = [
+                e.id
+                for e in home.entities
+                if e.area_id == action.slots.get("area") and e.id.split(".")[0] in domains
+            ]
+        out = []
+        for entity_id in targets:
+            state = self.hass.states.get(entity_id)
+            if state is None or state.domain != domain:
+                continue
+            value = _stepped(state, by)
+            if value == "on":
+                out.append(
+                    action.model_copy(update={"intent": "HassTurnOn", "slots": {"name": entity_id}})
+                )
+            elif value is not None:
+                slots = {"name": entity_id, absolute: value}
+                out.append(action.model_copy(update={"slots": slots}))
+        if not out:
+            _LOGGER.debug("Nothing to change for %s %s", action.intent, action.slots)
+        return out
 
     def _satellite_area_and_device(
         self, user_input: conversation.ConversationInput
@@ -405,6 +450,22 @@ class AssistDeciderAgent(conversation.ConversationEntity, conversation.AbstractC
         return conversation.ConversationResult(
             response=response, conversation_id=chat_log.conversation_id
         )
+
+
+def _stepped(state: State, by: float) -> float | int | Literal["on"] | None:
+    """The new value of a light (brightness %) or thermostat (target °) after a step."""
+    if state.domain == "light":
+        if state.state == "off":
+            return "on" if by > 0 else None
+        brightness = state.attributes.get("brightness")
+        if state.state != "on" or brightness is None:  # unavailable, or an on/off-only light
+            return None
+        return int(max(1, min(100, round(brightness * 100 / 255) + by)))
+    target = state.attributes.get("temperature")
+    if state.state in ("unavailable", "unknown") or not isinstance(target, int | float):
+        return None
+    lo, hi = state.attributes.get("min_temp", 5), state.attributes.get("max_temp", 35)
+    return max(lo, min(hi, round((target + by) * 2) / 2))
 
 
 def _spoken_number(value: float, language: str) -> str:

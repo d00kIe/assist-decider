@@ -259,3 +259,116 @@ async def test_supported_languages(hass, setup_entry) -> None:
     assert agent.supports_streaming is False
     state = hass.states.get(AGENT)
     assert state is not None
+
+
+# ---------------------------------------------------------------- steps ("brighter", "warmer")
+
+
+def set_light(hass: HomeAssistant, entity_id: str, state: str, brightness: int | None) -> None:
+    attrs: dict[str, Any] = {"friendly_name": hass.states.get(entity_id).name}
+    if brightness is not None:
+        attrs |= {"brightness": brightness, "supported_color_modes": ["brightness"]}
+    hass.states.async_set(entity_id, state, attrs)
+
+
+async def test_dimmer_steps_down_from_the_current_brightness(
+    hass, aioclient_mock, setup_entry, home
+) -> None:
+    set_light(hass, "light.hallway", "on", 153)  # 60 %
+    mock_process(
+        aioclient_mock,
+        json=process_response(action("HassLightSet", name="light.hallway", brightness_step=-25)),
+    )
+    result = await converse(hass, "dim the hallway light")
+    assert home["turn_on"][0].data == {"entity_id": "light.hallway", "brightness_pct": 35}
+    assert speech(result) == "Brightness set"
+
+
+async def test_brighter_turns_on_a_light_that_is_off(
+    hass, aioclient_mock, setup_entry, home
+) -> None:
+    mock_process(
+        aioclient_mock,
+        json=process_response(action("HassLightSet", name="light.kitchen", brightness_step=25)),
+    )
+    result = await converse(hass, "it's too dark in the kitchen")
+    assert [c.data["entity_id"] for c in home["turn_on"]] == [["light.kitchen"]]
+    assert speech(result) == "Turned on the light"
+
+
+async def test_dimmer_on_a_light_that_is_off_does_nothing(
+    hass, aioclient_mock, setup_entry, home
+) -> None:
+    mock_process(
+        aioclient_mock,
+        json=process_response(action("HassLightSet", name="light.kitchen", brightness_step=-25)),
+    )
+    result = await converse(hass, "dim the kitchen light")
+    assert home["turn_on"] == []
+    assert result.response.error_code is intent.IntentResponseErrorCode.NO_INTENT_MATCH
+
+
+async def test_a_step_for_a_whole_room_sets_each_light(
+    hass, aioclient_mock, setup_entry, home
+) -> None:
+    set_light(hass, "light.hallway", "on", 255)
+    mock_process(
+        aioclient_mock,
+        json=process_response(
+            action("HassLightSet", area=home["hallway"], domain=["light"], brightness_step=25)
+        ),
+    )
+    result = await converse(hass, "brighter in the hallway")
+    assert home["turn_on"][0].data == {"entity_id": "light.hallway", "brightness_pct": 100}
+    assert speech(result) == "Brightness set"
+
+
+async def test_warmer_steps_up_the_target_temperature(
+    hass, aioclient_mock, setup_entry, home
+) -> None:
+    from homeassistant.components.climate.intent import async_setup_intents
+
+    assert await async_setup_component(hass, "climate", {})
+    await async_setup_intents(hass)  # the intent component registers them only at its setup
+    ents = er.async_get(hass)
+    ents.async_get_or_create("climate", "test", "bath", suggested_object_id="bath")
+    hass.states.async_set(
+        "climate.bath",
+        "heat",
+        {
+            "friendly_name": "Bath",
+            "temperature": 21.5,
+            "min_temp": 7,
+            "max_temp": 22,
+            "supported_features": 1,
+            "hvac_modes": ["heat", "off"],
+        },
+    )
+    async_expose_entity(hass, conversation.DOMAIN, "climate.bath", True)
+    set_temperature = async_mock_service(hass, "climate", "set_temperature")
+    mock_process(
+        aioclient_mock,
+        json=process_response(
+            action("HassClimateSetTemperature", name="climate.bath", temperature_step=1)
+        ),
+    )
+    await converse(hass, "I'm freezing in the bath")
+    assert set_temperature[0].data["temperature"] == 22  # 22.5 is above the bath's max_temp
+    assert set_temperature[0].data["entity_id"] == "climate.bath"
+
+
+@pytest.mark.parametrize(
+    "slots",
+    [
+        {"brightness": 50, "brightness_step": 25},  # a step and a value together
+        {"brightness_step": 500},
+        {"brightness_step": "up"},
+    ],
+)
+async def test_bad_steps_are_dropped(hass, aioclient_mock, setup_entry, home, slots) -> None:
+    mock_process(
+        aioclient_mock,
+        json=process_response(action("HassLightSet", name="light.hallway", **slots)),
+    )
+    await converse(hass, "brighter")
+    assert home["turn_on"] == []

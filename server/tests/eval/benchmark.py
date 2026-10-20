@@ -1,7 +1,9 @@
 """The benchmark of BENCHMARK.md: sentences through the server's own pipeline.
 
-Two splits. "dev" is the 65 sentences the pipeline was tuned on. "test" is held out: written on
-2026-10-10, before the v2 changes, and never tuned on; report it, don't tune on it.
+Three splits. "dev" is the 65 sentences the pipeline was tuned on. "test" is held out: written on
+2026-10-10, before the v2 changes, and never tuned on; report it, don't tune on it. "log" is what
+speech-to-text really wrote in a real home on 2026-10-18 (typos included), in a home named the
+same way, with Home Assistant set to German.
 
 Prints, per model and split, how many sentences are right, handed to Home Assistant, or wrong at
 each confidence threshold; the most right answers with 0 (and with at most 1) wrong, whatever
@@ -218,6 +220,10 @@ NEW_CASES = [
 ]
 
 OPEN, LOCK, UNLOCK, QUERY = ("open", None), ("lock", None), ("unlock", None), ("query", None)
+BRIGHTER, DIMMER = ("brighter", None), ("dimmer", None)
+WARMER, COOLER = ("warmer", None), ("cooler", None)
+# More than one right answer: brighter turns on a light that is off, so "on" is right too.
+LIGHTER = [BRIGHTER, ON]
 
 
 def temp(value: float) -> tuple:
@@ -232,12 +238,13 @@ ALL_LIGHTS = {KL: OFF, DL: OFF, FL: OFF, HL: OFF, LL: OFF, RL: OFF}
 # Held out: written 2026-10-10 before the v2 changes, never tuned on. Home: HOME_FLOORS.
 # lang, text, speaker's room, gold (None: must be handed off), previous command (a follow-up)
 TEST_CASES = [
-    # vague: act when no number is needed, else hand off
-    ("en", "it's too dark in here", "kitchen", {KL: ON}, None),
-    ("de", "hier ist es viel zu dunkel", "bedroom", {DL: ON}, None),
-    ("en", "I'm freezing", "bathroom", None, None),
-    ("de", "mir ist zu warm", "living_room", None, None),
-    ("en", "make it a bit brighter", "bedroom", None, None),
+    # vague: a step from the current value. Until 2026-10-19 there were no steps: "freezing",
+    # "zu warm" and "a bit brighter" had to be handed off.
+    ("en", "it's too dark in here", "kitchen", {KL: LIGHTER}, None),
+    ("de", "hier ist es viel zu dunkel", "bedroom", {DL: LIGHTER}, None),
+    ("en", "I'm freezing", "bathroom", {BH: WARMER}, None),
+    ("de", "mir ist zu warm", "living_room", {TH: COOLER}, None),
+    ("en", "make it a bit brighter", "bedroom", {DL: BRIGHTER}, None),
     # long compounds
     (
         "en",
@@ -331,6 +338,99 @@ TEST_CASES = [
     ("de", "schalte das linke Licht und die Stehlampe aus", None, {LL: OFF, FL: OFF}, None),
 ]
 
+# A home named like the one the live log came from: KNX dimmer names, "rechts"/"links" in both a
+# light's and a blind's name, a TV with an English name.
+W_R, W_L, W_T, W_BR, W_BL, W_TH, W_TV, K_L, K_B, K_TH = (
+    "light.eg_wohnen_licht_rechts",
+    "light.eg_wohnen_licht_links",
+    "light.eg_wohnen_esstisch_licht",
+    "cover.eg_wohnen_rechts",
+    "cover.eg_wohnen_links",
+    "climate.eg_wohnen",
+    "media_player.living_room_tv",
+    "light.eg_kuche_licht",
+    "cover.eg_kuche",
+    "climate.eg_essen_kuche",
+)
+HOME_LOG = HOME.model_copy(
+    update={
+        "floors": [Floor(id="eg", name="EG", aliases=["Erdgeschoss"])],
+        "areas": [
+            Area(id="wohnzimmer", name="Wohnzimmer", floor_id="eg"),
+            Area(id="kuche", name="Küche", floor_id="eg"),
+        ],
+        "entities": [
+            Entity(id=W_R, name="Dimmaktor 2 EG Wohnen Licht Rechts", area_id="wohnzimmer"),
+            Entity(id=W_L, name="Dimmaktor 2 EG Wohnen Licht Links", area_id="wohnzimmer"),
+            Entity(
+                id=W_T,
+                name="Dimmaktor 1 EG Wohnen Esstisch Licht",
+                aliases=["Table"],
+                area_id="wohnzimmer",
+            ),
+            Entity(id=W_BR, name="EG Wohnen rechts", area_id="wohnzimmer", device_class="blind"),
+            Entity(id=W_BL, name="EG Wohnen links", area_id="wohnzimmer", device_class="blind"),
+            Entity(id=W_TH, name="EG Wohnen", area_id="wohnzimmer"),
+            Entity(
+                id="sensor.eg_wohnen_temperature",
+                name="EG Wohnen Wandthermostat Temperature",
+                area_id="wohnzimmer",
+                device_class="temperature",
+            ),
+            Entity(
+                id="sensor.eg_wohnen_humidity",
+                name="EG Wohnen Wandthermostat Humidity",
+                area_id="wohnzimmer",
+                device_class="humidity",
+            ),
+            Entity(id=W_TV, name="Living Room TV", area_id="wohnzimmer"),
+            Entity(id=K_L, name="Dimmaktor 1 EG Küche Licht", area_id="kuche"),
+            Entity(id=K_B, name="EG Küche", area_id="kuche", device_class="blind"),
+            Entity(id=K_TH, name="EG Essen/Küche", area_id="kuche"),
+            Entity(
+                id="sensor.eg_kuche_temperature",
+                name="EG Küche Wandthermostat Temperature",
+                area_id="kuche",
+                device_class="temperature",
+            ),
+        ],
+    }
+)
+W_LIGHTS = (W_R, W_L, W_T)
+# lang (as Home Assistant sent it), text as speech-to-text wrote it, speaker's room, gold
+LOG_CASES = [
+    ("de", "Macht die Rollos im Wohnzimmer runter.", None, {W_BR: CLOSE, W_BL: CLOSE}),
+    ("de", "Macht die Rohrläden in der Küche runter.", None, {K_B: CLOSE}),
+    ("de", "Macht die Hohlhose in der Küche runter.", None, {K_B: CLOSE}),  # "Rollos", misheard
+    ("de", "Dim, die Lichter in der Küche!", None, {K_L: DIMMER}),
+    (
+        "de",
+        "Setzt das Licht auf hundert Prozent.",
+        "wohnzimmer",
+        dict.fromkeys(W_LIGHTS, bright(100)),
+    ),
+    ("de", "Setzt das Licht auf 100%.", "wohnzimmer", dict.fromkeys(W_LIGHTS, bright(100))),
+    (
+        "de",
+        "Set the brightness to a hundred percent.",
+        "wohnzimmer",
+        dict.fromkeys(W_LIGHTS, bright(100)),
+    ),
+    ("de", "Turn on the lights.", "wohnzimmer", dict.fromkeys(W_LIGHTS, ON)),
+    ("de", "Mach's die Lichter an.", "wohnzimmer", dict.fromkeys(W_LIGHTS, ON)),
+    ("de", "Macht das Tischlicht an.", "wohnzimmer", {W_T: ON}),
+    ("de", "Turn on The table light.", "wohnzimmer", {W_T: ON}),
+    ("de", "Es ist zu dunkel hier.", "wohnzimmer", dict.fromkeys(W_LIGHTS, LIGHTER)),
+    ("de", "Es ist zu hell hier.", "wohnzimmer", dict.fromkeys(W_LIGHTS, DIMMER)),
+    ("de", "Mach die Lichter heller.", "wohnzimmer", dict.fromkeys(W_LIGHTS, BRIGHTER)),
+    ("de", "Dimm das Licht in der Küche.", None, {K_L: DIMMER}),
+    ("de", "Mir ist kalt.", "wohnzimmer", {W_TH: WARMER}),
+    ("de", "dim the lights", "wohnzimmer", dict.fromkeys(W_LIGHTS, DIMMER)),
+    ("de", "it's too dark in here", "wohnzimmer", dict.fromkeys(W_LIGHTS, LIGHTER)),
+    ("de", "Oh.", "wohnzimmer", None),
+    ("de", "Yeah.", "wohnzimmer", None),
+]
+
 SENSITIVE = {GD, FD}
 THRESHOLDS = (0.0, 0.1, 0.2, 0.3, 0.4, 0.5)
 # split, group, lang, text, speaker's room, gold, home, previous command
@@ -342,16 +442,32 @@ ALL_CASES = (
         ("test", "test", lang, text, sat, gold, HOME_FLOORS, prev)
         for lang, text, sat, gold, prev in TEST_CASES
     ]
+    + [("log", "log", lang, text, sat, gold, HOME_LOG, None) for lang, text, sat, gold in LOG_CASES]
 )
+SPLITS = ("dev", "test", "log")
 
 
-def expected(gold: dict) -> dict[str, tuple]:
-    """{entity: (action, value)} -> {entity: (intent, value slots)}."""
-    out = {}
-    for eid, (action, value) in gold.items():
-        slots = {ACTIONS[action].number.slot: value} if value is not None else {}
-        out[eid] = (intent_for(action, eid.split(".")[0]), slots)
-    return out
+def _call(eid: str, action: str, value: float | None) -> tuple:
+    if action not in ACTIONS:  # an older server, run with this script: it can't be right
+        return (action, {})
+    spec = ACTIONS[action]
+    if getattr(spec, "step", None):
+        slots = {spec.step[0]: spec.step[1]}
+    else:
+        slots = {spec.number.slot: value} if value is not None else {}
+    return (intent_for(action, eid.split(".")[0]), slots)
+
+
+def expected(gold: dict) -> dict[str, list[tuple]]:
+    """{entity: (action, value) or a list of them} -> {entity: [(intent, value slots)]}."""
+    return {
+        eid: [_call(eid, *a) for a in (want if isinstance(want, list) else [want])]
+        for eid, want in gold.items()
+    }
+
+
+def matches(got: dict[str, tuple], want: dict[str, list[tuple]]) -> bool:
+    return got.keys() == want.keys() and all(got[e] in want[e] for e in want)
 
 
 def acted(actions, home) -> dict[str, tuple]:
@@ -374,10 +490,14 @@ def acted(actions, home) -> dict[str, tuple]:
     return out
 
 
-def short(actions: dict[str, tuple]) -> str:
+def short(actions: dict[str, tuple | list[tuple]]) -> str:
+    def one(intent: str, slots: dict) -> str:
+        return intent + "".join(f" {k}={v:g}" for k, v in slots.items())
+
     return ", ".join(
-        f"{eid.split('.')[1]}:{intent}" + "".join(f" {k}={v:g}" for k, v in slots.items())
-        for eid, (intent, slots) in sorted(actions.items())
+        f"{eid.split('.')[1]}:"
+        + " or ".join(one(*c) for c in (calls if isinstance(calls, list) else [calls]))
+        for eid, calls in sorted(actions.items())
     )
 
 
@@ -417,12 +537,12 @@ def run(model: str) -> list[dict]:
                 "got": short(got) if got else f"handed off ({response.reason})",
                 "handoff": not got,
                 "must_hand_off": want is None,
-                "ok": not got if want is None else got == want,
+                "ok": not got if want is None else matches(got, want),
                 "conf": min((a.confidence for a in response.actions), default=1.0),
                 "unsafe": any(
                     e in got
                     and got[e][0] != "HassGetState"
-                    and (want is None or got[e] != want.get(e))
+                    and (want is None or got[e] not in want.get(e, []))
                     for e in SENSITIVE
                 ),
                 "ms": ms,
@@ -476,18 +596,22 @@ if __name__ == "__main__":
     if out:
         with open(out, "w") as f:
             json.dump(results, f, ensure_ascii=False, indent=1)
-    for split in ("dev", "test"):
+    for split in SPLITS:
         print(f"\n### {split}\n")
         print("| Model | " + " | ".join(f"check {t:.1f}" for t in THRESHOLDS) + " | Median |")
         print("|---|" + "---:|" * (len(THRESHOLDS) + 1))
         for m, rows in results.items():
             rows = [r for r in rows if r["split"] == split]
+            if not rows:  # e.g. the English model on the German log
+                continue
             cells = " | ".join(cell(rows, t) for t in THRESHOLDS)
             print(f"| {m} | {cells} | {statistics.median(r['ms'] for r in rows):.0f} ms |")
         print("\n| Model | Right at 0 wrong | Right at ≤1 wrong | Model calls (median / max) |")
         print("|---|---:|---:|---:|")
         for m, rows in results.items():
             rows = [r for r in rows if r["split"] == split]
+            if not rows:
+                continue
             calls = [r["calls"] for r in rows]
             print(
                 f"| {m} | {best(rows, 0)} | {best(rows, 1)} | "
@@ -498,7 +622,7 @@ if __name__ == "__main__":
         groups = {g: [r for r in rows if r["group"] == g] for g in ("55", "new")}
         print(f"| {m} | {cell(groups['55'], 0.0)} | {cell(groups['new'], 0.0)} |")
     for m, rows in results.items():
-        for split in ("dev", "test"):
+        for split in SPLITS:
             print(f"\n**{m}, {split}**\n")
             for r in rows:
                 if r["split"] == split and not r["ok"]:

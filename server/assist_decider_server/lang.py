@@ -30,12 +30,13 @@ class Lang:
     # there are no word lists. Wording was chosen by probing Laya and Intern-Decision on the
     # benchmark's dev sentences (BENCHMARK.md): both are sensitive to it, so change it only with
     # the benchmark. Laya reads at most 48 tokens per option.
+    # Multiplied into the action answer (never a veto): "is the light on" weighs "ask" up.
     kind_question: str
     kinds: dict[str, str]  # "command" / "question" -> description
     topic_question: str
     topics: dict[str, str]  # "home" (format(kinds=): the home's kinds of device) / "other"
-    # A room, a floor or the speaker's surroundings: one device or all of a kind, which kind,
-    # which device. Nothing named: here, this floor or the whole home; or the previous devices.
+    # Nothing named: here, this floor or the whole home (widened only for "all of a kind"); or
+    # the previous devices. In a room: which kind (all of it), and which sensor for a question.
     scope_question: str
     scopes: dict[str, str]  # "one" / "all"
     device_kind_question: str  # its options: the kinds present, worded by `domains`
@@ -56,10 +57,13 @@ class Lang:
 
 EN = Lang(
     kind_question="Is the user giving a command or asking a question?",
-    kinds={"command": "a command to do something", "question": "a question about how something is"},
+    kinds={
+        "command": "a command or wish to change something (also 'it's too dark', 'I'm cold')",
+        "question": "a question that asks how something is",
+    },
     topic_question="What is the user talking about?",
     topics={
-        "home": "{kinds} or other devices at home",
+        "home": "{kinds} or other devices at home, or how warm, cold, bright or dark it is",
         "other": "something else: chit-chat, knowledge, weather, timers, reminders, shopping lists",
     },
     scope_question="Does the user mean one device or all of one kind?",
@@ -82,14 +86,18 @@ EN = Lang(
     actions={
         "turn_on": "turn on, switch on, start",
         "turn_off": "turn off, switch off, stop",
-        "set_brightness": "dim or brighten to a value",
+        "brighter": "make it brighter (brighter, more light, it's too dark)",
+        "dimmer": "make it dimmer (dim, darker, less light, it's too bright)",
+        "set_brightness": "set the brightness to a value or percentage",
+        "warmer": "make it warmer (warmer, heat up, it's cold, I'm freezing)",
+        "cooler": "make it cooler (cooler, colder, it's too warm, too hot)",
         "set_temperature": "set the temperature to a value",
         "open": "open",
         "close": "close",
         "set_position": "open to a position or percentage",
         "lock": "lock",
         "unlock": "unlock",
-        "query": "only asks how it is, changes nothing",
+        "query": "a question: only asks how it is, changes nothing",
     },
     value_question="Which value should the {device} be set to?",
     no_value="no value given for this device",
@@ -117,10 +125,13 @@ EN = Lang(
 
 DE = Lang(
     kind_question="Gibt der Nutzer einen Befehl oder stellt er eine Frage?",
-    kinds={"command": "ein Befehl, etwas zu tun", "question": "eine Frage, wie etwas ist"},
+    kinds={
+        "command": "ein Befehl oder Wunsch, etwas zu ändern (auch „zu dunkel“, „mir ist kalt“)",
+        "question": "eine Frage, wie etwas ist",
+    },
     topic_question="Worüber spricht der Nutzer?",
     topics={
-        "home": "{kinds} oder andere Geräte im Haus",
+        "home": "{kinds} oder andere Geräte im Haus, oder wie warm, kalt, hell oder dunkel es ist",
         "other": "etwas anderes: Plaudern, Wissen, Wetter, Timer, Erinnerungen, Einkaufslisten",
     },
     scope_question="Meint der Nutzer ein Gerät oder alle einer Art?",
@@ -143,14 +154,18 @@ DE = Lang(
     actions={
         "turn_on": "einschalten, anmachen, starten (an, ein)",
         "turn_off": "ausschalten, ausmachen, stoppen (aus, ab)",
-        "set_brightness": "dimmen oder heller machen auf einen Wert",
+        "brighter": "heller machen (heller, mehr Licht, es ist zu dunkel)",
+        "dimmer": "dunkler machen, dimmen (dunkler, weniger Licht, zu hell)",
+        "set_brightness": "Helligkeit auf einen Wert oder Prozent stellen",
+        "warmer": "wärmer machen (wärmer, aufheizen, mir ist kalt, zu kalt)",
+        "cooler": "kühler machen (kühler, kälter, mir ist zu warm, zu heiß)",
         "set_temperature": "Temperatur auf einen Wert stellen",
         "open": "öffnen, hochfahren (auf, hoch)",
         "close": "schließen, runterfahren (zu, runter)",
         "set_position": "auf eine Position oder Prozent fahren",
         "lock": "abschließen, zusperren („sperr … ab“)",
         "unlock": "aufschließen, entsperren („sperr … auf“)",
-        "query": "fragt nur, wie es ist, ändert nichts",
+        "query": "eine Frage: fragt nur, wie es ist, ändert nichts",
     },
     value_question="Auf welchen Wert soll {device} gestellt werden?",
     no_value="kein Wert für dieses Gerät",

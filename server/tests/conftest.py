@@ -24,8 +24,8 @@ FIRST = ("kind", "topic")  # asked about every sentence
 
 
 def question_type(q: Question) -> str:
-    """Which of the pipeline's questions this is: "kind", "topic", "scope", "device_kind",
-    "place", "reference", "which", "action" or "value"."""
+    """Which of the pipeline's questions this is: "topic", "scope", "device_kind", "place",
+    "reference", "which", "action" or "value"."""
     for lang in LANGS.values():
         for kind in ("kind", "topic", "scope", "device_kind", "place"):
             if q.instructions == getattr(lang, f"{kind}_question"):
@@ -80,7 +80,7 @@ class FakeProvider:
         return {key: out[key] for key in questions}
 
     def asked(self) -> list[str]:
-        """The questions asked, without the four every sentence starts with (FIRST)."""
+        """The questions asked, without the two every sentence starts with (FIRST)."""
         return [kind for kind, _, _ in self.calls if kind not in FIRST]
 
 
@@ -94,7 +94,7 @@ def answer(
     place: str = "here",
     reference: str = "previous",
 ) -> Rule:
-    """A rule: what is asked (`kind`: command, question or other); `action` for
+    """A rule: what is asked (`kind`: command, or other: not about the home); `action` for
     every device, or per device name in the question; in a place the option containing `device`
     (else the first), `scope` one or all, `of` which kind (default: the kind of the device it
     picks), `place` here, floor or home; a follow-up's `reference`; `value` is a number option,
@@ -104,7 +104,7 @@ def answer(
         if qtype in ("scope", "place", "reference", "device_kind"):
             return {"scope": scope, "place": place, "reference": reference}.get(qtype, of)
         if qtype == "kind":
-            return "question" if kind == "question" else "command"
+            return "question" if action == "query" else "command"
         if qtype == "topic":
             return "other" if kind == "other" else "home"
         if qtype == "which":
@@ -184,7 +184,7 @@ HOME = Home(
 
 def make_request(text: str, language: str = "en", **kw: Any) -> ProcessRequest:
     data: dict[str, Any] = {
-        "protocol_version": 3,
+        "protocol_version": 4,
         "text": text,
         "language": language,
         "intents": ALL_INTENTS,

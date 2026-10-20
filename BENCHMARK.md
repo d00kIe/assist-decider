@@ -1,7 +1,9 @@
 # Decision model benchmark
 
-How well each of the six decision models understands home commands with the current server, and how
-that compares with the previous server version. The test uses 106 sentences in English and German.
+How well each decision model understands home commands with the current server, and how that
+compares with the previous server version. The test uses 126 sentences in English and German. The
+newest results are first: [2026-10-19: looser commands](#2026-10-19-looser-commands). The
+sections after it describe the versions of 2026-10-10 and 2026-10-18.
 
 - **Previous version:** commit `1fd399e` (2026-10-10).
 - **Current version:** the server as it is in this repository (2026-10-10).
@@ -10,6 +12,109 @@ Both versions were run on 2026-10-10 on the same machine: a MacBook Pro M4 Pro w
 and 48 GB of memory, `laya 0.3.26`, `transformers 5.18.0` and `torch 2.14.1`. Both used the same
 script (`server/tests/eval/benchmark.py`), which sends every sentence through the server's own code.
 How to repeat it is at the [end](#repeat-the-benchmark).
+
+## 2026-10-19: looser commands
+
+The server's decision tree was changed so that commands don't have to be worded perfectly, after
+reading the live log of a real home (HOW-IT-WORKS.md, 2.1 and 3.5, explains the new tree):
+
+- **"a hundred", "hundert"** are read as 100, and English number words count when Home Assistant
+  is set to German (and the other way round).
+- **"Dim the lights", "it's too dark", "mir ist kalt"**: new actions brighter / dimmer (±25 %)
+  and warmer / cooler (±1 °). Home Assistant turns the step into a value from the device's state
+  (protocol version 4).
+- **A room means every device of the kind said**, like Home Assistant's own agent: "the light" in
+  a room with three lights turns on all three. The "one device or all of a kind?" question is
+  gone there; it handed off "close the blinds in the kitchen" (one blind) with "close" at 0.98.
+- **"Command or question?" no longer forbids actions**; it is multiplied into the action answer.
+  A number with a fitting unit makes "turn on" the same as "set to a value"; a step with a number
+  ("dim to 20") is setting it.
+- A lock or garage door below 0.5 is now handed off at every check, also at 0.0.
+
+**How it was measured.** On 2026-10-19 on the RTX 3060 laptop (6 GB, Linux, the server's Docker
+image, `transformers 5.18.0`, `torch 2.14.1`), nothing else on the graphics card. Both versions,
+previous (commit `c80a4f3`) and current, were run with the same new script on the same machine.
+d1-3B doesn't fit into 6 GB, so it ran on the CPU (hence its time). The script has a third set of
+sentences, **live log (20)**: what speech-to-text really wrote in a real home on 2026-10-18,
+typos included ("Rohrläden", "Hohlhose" for "Rollos"), English sentences sent as German, in a test
+home named like that one (KNX dimmer names, "rechts"/"links" in a light's and a blind's name).
+
+**Five unseen sentences got a new right answer**, because the server can now do them: "it's too
+dark in here" and "hier ist es viel zu dunkel" (brighter, or on), "make it a bit brighter",
+"I'm freezing" (warmer), "mir ist zu warm" (cooler). Before, the right answer for the last three
+was "hand off". So the previous version's unseen numbers below are lower than in the tables
+further down. Each cell is right · handed off · **wrong** (🔒: wrong on the lock or garage door).
+
+| Model | Version | Tuning (65), 0.0 | Unseen (41), 0.0 | Live log (20), 0.0 | Suggested check | Tuning | Unseen | Live log | None wrong (tuning) | Median |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| d1-3B (CPU) | previous | 64 · 1 · **0** | 33 · 4 · **4** (1 🔒) | 9 · 10 · **1** | 0.0 | 64 · 1 · **0** | 33 · 4 · **4** (1 🔒) | 9 · 10 · **1** | 64 | 14595 ms |
+|  | **current** | 65 · 0 · **0** | 37 · 1 · **3** (1 🔒) | 18 · 0 · **2** | 0.2 | 65 · 0 · **0** | 37 · 1 · **3** (1 🔒) | 19 · 0 · **1** | 65 | 14519 ms |
+| Intern-Decision 2B | previous | 60 · 2 · **3** | 31 · 6 · **4** (1 🔒) | 6 · 8 · **6** | 0.2 | 58 · 5 · **2** | 32 · 8 · **1** | 6 · 10 · **4** | 16 | 200 ms |
+|  | **current** | 58 · 3 · **4** | 31 · 3 · **7** | 14 · 1 · **5** | 0.3 | 58 · 5 · **2** | 31 · 4 · **6** | 13 · 3 · **4** | 31 | 205 ms |
+| d3-nano | previous | 61 · 2 · **2** | 32 · 5 · **4** (1 🔒) | 7 · 7 · **6** | 0.3 | 60 · 4 · **1** | 31 · 7 · **3** (1 🔒) | 5 · 12 · **3** | 44 | 336 ms |
+|  | **current** | 62 · 0 · **3** | 37 · 2 · **2** (1 🔒) | 17 · 1 · **2** | 0.5 | 62 · 1 · **2** | 37 · 3 · **1** (1 🔒) | 17 · 1 · **2** | 50 | 307 ms |
+| d3-lite | previous | 60 · 3 · **2** | 33 · 6 · **2** | 6 · 8 · **6** | 0.0 | 60 · 3 · **2** | 33 · 6 · **2** | 6 · 8 · **6** | 43 | 255 ms |
+|  | **current** | 63 · 0 · **2** | 37 · 2 · **2** | 17 · 1 · **2** | 0.5 | 63 · 0 · **2** | 37 · 3 · **1** | 17 · 1 · **2** | 49 | 261 ms |
+| Intern-Decision 0.8B | previous | 56 · 2 · **7** | 26 · 3 · **12** (2 🔒) | 8 · 4 · **8** | 0.3 | 46 · 17 · **2** | 23 · 15 · **3** | 6 · 13 · **1** | 31 | 149 ms |
+|  | **current** | 56 · 0 · **9** | 29 · 4 · **8** | 14 · 0 · **6** | 0.4 | 52 · 10 · **3** | 27 · 11 · **3** | 10 · 9 · **1** | 37 | 141 ms |
+| d1-omni-600M | previous | 48 · 13 · **4** | 24 · 8 · **9** | 4 · 13 · **3** | 0.3 | 40 · 24 · **1** | 19 · 17 · **5** | 3 · 15 · **2** | 33 | 60 ms |
+|  | **current** | 49 · 8 · **8** | 32 · 6 · **3** | 10 · 0 · **10** | 0.5 | 47 · 15 · **3** | 27 · 12 · **2** | 9 · 6 · **5** | 37 | 58 ms |
+| Laya multilingual | previous | 53 · 0 · **12** | 19 · 2 · **20** (2 🔒) | 4 · 7 · **9** | 0.5 | 40 · 19 · **6** | 15 · 20 · **6** | 4 · 16 · **0** | 26 | 40 ms |
+|  | **current** | 54 · 0 · **11** | 22 · 2 · **17** (1 🔒) | 10 · 0 · **10** | 0.5 | 49 · 8 · **8** | 23 · 8 · **10** (1 🔒) | 10 · 4 · **6** | 20 | 39 ms |
+| Laya English | previous | 34 · 1 · **4** | 11 · 2 · **6** | – | 0.0 | 34 · 1 · **4** | 11 · 2 · **6** | – | 21 | 50 ms |
+|  | **current** | 37 · 0 · **2** | 11 · 1 · **7** | – | 0.5 | 35 · 3 · **1** | 15 · 3 · **1** | – | 21 | 67 ms |
+
+**What it means:**
+
+- **d3-lite, d3-nano and d1-3B are better everywhere.** d3-lite: tuning 60 · 3 · **2** → 63 · 0 ·
+  **2**, unseen 33 · 6 · **2** → 37 · 2 · **2**, live log 6 · 8 · **6** → 17 · 1 · **2**, the same
+  at every check from 0.0 to 0.4. d1-3B now gets all 65 tuning sentences right.
+- **The live log is where it shows most:** most models get about twice as many right (Intern-Decision 0.8B: 8 → 14), mostly
+  "hundert Prozent", "Rollos … runter" in a room with one or two blinds, "dim", "too dark".
+- **Smaller models gain less.** Intern-Decision 0.8B and d1-omni-600M are better on unseen
+  sentences but have one or two more wrong on the tuning ones; they confuse the new options
+  ("Licht aus" read as "brighter"). Laya is still often sure when wrong.
+- **Intern-Decision 2B got worse on unseen sentences:** 31 · 4 · **6** at its suggested check,
+  against 32 · 8 · **1** before. It reads the new questions differently; d3-nano is the better
+  choice at that size now.
+- **Fewer lock mistakes:** Laya multilingual and Intern-Decision 0.8B have one instead of two, Laya
+  English and Intern-Decision 2B none. d3-nano and d1-3B still lock the front door when told
+  "sperr die Haustür auf" ("unlock"), confidence 0.80 and higher.
+
+**Every check, current version:**
+
+| Model | Sentences | check 0.0 | check 0.1 | check 0.2 | check 0.3 | check 0.4 | check 0.5 |
+|---|---|---:|---:|---:|---:|---:|---:|
+| d1-3b | dev | 65 · 0 · **0** | 65 · 0 · **0** | 65 · 0 · **0** | 64 · 1 · **0** | 64 · 1 · **0** | 63 · 2 · **0** |
+| d1-3b | test | 37 · 1 · **3** (1 🔒) | 37 · 1 · **3** (1 🔒) | 37 · 1 · **3** (1 🔒) | 37 · 1 · **3** (1 🔒) | 38 · 1 · **2** (1 🔒) | 36 · 3 · **2** (1 🔒) |
+| d1-3b | log | 18 · 0 · **2** | 18 · 0 · **2** | 19 · 0 · **1** | 18 · 1 · **1** | 18 · 1 · **1** | 18 · 1 · **1** |
+| intern-decision-2b | dev | 58 · 3 · **4** | 58 · 3 · **4** | 58 · 4 · **3** | 58 · 5 · **2** | 56 · 7 · **2** | 53 · 10 · **2** |
+| intern-decision-2b | test | 31 · 3 · **7** | 31 · 3 · **7** | 31 · 3 · **7** | 31 · 4 · **6** | 31 · 6 · **4** | 32 · 8 · **1** |
+| intern-decision-2b | log | 14 · 1 · **5** | 14 · 1 · **5** | 14 · 1 · **5** | 13 · 3 · **4** | 11 · 5 · **4** | 10 · 8 · **2** |
+| d3-nano | dev | 62 · 0 · **3** | 62 · 0 · **3** | 62 · 0 · **3** | 62 · 0 · **3** | 62 · 1 · **2** | 62 · 1 · **2** |
+| d3-nano | test | 37 · 2 · **2** (1 🔒) | 37 · 2 · **2** (1 🔒) | 37 · 2 · **2** (1 🔒) | 37 · 2 · **2** (1 🔒) | 38 · 2 · **1** (1 🔒) | 37 · 3 · **1** (1 🔒) |
+| d3-nano | log | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** |
+| d3-lite | dev | 63 · 0 · **2** | 63 · 0 · **2** | 63 · 0 · **2** | 63 · 0 · **2** | 63 · 0 · **2** | 63 · 0 · **2** |
+| d3-lite | test | 37 · 2 · **2** | 37 · 2 · **2** | 37 · 2 · **2** | 37 · 2 · **2** | 37 · 2 · **2** | 37 · 3 · **1** |
+| d3-lite | log | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** | 17 · 1 · **2** |
+| intern-decision-0.8b | dev | 56 · 0 · **9** | 56 · 1 · **8** | 56 · 1 · **8** | 54 · 7 · **4** | 52 · 10 · **3** | 47 · 16 · **2** |
+| intern-decision-0.8b | test | 29 · 4 · **8** | 29 · 4 · **8** | 28 · 5 · **8** | 29 · 6 · **6** | 27 · 11 · **3** | 23 · 16 · **2** |
+| intern-decision-0.8b | log | 14 · 0 · **6** | 14 · 0 · **6** | 14 · 2 · **4** | 13 · 5 · **2** | 10 · 9 · **1** | 9 · 10 · **1** |
+| d1-omni-600m | dev | 49 · 8 · **8** | 49 · 8 · **8** | 49 · 8 · **8** | 48 · 9 · **8** | 48 · 12 · **5** | 47 · 15 · **3** |
+| d1-omni-600m | test | 32 · 6 · **3** | 32 · 6 · **3** | 32 · 6 · **3** | 32 · 6 · **3** | 32 · 7 · **2** | 27 · 12 · **2** |
+| d1-omni-600m | log | 10 · 0 · **10** | 10 · 0 · **10** | 10 · 0 · **10** | 11 · 1 · **8** | 10 · 4 · **6** | 9 · 6 · **5** |
+| multilingual | dev | 54 · 0 · **11** | 54 · 0 · **11** | 51 · 3 · **11** | 49 · 6 · **10** | 49 · 8 · **8** | 49 · 8 · **8** |
+| multilingual | test | 22 · 2 · **17** (1 🔒) | 22 · 2 · **17** (1 🔒) | 22 · 2 · **17** (1 🔒) | 21 · 3 · **17** (1 🔒) | 20 · 5 · **16** (1 🔒) | 23 · 8 · **10** (1 🔒) |
+| multilingual | log | 10 · 0 · **10** | 9 · 1 · **10** | 10 · 3 · **7** | 10 · 4 · **6** | 10 · 4 · **6** | 10 · 4 · **6** |
+| english | dev | 37 · 0 · **2** | 37 · 0 · **2** | 37 · 0 · **2** | 37 · 0 · **2** | 37 · 0 · **2** | 35 · 3 · **1** |
+| english | test | 11 · 1 · **7** | 12 · 1 · **6** | 14 · 2 · **3** | 15 · 2 · **2** | 15 · 3 · **1** | 15 · 3 · **1** |
+
+**What d3-lite still gets wrong (check 0.0):** "all the lights on the floor" / "auf dieser Etage"
+stay in the speaker's room; "turn off all the lights in the house" finds no place; "open the door"
+in the hallway turns on the hallway light (0.60); "wie spät ist es" asks the TV's state (0.41);
+"Mach's die Lichter an" turns them off (0.88); "Macht das Tischlicht an" turns on all three living
+room lights, because "Tischlicht" is no name or alias ("Esstisch" is inside a longer name). "sperr
+die Haustür auf" and "Hohlhose" are handed off.
 
 ## Short answer
 

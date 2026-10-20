@@ -6,13 +6,18 @@ short choice questions about the sentence (HOW-IT-WORKS.md explains it, BENCHMAR
      and a word that is in only one device's name ("the right one"). Nothing named: the previous
      command's devices ("turn it off"), or the speaker's room, its floor or the whole home.
   2. Model, one call with every question that needs no other answer: command or question; is it
-     about the home at all (else hand off); for a place: one device or all of a kind, which
-     kind, which device; what to do with each device named.
-  3. Model, second call: what to do with the devices picked from a place; then each device named
-     among others again, with only its own words as the sentence. The two answers are averaged.
-  4. Code: the value (the only spoken number that fits, or the one in the device's own words);
-     "all" becomes one action per room (area + kind) unless a lock or garage door is in it.
+     about the home at all (else hand off); for a place: which kind of device (then every device
+     of that kind, like Home Assistant's own "turn on the light" in a room); what to do with each
+     device named.
+  3. Model, second call: what to do with the devices of a place; then each device named among
+     others again, with only its own words as the sentence. The two answers are averaged, then
+     weighed by "command or question?" (asked in call 1): both count, neither overrules.
+  4. Code: the value (the only spoken number that fits, or the one in the device's own words), or
+     a step from the current value ("dim", "it's too dark", "warmer"), which Home Assistant turns
+     into a value; "all" becomes one action per room (area + kind) unless a lock or garage door
+     is in it.
   5. The least sure answer used must reach the threshold; locks and garage doors need more.
+     Questions whose answer cannot change the result are not asked, so they never count.
 
 Every step is recorded in a trace dict that the log UI renders.
 """
@@ -30,7 +35,16 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from . import numbers
-from .intents import ACTIONS, DOMAIN_ACTIONS, NO_DOMAIN_SLOT, NumberSlot, intent_for, is_sensitive
+from .intents import (
+    ACTIONS,
+    DOMAIN_ACTIONS,
+    IMPLIED_BY_SET,
+    NO_DOMAIN_SLOT,
+    QUERY_ONLY,
+    NumberSlot,
+    intent_for,
+    is_sensitive,
+)
 from .lang import LANGS, TOKEN_RE, Lang, fold, tokenize
 from .protocol import Action, Home, ProcessRequest, ProcessResponse
 from .providers import DecisionProvider, Question
@@ -284,6 +298,7 @@ class Target:
     mention: Mention | None
     called: str  # how the questions name the device
     areas: list[str] = field(default_factory=list)  # "all": every device of its kind in these
+    devices: list[EntityRec] = field(default_factory=list)  # "all": the place's devices of it
 
 
 class Decider:
@@ -403,13 +418,17 @@ class Decider:
         allowed: list[str] | None = None,
         ids: dict[str, str] | None = None,
         also: str | None = None,
+        merge: dict[str, str] | None = None,
+        weights: dict[str, float] | None = None,
     ) -> str:
         """Use the answer to question `key`. Options outside `allowed` stay visible to the
         model (it is sensitive to option count and order) but are masked out of the answer.
         `ids` maps option keys to entity IDs, so the log UI can mark them. `also` is the same
         question asked about other words: the mean of both answers decides, so a sure answer
-        wins over an unsure one, and a disagreement lowers the confidence. Only answers that
-        are used count for the confidence check at the end."""
+        wins over an unsure one, and a disagreement lowers the confidence. `merge` maps an
+        option to one that means the same here: its likelihood is added to that one. `weights`
+        multiplies each option by what another answer says about it (then scaled back to 1).
+        Only answers that are used count for the confidence check at the end."""
         question, raw, _, _ = self.asked[key]
         probs = _masked(raw, allowed)
         if also:
@@ -418,6 +437,11 @@ class Decider:
             q = self.record(also, sorted(set(raw) - set(other)), pick, _confidence(other, pick))
             self.step(phase, f"{check}, its own words", f"{question.options[pick]}", q=q)
             probs = {k: (p + other[k]) / 2 for k, p in probs.items()}
+        for source, into in (merge or {}).items():
+            if source in probs and into in probs:
+                probs[into] += probs.pop(source)
+        if weights:
+            probs = _masked({k: p * weights.get(k, 1.0) for k, p in probs.items()}, list(probs))
         choice = max(probs, key=probs.__getitem__)
         conf = _confidence(probs, choice)
         self.confidence = min(self.confidence, conf)
@@ -512,12 +536,12 @@ class Decider:
         return Question(self.lang.device_kind_question, options)
 
     def group_questions(self, i: int, g: Group, kinds: list[str]) -> dict[str, Question]:
-        """Call 1 for one group: which kind and which device (a place), which device (a name in
-        several rooms), or what to do with its only device."""
+        """Call 1 for one group: which kind (a place: then all of that kind), which device (a
+        name in several rooms), or what to do with its only device."""
         out = {}
         if g.areas and len(kinds) > 1:
             out[f"kind:{i}"] = self.device_kind_question(kinds)
-        if 1 < len(g.devices) <= MAX_OPTIONS:
+        if not g.areas and 1 < len(g.devices) <= MAX_OPTIONS:
             out[f"which:{i}"] = self.which_question(g.devices)
         elif len(g.devices) == 1:
             out |= self.action_questions(self.target(g.devices[0], g))
@@ -588,21 +612,45 @@ class Decider:
             )
         return out
 
-    def action(self, target: Target, is_question: bool) -> tuple[str, float | int | None]:
+    def action(self, target: Target) -> tuple[str, float | int | None]:
+        """What to do with one device, and its value: a number said, or a step ("brighter").
+        The model's answer alone says whether it is a question: there is no separate gate."""
         e = target.device
         allowed = [
-            a
-            for a in DOMAIN_ACTIONS[e.domain]
-            if (a == "query") == is_question and intent_for(a, e.domain) in self.req.intents
+            a for a in DOMAIN_ACTIONS[e.domain] if intent_for(a, e.domain) in self.req.intents
         ]
+        # No number said: "dim the light" can only be a step, where the kind has one.
+        if not self.nums and any(ACTIONS[a].step for a in allowed):
+            allowed = [a for a in allowed if ACTIONS[a].number is None]
         if not allowed:
             self.step("action", e.id, "every action was ruled out", False)
             raise HandOff("no_action")
+        # A number that fits: a step ("dim to 20") and setting the value are the same request.
+        # Switching on too, but only with the number's unit ("on to 50 %"): the "one" of "turn
+        # on the right one" is no brightness.
+        merge = {}
+        for a, implied in IMPLIED_BY_SET.items():
+            if a in allowed and (slot := ACTIONS[a].number) and (fit := self.values(target, slot)):
+                with_unit = bool(set(fit) & {n.value for n in self.nums if n.unit})
+                merge |= {same: a for same in implied if ACTIONS[same].step or with_unit}
+        # Command or question: both answers count, neither overrules ("ask" × "a question").
+        kind = self.asked["kind"][1]
+        weights = {a: kind["question" if a == "query" else "command"] for a in allowed}
         own = f"own:{e.id}"
         choice = self.choose(
-            "action", e.id, f"action:{e.id}", allowed, also=own if own in self.asked else None
+            "action",
+            e.id,
+            f"action:{e.id}",
+            allowed,
+            also=own if own in self.asked else None,
+            merge=merge,
+            weights=weights,
         )
-        slot = ACTIONS[choice].number
+        spec = ACTIONS[choice]
+        if spec.step:
+            self.step("action", e.id, f"{spec.step[0]} {spec.step[1]:+g}: a step from now")
+            return choice, spec.step[1]
+        slot = spec.number
         if slot is None:
             return choice, None
         fitting = self.values(target, slot)
@@ -661,7 +709,7 @@ class Decider:
                 if e.area_id and not e.sensitive and e.domain in DOMAIN_ACTIONS
             }
         )
-        if "place" in first or any(g.areas and len(g.devices) > 1 for g in groups):
+        if "place" in first:  # only whether to widen beyond the speaker's room, see `around`
             first["scope"] = Question(lang.scope_question, lang.scopes)
         for i, g in enumerate(groups):
             kinds = everywhere if "place" in first else sorted({e.domain for e in g.devices})
@@ -669,14 +717,17 @@ class Decider:
         self.ask_all(first)
         if self.says("topic", "other", OTHER_AT, "about the home"):
             raise HandOff("not_for_home")
-        is_question = self.choose("kind", "command or question", "kind") == "question"
+        kind = self.asked["kind"][1]
+        q = self.record("kind", [], max(kind, key=kind.__getitem__), 0.0)
+        self.step(
+            "kind",
+            "command or question",
+            f"question {kind['question']:.2f}: weighs each action",
+            q=q,
+        )
         if previous or "place" in first:
             groups = self.around(previous, groups)
         targets = self.targets(groups)
-        if is_question and any(t.areas for t in targets):
-            # ponytail: "are all the lights off?" needs HA's any/all replies (PLAN.md, M2)
-            self.step("action", "all of a kind", "a question about all of them", False)
-            raise HandOff("unsupported")
         # Call 2: what to do with the devices picked from a place.
         self.ask_all(
             {
@@ -693,8 +744,28 @@ class Decider:
             if phrase := self.phrase(t):
                 key = f"action:{t.device.id}"
                 self.ask_all({f"own:{t.device.id}": self.asked[key][0]}, self.words(*phrase))
-        decided = [(t, *self.action(t, is_question)) for t in targets]
+        decided = self.questions_about_one([(t, *self.action(t)) for t in targets])
         return self.compose(decided, self.check(decided))
+
+    def questions_about_one(
+        self, decided: list[tuple[Target, str, Any]]
+    ) -> list[tuple[Target, str, Any]]:
+        """A question about all of a kind: for sensors ("how warm is it in here?") the model
+        picks the one sensor; any other kind ("are the lights on?") is handed off."""
+        asks = [i for i, (t, action, _) in enumerate(decided) if action == "query" and t.areas]
+        for i in asks:
+            t = decided[i][0]
+            if DOMAIN_ACTIONS[t.device.domain] != QUERY_ONLY or len(t.devices) > MAX_OPTIONS:
+                # ponytail: "are all the lights off?" needs HA's any/all replies (PLAN.md, M2)
+                self.step("action", "all of a kind", "a question about all of them", False)
+                raise HandOff("unsupported")
+        self.ask_all({f"sensor:{i}": self.which_question(decided[i][0].devices) for i in asks})
+        for i in asks:
+            t, action, value = decided[i]
+            ids = {e.id: e.id for e in t.devices}
+            e = self.index.entities[self.choose("devices", "which sensor", f"sensor:{i}", ids=ids)]
+            decided[i] = (Target(e, t.mention, e.name), action, value)
+        return decided
 
     def around(self, previous: list[EntityRec], groups: list[Group]) -> list[Group]:
         """Nothing named: the previous command's devices, or the speaker's room, its floor or
@@ -720,12 +791,10 @@ class Decider:
         return [g]
 
     def targets(self, groups: list[Group]) -> list[Target]:
-        """One device per group; for a place, one device or all devices of one kind."""
+        """One device per name; for a place, every device of the kind the model picks, like
+        Home Assistant's own "turn on the light" in a room. One device is picked only by its
+        name, or a word only its name has ("the right one")."""
         found: dict[str, Target] = {}  # by entity ID: a device said twice acts once
-        scope = "one"
-        if "scope" in self.asked and any(g.areas and len(g.devices) > 1 for g in groups):
-            scope = self.choose("devices", "one or all", "scope")
-        again: list[tuple[int, Group, list[EntityRec]]] = []
         for i, g in enumerate(groups):
             if not g.areas or len(g.devices) == 1:
                 e = self.pick(f"which:{i}", g)
@@ -736,28 +805,12 @@ class Decider:
             if len(kinds) > 1:
                 kind = self.choose("devices", f"which kind, {g.place}", f"kind:{i}", kinds)
             devices = [e for e in g.devices if e.domain == kind]
-            asked = self.asked.get(f"which:{i}")
-            if scope == "all":
-                found[f"all:{i}"] = Target(devices[0], g.mention, devices[0].name, g.areas)
-            elif len(devices) == 1:
+            if len(devices) == 1:
                 found.setdefault(devices[0].id, self.target(devices[0], g))
-            elif asked and set(asked[0].options) == {e.id for e in g.devices}:
-                e = self.pick(f"which:{i}", g)
-                if e.domain != kind:  # the two answers contradict each other
-                    self.step("devices", "which kind and which device", f"not a {kind}", False)
-                    raise HandOff("inconsistent")
-                found.setdefault(e.id, self.target(e, g))
-            else:  # a big place, or the speaker's floor or home: which one of that kind
-                again.append((i, g, devices))
-        if any(len(devices) > MAX_OPTIONS for *_, devices in again):
-            raise HandOff("too_many_devices")
-        self.ask_all({f"which:{i}:again": self.which_question(d) for i, _, d in again})
-        for i, g, devices in again:
-            ids = {e.id: e.id for e in devices}
-            e = self.index.entities[
-                self.choose("devices", "which device", f"which:{i}:again", ids=ids)
-            ]
-            found.setdefault(e.id, self.target(e, g))
+                continue
+            self.step("devices", f"all of a kind, {g.place}", self.ids(devices), True)
+            called = self.lang.domains.get(kind, (kind, kind))[1].split(", ")[0]
+            found[f"all:{i}"] = Target(devices[0], g.mention, called, g.areas, devices)
         return list(found.values())
 
     def compose(self, decided: list[tuple[Target, str, Any]], confidence: float) -> list[Action]:
@@ -767,7 +820,9 @@ class Decider:
         for t, action, value in decided:
             e = t.device
             intent = intent_for(action, e.domain)
-            values = {} if value is None else {ACTIONS[action].number.slot: value}  # type: ignore[union-attr]
+            spec = ACTIONS[action]
+            slot = spec.step[0] if spec.step else spec.number.slot if spec.number else None
+            values = {} if value is None or slot is None else {slot: value}
             if not t.areas:
                 calls.append((intent, {"name": e.id, **values}, [e.id]))
                 continue
@@ -795,12 +850,11 @@ class Decider:
         """The confidence check: the least sure answer used must reach the threshold. Changing a
         lock or garage door needs SENSITIVE_MIN too. Returns the confidence that was checked."""
         confidence = self.confidence
-        if confidence < SENSITIVE_MIN and any(
-            t.device.sensitive and action != "query" for t, action, _ in decided
-        ):
-            confidence = 0.0
-        ok = confidence >= self.threshold
-        self.step("check", "confidence", f"{confidence:.2f}, needs {self.threshold:.2f}", ok)
+        needs = self.threshold
+        if any(t.device.sensitive and action != "query" for t, action, _ in decided):
+            needs = max(needs, SENSITIVE_MIN)  # whatever the threshold, even 0
+        ok = confidence >= needs
+        self.step("check", "confidence", f"{confidence:.2f}, needs {needs:.2f}", ok)
         if not ok:
             raise HandOff("low_confidence")
         return confidence

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from assist_decider_server.intents import ACTIONS, DOMAIN_ACTIONS
 from assist_decider_server.lang import LANGS
-from assist_decider_server.pipeline import MAX_OPTIONS, decide
+from assist_decider_server.pipeline import decide
 from assist_decider_server.protocol import Area, Entity, Floor, Home
 
 from .conftest import HOME, FakeProvider, answer, make_request
@@ -63,11 +63,11 @@ def test_two_numbers_ask_which_one_in_the_same_call():
     assert set(question(provider, "value").options) == {"21", "23", "none"}
 
 
-def test_room_asks_which_of_its_devices():
-    response, _, provider = run("turn on the light in the kitchen", answer(device="Kitchen Light"))
+def test_room_asks_the_kind_and_uses_its_only_device_of_it():
+    response, _, provider = run("turn on the light in the kitchen", answer(of="light"))
     assert acts(response) == [("HassTurnOn", KITCHEN_LIGHT)]
-    which = question(provider, "which")
-    assert set(which.options) == {"light.kitchen_ceiling", "switch.coffee_maker"}
+    assert set(question(provider, "device_kind").options) == {"light", "switch"}
+    assert "which" not in provider.asked()
 
 
 def test_room_is_skipped_when_one_of_its_devices_is_named():
@@ -89,16 +89,16 @@ def test_fit_offers_only_devices_that_take_the_number():
 
 def test_fit_keeps_every_device_when_none_takes_the_number():
     _, _, provider = run("turn on the living room at 7 hours", answer())
-    assert len(question(provider, "which").options) == 4
+    assert len(question(provider, "device_kind").options) == 4
 
 
 def test_german_compound_names_a_room():
-    response, *_ = run("mach das Wohnzimmerlicht an", answer(device="Floor Lamp"), "de")
+    response, *_ = run("mach das Wohnzimmerlicht an", answer(of="light"), "de")
     assert acts(response) == [("HassTurnOn", {"name": "light.living_room_floor"})]
 
 
 def test_speakers_room_when_nothing_is_named():
-    response, *_ = run("turn on the light", answer(device="Kitchen"), satellite_area_id="kitchen")
+    response, *_ = run("turn on the light", answer(of="light"), satellite_area_id="kitchen")
     assert acts(response) == [("HassTurnOn", KITCHEN_LIGHT)]
 
 
@@ -162,27 +162,40 @@ def test_big_room_asks_the_kind_first():
     response, _, provider = run("turn on the light in the kitchen", answer(of="light"), home=home)
     assert acts(response) == [("HassTurnOn", {"name": "light.k"})]
     assert "which" not in provider.asked()
-    response, *_ = run("turn on a plug in the kitchen", answer(of="switch"), home=home)
-    assert response.reason == "too_many_devices"
+    # All twelve plugs: one area action, however many there are.
+    response, *_ = run("turn on the plugs in the kitchen", answer(of="switch"), home=home)
+    assert acts(response) == [("HassTurnOn", {"area": "kitchen", "domain": ["switch"]})]
 
 
-def test_which_question_stays_small():
+def test_a_room_means_every_device_of_the_kind_without_asking_which():
     home = Home(
         areas=HOME.areas,
-        entities=[Entity(id=f"light.l{i}", name=f"Lamp {i}", area_id="kitchen") for i in range(9)],
+        entities=[Entity(id=f"light.l{i}", name=f"Lamp {i}", area_id="kitchen") for i in range(3)],
     )
-    _, _, provider = run("turn on the kitchen", home=home)
-    assert len(question(provider, "which").options) <= MAX_OPTIONS
+    response, _, provider = run("set the light to 100%", home=home, satellite_area_id="kitchen")
+    assert acts(response) == [
+        ("HassLightSet", {"area": "kitchen", "domain": ["light"], "brightness": 100})
+    ]
+    assert "which" not in provider.asked()
+    assert question(provider, "action").instructions == "What does the user want with the lights?"
+
+
+def test_one_blind_in_the_room_needs_no_one_or_all_answer():
+    # From the live log: "close" at 0.98 was handed off because "one or all?" was unsure.
+    response, _, provider = run(
+        "close the blinds in the living room", answer(action="close", of="cover")
+    )
+    assert acts(response) == [("HassTurnOff", {"name": "cover.living_room_blinds"})]
+    assert "scope" not in provider.asked()
 
 
 # ---------------------------------------------------------------- actions
 
 
-def test_question_allows_only_query():
-    response, trace, _ = run("is the front door locked", answer(kind="question", action="lock"))
-    # The model's "lock" is masked: a question never changes anything.
+def test_a_question_is_the_model_s_query_answer():
+    response, trace, _ = run("is the front door locked", answer(action="query"))
     assert acts(response) == [("HassGetState", {"name": "lock.front_door"})]
-    assert {"lock", "unlock"} <= masked(trace, "action:lock.front_door")
+    assert masked(trace, "action:lock.front_door") == set()
 
 
 def test_temperature_question_about_a_thermostat():
@@ -190,15 +203,23 @@ def test_temperature_question_about_a_thermostat():
     assert acts(response) == [("HassClimateGetTemperature", {"name": "climate.bathroom"})]
 
 
-def test_command_never_answers_with_query():
-    _, trace, _ = run("turn on the kitchen light")
-    assert "query" in masked(trace, "action:light.kitchen_ceiling")
+def test_command_or_question_weighs_the_action_but_never_vetoes_it():
+    # From the live log: "Macht es Esstisch Licht an" was asked as a question (0.8) and only
+    # read the light's state, though the action answer was a sure "turn on".
+    def rule(kind, q, state):
+        return "question" if kind == "kind" else answer()(kind, q, state)
+
+    response, *_ = run("mach das Küchenlicht an", rule, "de")
+    assert acts(response) == [("HassTurnOn", KITCHEN_LIGHT)]
+    # Both say "ask": a question.
+    response, *_ = run("ist das Küchenlicht an", answer(action="query"), "de")
+    assert acts(response) == [("HassGetState", KITCHEN_LIGHT)]
 
 
 def test_the_model_decides_on_or_off_without_word_lists():
     response, trace, _ = run("mach das Küchenlicht aus", answer(action="turn_off"), "de")
     assert acts(response) == [("HassTurnOff", KITCHEN_LIGHT)]
-    assert masked(trace, "action:light.kitchen_ceiling") == {"query"}
+    assert masked(trace, "action:light.kitchen_ceiling") == {"set_brightness"}  # no number
 
 
 def test_each_device_is_asked_again_with_its_own_words():
@@ -221,7 +242,7 @@ def test_two_views_that_disagree_lower_the_confidence():
     response, trace, _ = run("turn on the kitchen light and turn off the hallway light", rule)
     assert response.reason == "low_confidence"
     hallway = next(q for q in trace["questions"] if q["key"] == "action:light.hallway")
-    assert hallway["confidence"] < 0.3  # on and off half each
+    assert hallway["confidence"] < 0.4  # on and off half each
 
 
 def test_one_name_is_asked_once():
@@ -246,10 +267,71 @@ def test_actions_without_a_registered_intent_are_masked():
     assert {"turn_off", "set_brightness"} <= masked(trace, "action:light.kitchen_ceiling")
 
 
-def test_no_number_said_hands_off_without_asking_for_a_value():
-    response, _, provider = run("dim the kitchen light", answer(action="set_brightness"))
+def test_dim_without_a_number_is_a_step():
+    response, trace, provider = run("dim the kitchen light", answer(action="dimmer"))
+    assert acts(response) == [("HassLightSet", KITCHEN_LIGHT | {"brightness_step": -25})]
+    assert "set_brightness" in masked(trace, "action:light.kitchen_ceiling")
+    assert "value" not in provider.asked()
+
+
+def test_too_dark_brightens_every_light_in_the_room():
+    home = Home(
+        areas=HOME.areas,
+        entities=[Entity(id=f"light.l{i}", name=f"Lamp {i}", area_id="kitchen") for i in range(2)],
+    )
+    response, *_ = run(
+        "it's too dark in here", answer(action="brighter"), home=home, satellite_area_id="kitchen"
+    )
+    assert acts(response) == [
+        ("HassLightSet", {"area": "kitchen", "domain": ["light"], "brightness_step": 25})
+    ]
+
+
+def test_warmer_is_a_temperature_step():
+    response, *_ = run("make the bathroom heating warmer", answer(action="warmer"))
+    assert acts(response) == [
+        ("HassClimateSetTemperature", {"name": "climate.bathroom", "temperature_step": 1})
+    ]
+
+
+def test_set_without_a_number_hands_off_where_there_is_no_step():
+    response, _, provider = run("open the living room blinds a bit", answer(action="set_position"))
     assert response.reason == "missing_value"
     assert "value" not in provider.asked()
+
+
+def test_on_with_a_percentage_sets_the_value():
+    # From the live log: "Setzt das Licht auf 100%": on 0.51, set to a value 0.49.
+    def rule(kind, q, state):
+        if kind == "action":
+            return "turn_on"
+        return answer()(kind, q, state)
+
+    response, *_ = run("schalte das Küchenlicht auf hundert Prozent", rule, "de")
+    assert acts(response) == [("HassLightSet", KITCHEN_LIGHT | {"brightness": 100})]
+
+
+def test_dim_to_a_percentage_sets_the_value():
+    response, *_ = run("dim the kitchen light to 30 percent", answer(action="dimmer"))
+    assert acts(response) == [("HassLightSet", KITCHEN_LIGHT | {"brightness": 30})]
+
+
+def test_a_lock_below_the_safety_minimum_is_handed_off_even_at_threshold_0():
+    response, *_ = run(
+        "unlock the front door", answer(action="unlock"), p=0.6, options={"confidence_threshold": 0}
+    )
+    assert response.reason == "low_confidence"
+
+
+def test_a_step_with_a_bare_number_sets_it():
+    response, *_ = run("dim the kitchen light to 20", answer(action="dimmer"))
+    assert acts(response) == [("HassLightSet", KITCHEN_LIGHT | {"brightness": 20})]
+
+
+def test_a_bare_number_does_not_turn_on_into_a_value():
+    # "the right one" says 1, without a unit: "turn on" stays "turn on".
+    response, *_ = run("turn on the kitchen light one", answer(action="turn_on"))
+    assert acts(response) == [("HassTurnOn", KITCHEN_LIGHT)]
 
 
 def test_no_value_chosen_hands_off():
@@ -291,10 +373,13 @@ def test_request_not_about_the_home_is_handed_off():
 
 def test_topic_names_the_kinds_of_device_the_home_has():
     *_, provider = run("turn on the kitchen light")
-    home = "lights, switches, blinds, heating, TV, locks or other devices at home"
+    home = (
+        "lights, switches, blinds, heating, TV, locks or other devices at home,"
+        " or how warm, cold, bright or dark it is"
+    )
     assert question(provider, "topic").options["home"] == home
     *_, provider = run("turn on the kitchen light", home=Home(entities=HOME.entities[:1]))
-    assert question(provider, "topic").options["home"] == "lights or other devices at home"
+    assert question(provider, "topic").options["home"].startswith("lights or other devices")
 
 
 def test_changing_a_lock_needs_more_than_the_threshold():
@@ -403,13 +488,13 @@ def floors(text, rule=None, language="en", **kw):
 
 
 def test_all_of_a_kind_in_a_room_is_one_area_action():
-    response, *_ = floors("turn on all the lights in the living room", answer(scope="all"))
+    response, *_ = floors("turn on all the lights in the living room", answer(of="light"))
     assert acts(response) == [("HassTurnOn", {"area": "living", "domain": ["light"]})]
 
 
 def test_a_floor_is_one_action_per_room_on_it():
     response, *_ = floors(
-        "close all the covers on the second floor", answer(action="close", scope="all", of="cover")
+        "close all the covers on the second floor", answer(action="close", of="cover")
     )
     assert acts(response) == [
         ("HassTurnOff", {"area": "office", "domain": ["cover"]}),
@@ -420,23 +505,26 @@ def test_a_floor_is_one_action_per_room_on_it():
 def test_all_never_takes_a_garage_door_along():
     # The gate shares the garage with the awning: the awning is named, the gate left alone.
     response, *_ = floors(
-        "close all the covers on the ground floor", answer(action="close", scope="all", of="cover")
+        "close all the covers on the ground floor", answer(action="close", of="cover")
     )
     assert acts(response) == [("HassTurnOff", {"name": "cover.awning"})]
 
 
 def test_this_floor_is_the_speakers_floor():
     response, *_ = floors(
-        "turn on all the lights on this floor",
-        answer(scope="all", of="light", place="floor"),
+        "close all the blinds on this floor",
+        answer(action="close", scope="all", of="cover", place="floor"),
         satellite_area_id="office",
     )
-    assert acts(response) == [("HassTurnOn", {"area": "office", "domain": ["light"]})]
+    assert acts(response) == [
+        ("HassTurnOff", {"area": "office", "domain": ["cover"]}),
+        ("HassTurnOff", {"area": "kids", "domain": ["cover"]}),
+    ]
 
 
 def test_the_follow_up_after_all_means_every_device_of_it():
     ctx = {"context_id": "sat_all"}
-    floors("turn on all the lights in the living room", answer(scope="all"), **ctx)
+    floors("turn on all the lights in the living room", answer(of="light"), **ctx)
     response, *_ = floors("turn them off", answer(action="turn_off"), **ctx)
     assert acts(response) == [
         ("HassTurnOff", {"name": "light.left"}),
@@ -445,30 +533,43 @@ def test_the_follow_up_after_all_means_every_device_of_it():
 
 
 def test_climate_for_a_whole_room_has_no_domain_slot():
-    response, *_ = floors(
-        "set the heating in the living room to 21",
-        answer(action="set_temperature", scope="all", of="climate"),
+    home = FLOORS.model_copy(
+        update={
+            "entities": [
+                *FLOORS.entities,
+                Entity(id="climate.living_floor", name="Radiator", area_id="living"),
+            ]
+        }
     )
+    rule = answer(action="set_temperature", of="climate")
+    response, *_ = run("set the heating in the living room to 21", rule, home=home)
     assert acts(response) == [
         ("HassClimateSetTemperature", {"area": "living", "temperature": 21.0})
     ]
-    response, *_ = floors(
-        "warm up the living room", answer(action="turn_on", scope="all", of="climate")
-    )
+    rule = answer(action="turn_on", of="climate")
+    response, *_ = run("warm up the living room", rule, home=home)
     assert acts(response) == [("HassTurnOn", {"area": "living", "domain": ["climate"]})]
 
 
 def test_a_question_about_all_of_them_is_handed_off():
-    rule = answer("question", "query", scope="all", of="light")
+    rule = answer(action="query", of="light")
     response, *_ = floors("are the lights in the living room on", rule)
     assert response.reason == "unsupported"
 
 
-def test_which_device_must_be_of_the_kind_chosen():
-    response, *_ = floors(
-        "turn on the living room", answer(device="TV", of="light"), satellite_area_id="living"
+def test_a_question_about_the_sensors_of_a_room_picks_one():
+    home = Home(
+        areas=HOME.areas,
+        entities=[
+            Entity(id="sensor.temp", name="Bad Temperatur", area_id="bathroom"),
+            Entity(id="sensor.hum", name="Bad Feuchtigkeit", area_id="bathroom"),
+        ],
     )
-    assert response.reason == "inconsistent"
+    rule = answer(action="query", device="Feuchtigkeit")
+    response, *_ = run(
+        "wie feucht ist es hier", rule, "de", home=home, satellite_area_id="bathroom"
+    )
+    assert acts(response) == [("HassGetState", {"name": "sensor.hum"})]
 
 
 def test_a_name_said_with_another_ending_counts():
@@ -515,7 +616,7 @@ def test_a_short_word_is_not_another_ending_of_a_name():
 def test_a_floor_name_with_another_ending():
     response, *_ = floors(
         "schließ alle Rollos im Obergeschosses",
-        answer(action="close", scope="all", of="cover"),
+        answer(action="close", of="cover"),
         "de",
     )
     assert {a[1]["area"] for a in acts(response)} == {"office", "kids"}

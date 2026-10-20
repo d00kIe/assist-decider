@@ -19,7 +19,8 @@ can't invent a device or an action.
 ```
 
 > **Status: early (v0.1).** English and German. Tested on macOS (Apple Silicon) with
-> Home Assistant 2026.9. Linux, Windows and NVIDIA are expected to work but are not verified yet.
+> Home Assistant 2026.9. The server's benchmark also runs on Linux with an NVIDIA RTX 3060 (Docker);
+> Windows is expected to work but is not verified yet.
 
 ## What you can say
 
@@ -27,10 +28,11 @@ can't invent a device or an action.
 |---|---|---|
 | On / off: lights, switches, fans, media players, scenes, scripts | "turn off the kitchen light" | "Schalte das Küchenlicht aus" |
 | Open / close / lock | "close the living room blinds", "lock the front door" | "Schließ das Garagentor" |
-| Brightness, temperature, blind position | "set the desk lamp to 30%", "set the bathroom heating to 21.5 degrees" | "Stell die Heizung Bad auf 21,5 Grad" |
+| Brightness, temperature, blind position | "set the desk lamp to 30%", "set the lights to a hundred percent" | "Stell die Heizung Bad auf 21,5 Grad", "Licht auf hundert Prozent" |
+| Brighter, dimmer, warmer, cooler | "dim the lights", "it's too dark in here", "I'm freezing" | "Dimm das Licht in der Küche", "Es ist zu hell", "Mir ist kalt" |
 | Questions | "is the front door locked?", "what's the temperature in the bathroom?" | "Wie warm ist es im Bad?" |
 | Several devices at once | "turn on the kitchen light and turn off the hallway light" | "Mach das Küchenlicht an und den Fernseher aus" |
-| A room instead of a device | "turn off the light in the hallway" | "Mach das Licht im Flur aus" |
+| A room instead of a device: every device of that kind there | "turn off the light in the hallway" | "Mach die Rollos im Wohnzimmer runter" |
 | All of a kind, in a room or on a floor | "turn on all the lights in the living room", "close the blinds on the second floor" | "Schalte alle Lichter im Wohnzimmer ein" |
 | Another word ending, or one word of a name | "turn off the left light but turn on the right one" | "Mach das linke Licht aus" |
 | Nothing named: the satellite's room | "turn on the light", "it's too dark in here" | "Licht an" |
@@ -132,33 +134,33 @@ WantedBy=multi-user.target
 ### 2. Choose a model
 
 The server keeps one model in memory. Each model has its own confidence threshold, which you set
-in Home Assistant (next step). The numbers come from [BENCHMARK.md](BENCHMARK.md), measured on an
-M4 Pro Mac (the d3 models: on an RTX 3060 laptop): 65 sentences the server was tuned on, and 41
-unseen ones, in English and German.
+in Home Assistant (next step). The numbers come from [BENCHMARK.md](BENCHMARK.md) (2026-10-19, an
+RTX 3060 laptop; d1-3B on its CPU): 65 sentences the server was tuned on, 41 unseen ones, and 20
+taken from the live log of a real home, in English and German.
 
-| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong, tuned (65) | Unseen (41) |
-|---|---|---|---|---|---|---|
-| **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.50 s | 0.0 | **64 · 1 · 0** | **35 · 2 · 4** |
-| `intern-decision-2b` | English, German | 4.6 GB | 0.64 s | 0.2 | 58 · 5 · 2 | 35 · 5 · 1 |
-| `d3-nano` (vLLM Semantic Router) | English, German | 3.5 GB | 0.32 s (RTX 3060) | 0.3 | 60 · 4 · 1 | 34 · 4 · 3 |
-| **`d3-lite`** (vLLM Semantic Router) | English, German | 1.5 GB | 0.26 s (RTX 3060) | **0.2** | 57 · 6 · 2 | 35 · 4 · 2 |
-| `intern-decision-0.8b` | English, German | 2.3 GB | 0.49 s (RTX 3060: 0.11 s) | 0.3 | 46 · 17 · 2 | 25 · 13 · 3 |
-| `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 93 ms | 0.3 | 40 · 24 · 1 | 22 · 14 · 5 |
-| `multilingual` (Laya, the default) | English, German | 1.2 GB | 45 ms | 0.5 | 40 · 19 · 6 | 17 · 18 · 6 |
-| `english` (Laya) | English | 2.0 GB | 95 ms | 0.0 | 34 · 1 · 4 (of 39) | 12 · 1 · 6 (of 19) |
+| `--model` | Languages | Memory | Time per sentence | Threshold | Right · handed off · wrong, tuned (65) | Unseen (41) | Live log (20) |
+|---|---|---|---|---|---|---|---|
+| **`d1-3b`** (Liquid AI) | English, German | 6.8 GB | 0.50 s (M4 Pro Mac) | 0.2 | **65 · 0 · 0** | **37 · 1 · 3** | **19 · 0 · 1** |
+| `d3-nano` (vLLM Semantic Router) | English, German | 3.5 GB | 0.31 s | 0.5 | 62 · 1 · 2 | 37 · 3 · 1 | 17 · 1 · 2 |
+| **`d3-lite`** (vLLM Semantic Router) | English, German | 1.5 GB | 0.26 s | **0.5** | 63 · 0 · 2 | 37 · 3 · 1 | 17 · 1 · 2 |
+| `intern-decision-2b` | English, German | 4.6 GB | 0.21 s | 0.3 | 58 · 5 · 2 | 31 · 4 · 6 | 13 · 3 · 4 |
+| `intern-decision-0.8b` | English, German | 2.3 GB | 0.14 s | 0.4 | 52 · 10 · 3 | 27 · 11 · 3 | 10 · 9 · 1 |
+| `d1-omni-600m` (Liquid AI) | English, German | 1.0 GB | 58 ms | 0.5 | 47 · 15 · 3 | 27 · 12 · 2 | 9 · 6 · 5 |
+| `multilingual` (Laya, the default) | English, German | 1.2 GB | 39 ms | 0.5 | 49 · 8 · 8 | 23 · 8 · 10 | 10 · 4 · 6 |
+| `english` (Laya) | English | 2.0 GB | 67 ms | 0.5 | 35 · 3 · 1 (of 39) | 15 · 3 · 1 (of 19) | – |
 
 "Handed off" means the sentence goes to the fallback agent instead of being acted on.
 
 - **8 GB of memory or more** (a Mac, or a larger graphics card): use `d1-3b`. It is the most
-  accurate by far. A threshold doesn't improve it, so leave it at 0.
-- **Up to 4 GB of graphics memory:** use `d3-lite` with a threshold of 0.2. It gets far more
-  right than `intern-decision-0.8b` in less memory, and also understands German "… aus" at the
-  end of a sentence. `d3-nano` gets the most tuning sentences right after `d1-3b`, but no more
-  unseen ones than `d3-lite`, and it locked the front door when told to unlock it.
-- `d1-omni-600m` is small and fast and rarely wrong, but hands off many plain commands.
+  accurate, and gets every tuning sentence right.
+- **Up to 4 GB of graphics memory:** use `d3-lite`. Thresholds from 0.2 to 0.5 give nearly the
+  same result (0.5 has one wrong unseen sentence fewer). `d3-nano` is no better and needs more
+  than twice the memory, and it locked the front door when told to unlock it.
+- `intern-decision-2b` got worse with the 2026-10-19 server; prefer `d3-nano` or `d3-lite`.
+- `d1-omni-600m` is small and fast but gets the live-log sentences wrong more often.
 - Laya is the fastest, but when it is wrong it is usually sure, so a threshold can't catch it.
-- Common mistakes: "if …" and "at 7 in the morning" sentences done right away, and German
-  "… aus" at the end of a sentence that names one device ("Licht im Flur aus") read as "on".
+- Common mistakes: "if …" and "at 7 in the morning" sentences done right away, and "all the
+  lights on this floor" done only in the speaker's room.
 
 Want an English and a German assistant with different models? Run two servers on different ports
 (`--port 8765 --model english`, `--port 8766 --model multilingual`) and add each one in Home
@@ -238,7 +240,7 @@ Found a vulnerability? Please open a private security advisory on GitHub.
 |---|---|
 | "Cannot reach the server" when adding the integration | Did you start the server with `--host 0.0.0.0`? Check the firewall, and try `curl http://<ip>:8765/healthz` from another machine. |
 | A command does nothing | Look in the live log. `low_confidence`: lower the threshold to the value for your model. `no_target`: no device or room name was recognized, so add an alias or give the satellite a room. |
-| The wrong device in a room | Name the device, or give it an alias you actually say. |
+| The wrong device in a room | A room means all devices of the kind you said. Name the device, or give it an alias you actually say ("Tischlicht"). |
 | Everything is slow | Check that the log says `device=mps` or `cuda`, not `cpu`. |
 
 ## Limitations
@@ -251,6 +253,10 @@ Found a vulnerability? Please open a private security advisory on GitHub.
   model is very sure, and only with a satellite in a known room. Floor names ("Obergeschoss")
   always work.
 - Questions about all devices of a kind ("are all the lights off?") go to the fallback agent.
+  Questions about the sensors of a room ("how humid is it in here?") pick one sensor.
+- **"The light" in a room with several lights means all of them**, as in Home Assistant's own
+  agent. To switch one, say its name or alias, or a word only its name has ("the left one").
+- Brighter / dimmer is ±25 %, warmer / cooler ±1 °, from the current value.
 - Not supported yet: colors, timers, media controls, fan speed, volume, shopping lists.
 - No follow-up questions ("which light?").
 

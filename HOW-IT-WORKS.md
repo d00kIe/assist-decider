@@ -35,14 +35,14 @@ Home Assistant has many kinds of entities. These are the ones voice actions work
 
 | Kind | What it is | Typical sub-kinds | Used today |
 |---|---|---|---|
-| `light` | Lamps, LED strips | – | ✅ on/off, brightness |
+| `light` | Lamps, LED strips | – | ✅ on/off, brightness, brighter/dimmer |
 | `switch` | Plugs, relays | `outlet`, `switch` | ✅ on/off |
 | `input_boolean` | A virtual on/off switch you made in Home Assistant | – | ✅ on/off |
 | `fan` | Fans | – | ✅ on/off (speed not yet) |
 | `cover` | Blinds, shutters, curtains, garage doors, gates | `awning`, `blind`, `curtain`, `damper`, `door`, `garage`, `gate`, `shade`, `shutter`, `window` | ✅ open/close, position |
 | `valve` | Water and gas valves, sprinklers | `water`, `gas` | ✅ open/close, position |
 | `lock` | Door locks | – | ✅ lock/unlock, **only by its name** |
-| `climate` | Thermostats, heating, air conditioning | – | ✅ on/off, set temperature, ask temperature |
+| `climate` | Thermostats, heating, air conditioning | – | ✅ on/off, set temperature, warmer/cooler, ask temperature |
 | `media_player` | TVs, speakers | `tv`, `speaker`, `receiver` | ✅ on/off (pause, volume… not yet) |
 | `humidifier` | Humidifiers, dehumidifiers | `humidifier`, `dehumidifier` | ✅ on/off (level and mode not yet) |
 | `scene` | A saved set of device settings | – | ✅ turn on |
@@ -91,8 +91,8 @@ At least one of `name`, `area` or `floor` is required, unless stated otherwise b
 |---|---|---|---|---|
 | `HassTurnOn` | Turn on, open, activate. **Locks a lock.** Runs a scene or script. | – | – | |
 | `HassTurnOff` | Turn off, close, deactivate. **Unlocks a lock.** | – | – | |
-| `HassLightSet` | Change a light | `brightness` | whole number 0–100 (percent) | `color` (a colour name) and `temperature` (kelvin, positive whole number) also exist. Not used yet. |
-| `HassClimateSetTemperature` | Set the target temperature | `temperature` | any decimal number in Home Assistant. **We only send 5–35 °C, rounded to the nearest 0.5.** | |
+| `HassLightSet` | Change a light | `brightness` | whole number 0–100 (percent) | `color` (a colour name) and `temperature` (kelvin, positive whole number) also exist. Not used yet. For "brighter"/"dimmer" the server sends `brightness_step` (±25) instead, and Assist Decider in Home Assistant turns it into `brightness` (see 3.7). |
+| `HassClimateSetTemperature` | Set the target temperature | `temperature` | any decimal number in Home Assistant. **We only send 5–35 °C, rounded to the nearest 0.5.** | For "warmer"/"cooler" the server sends `temperature_step` (±1) instead, turned into `temperature` in Home Assistant. |
 | `HassSetPosition` | Move a cover or valve | `position` | whole number 0–100 (percent open) | |
 | `HassGetState` | Ask about a device | `state` (optional) | list of text, e.g. `["on"]` | Home Assistant also accepts area + kind ("are any lights on in the kitchen?"). We only send one named device for now. |
 | `HassClimateGetTemperature` | Ask how warm it is | – | – | Used for every question about a thermostat. |
@@ -137,8 +137,8 @@ Home Assistant does not trust the server. It only runs actions from this allow-l
 | Action | Parameters allowed |
 |---|---|
 | `HassTurnOn`, `HassTurnOff` | `name`, `area`, `domain` |
-| `HassLightSet` | `name`, `area`, `domain`, `brightness` |
-| `HassClimateSetTemperature` | `name`, `area`, `temperature` |
+| `HassLightSet` | `name`, `area`, `domain`, `brightness` or `brightness_step` |
+| `HassClimateSetTemperature` | `name`, `area`, `temperature` or `temperature_step` |
 | `HassSetPosition` | `name`, `area`, `domain`, `position` |
 | `HassGetState` | `name`, `area`, `domain`, `state` |
 | `HassClimateGetTemperature` | `name`, `area` |
@@ -155,17 +155,24 @@ The model only ever answers multiple-choice questions about your sentence. The f
 
 | Question | When it is asked | Answers offered |
 |---|---|---|
-| "Is the user giving a command or asking a question?" | Every sentence | a command · a question |
-| "What is the user talking about?" | Every sentence | the kinds of device your home has, e.g. "lights, blinds, heating, locks or other devices at home" · something else (chit-chat, knowledge, weather, timers…) |
-| "Does the user mean one device or all of one kind?" | A room or floor with more than one device, or nothing named | one device · all devices of one kind |
+| "Is the user giving a command or asking a question?" | Every sentence | a command or wish to change something (also "it's too dark", "I'm cold") · a question that asks how something is |
+| "What is the user talking about?" | Every sentence | the kinds of device your home has, e.g. "lights, blinds, heating, locks or other devices at home, or how warm, cold, bright or dark it is" · something else (chit-chat, knowledge, weather, timers…) |
 | "Which kind of device does the user mean?" | A room or floor with more than one kind of device | the kinds there, e.g. lights · blinds · heating |
-| "Which device does the user mean?" | A room or floor with more than one device (at most 10) | the devices, e.g. "Kitchen Light (light) in Kitchen" |
+| "Which device does the user mean?" | A device name that is in several rooms, or a question about the sensors of a room (at most 10) | the devices, e.g. "Kitchen Light (light) in Kitchen" |
 | "Where does the user want it?" | Nothing named, and the speaker's room is known | here · on this whole floor · in the whole home |
+| "Does the user mean one device or all of one kind?" | Same as "where": only to decide whether to go beyond the speaker's room | one device · all devices of one kind |
 | "The user's previous command was: '…'. Does the user mean the same devices again?" | Nothing named, and a previous command within the follow-up memory | yes, the same devices · no |
-| "What does the user want with the Kitchen Light?" | Once per device. A device named among others is asked a second time, about only its own words | only what that kind of device can do |
+| "What does the user want with the Kitchen Light?" (or "with the lights", for all of a room's lights) | Once per device. A device named among others is asked a second time, about only its own words | only what that kind of device can do, including "a question: only asks how it is" |
 | "Which value should the Kitchen Light be set to?" | Only when two or more different numbers could be its value | the numbers you said · "no value given" |
 
 German sentences get the same questions in German. The model reads your sentence (the *state*), never your list of devices or their states. Questions asked in the same call can't see each other's answers; the server then uses only the answers it needs, and only those count for the confidence check.
+
+How the questions are chosen (2026-10-19, from the live log of a real home):
+
+- **Every answer used is a chance to fail.** The least sure answer decides, so a question is asked only when its answer can change what happens. A room with one blind is not asked "one or all?"; there used to be such a question, and "close the blinds in the kitchen" was handed off with "close" at 0.98 because "one or all" was a coin toss.
+- **One answer doesn't overrule another.** The "command or question?" answer used to forbid actions: a "question" allowed only "ask", and "mach das Esstischlicht an" then only read the light's state. Now both answers are multiplied: "ask" × "a question", every other action × "a command". A sure action answer wins over an unsure "question", and the small models still don't switch on a light when asked "is the light on?"
+- **Answers are the user's own words**, including indirect ones: "make it brighter (brighter, more light, it's too dark)", "make it warmer (warmer, it's cold, I'm freezing)".
+- **Two answers that mean the same are added up.** With "100 %" said, "turn on" and "set the brightness to a value" are the same request; their likelihoods are added before choosing.
 
 There are no word lists: the server doesn't look for "on", "aus", "if" or "lights" in your sentence. The wording of the questions and answers was chosen by testing Laya and Intern-Decision on the benchmark's sentences ([BENCHMARK.md](BENCHMARK.md)).
 
@@ -175,8 +182,10 @@ There are no word lists: the server doesn't look for "on", "aus", "if" or "light
 question: What does the user want with the Kitchen Light?
 answers:  turn_on:        turn on, switch on, start
           turn_off:       turn off, switch off, stop
-          set_brightness: dim or brighten to a value
-          query:          only asks how it is, changes nothing
+          brighter:       make it brighter (brighter, more light, it's too dark)
+          dimmer:         make it dimmer (dim, darker, less light, it's too bright)
+          set_brightness: set the brightness to a value or percentage
+          query:          a question: only asks how it is, changes nothing
 state:    {"utterance": "turn off the kitchen light"}
 ```
 
@@ -232,13 +241,14 @@ The server can **only suggest**. It has no password for Home Assistant. Home Ass
 |---|---|---|
 | Is it about the home at all? | **Model** | "Something else" at 0.8 or more hands the sentence off (`not_for_home`). |
 | Is it an "if…" sentence? | Nobody | Not checked. "If it gets dark, turn on the floor lamp" turns the lamp on right away. |
-| Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. |
+| Which numbers were said | **Code** | "einundzwanzig komma fünf Grad" → 21.5 °. "fifty percent" → 50 %. "a hundred" and "hundert" → 100. English and German number words both count, whatever the language set: speech-to-text set to German still writes "a hundred percent" when English is spoken. |
 | Which devices, rooms and floors were named | **Code** | Names and aliases from Home Assistant, also with another word ending ("das linke Licht" → "Linkes Licht"), German compounds ("Wohnzimmerlicht" → room "Wohnzimmer"), and a word that is in only one device's name in the whole home ("the right one" → Right Light). |
 | Nothing named: which devices then | **Model**, from what code offers | The previous command's devices, if there was one within the follow-up memory; else here, the speaker's floor or the whole home. |
-| Command or question | **Model** | Asked once. A question can only *ask*; a command can never just *ask*. |
-| One device or all of a kind, which kind, which device | **Model**, from lists made by code | Code offers only devices that can take the number you said, and never locks or garage doors. The device picked must be of the kind picked, or the sentence is handed off (`inconsistent`). |
-| What to do with each device | **Model**, from a list made by code | Code offers only what that kind of device can do. A device named among others is asked twice, about the whole sentence and about its own words; the two answers are averaged. |
-| The value (brightness, temperature…) | **Code**, else the **model** | The only spoken number that fits the action, or the one in the device's own words ("the thermostat to 22 and the heating to 24"); otherwise the model picks one of the numbers. Code checks it fits: 0–100 % for brightness and position, 5–35 ° for temperature. |
+| Which kind of device in a room | **Model**, from a list made by code | Code offers only kinds that can take the number you said, and never locks or garage doors. Then **every** device of that kind in the room is meant, as in Home Assistant's own agent ("turn on the light" in a room with three lights turns on all three). One device is meant only when its name, or a word only its name has, is said. |
+| Command or question | **Model** | Asked once, and multiplied into every device's action answer (see 3.5). It decides nothing on its own. |
+| What to do with each device | **Model**, from a list made by code | Code offers only what that kind of device can do, and "ask" for questions. A device named among others is asked twice, about the whole sentence and about its own words; the two answers are averaged. |
+| The value (brightness, temperature…) | **Code**, else the **model** | The only spoken number that fits the action, or the one in the device's own words ("the thermostat to 22 and the heating to 24"); otherwise the model picks one of the numbers. Code checks it fits: 0–100 % for brightness and position, 5–35 ° for temperature. With no number said, a light or thermostat can only take a step: brighter/dimmer (±25 %), warmer/cooler (±1 °). |
+| The new value of a step | **Home Assistant** (Assist Decider) | From the current brightness or target temperature, see 3.7. |
 | Is the model sure enough? | **Code** | The confidence check, see 3.5. |
 | May this action run on this device? | **Home Assistant** | Allow-list check, then Home Assistant's own exposure check. |
 | What to say back | **Home Assistant** | Its own built-in reply sentences, in English or German. |
@@ -252,10 +262,10 @@ flowchart TD
     B --> C["Find device, room and floor names, read numbers"]
     C --> E["1. Which devices?<br/>see 3.4"]
     E -- "none found" --> Y["Hand off: no_target"]
-    E --> F["2. First call: command or question?<br/>about the home?<br/>for a place: one or all, which kind, which device?"]
+    E --> F["2. First call: command or question?<br/>about the home?<br/>for a place: which kind?"]
     F -- "not about the home" --> X["Hand off: not_for_home"]
-    F --> G["3. Second call: what to do with each device<br/>(a device named among others: again, with only its own words)"]
-    G --> I["4. Value: the only number that fits,<br/>or the one in the device's own words"]
+    F --> G["3. Second call: what to do with each device, or a question,<br/>weighed by command or question<br/>(a device named among others: again, with only its own words)"]
+    G --> I["4. Value: the only number that fits,<br/>the one in the device's own words,<br/>or a step (brighter, warmer)"]
     I --> K{"Every answer used sure enough?"}
     K -- no --> Z["Hand off: low_confidence"]
     K -- yes --> L["Actions: one per device,<br/>or one per room for 'all'<br/>remember the devices for 60 s"]
@@ -287,18 +297,20 @@ flowchart TD
     PLACE --> FIT["A number said? Keep only devices<br/>that can take it ('fit')"]
     FIT --> ONE{"One device left?"}
     ONE -- yes --> USE["Use it"]
-    ONE -- no --> ASK["Model: one device or all of a kind?<br/>Which kind? Which device?"]
-    ASK -- "all" --> ALL["Every device of that kind:<br/>one action per room"]
-    ASK -- "one" --> USE
+    ONE -- no --> ASK["Model: which kind?<br/>(only when there are several)"]
+    ASK --> ALL["Every device of that kind:<br/>one action per room"]
 ```
 
 ### 3.5 What to do with each device
 
 For every device, the server builds the list of actions the model may choose:
 
-1. **Only what that kind of device can do.** A light: turn on, turn off, set brightness, ask. A blind: open, close, set position, ask. A lock: lock, unlock, ask. A sensor: ask.
-2. **Command or question.** A question allows only "ask"; a command rules "ask" out.
+1. **Only what that kind of device can do.** A light: turn on, turn off, brighter, dimmer, set brightness, ask. A thermostat: turn on, turn off, warmer, cooler, set temperature, ask. A blind: open, close, set position, ask. A lock: lock, unlock, ask. A sensor: ask.
+2. **No number said:** on a light or thermostat, "set to a value" is ruled out, so "dim the light" is a step. A blind keeps it, and "set the blinds" without a number is handed off (`missing_value`).
 3. **Actions Home Assistant has.** An action whose intent Home Assistant doesn't have is ruled out.
+4. **A number that fits:** the steps ("dim … to 20") are added to "set to a value". "Turn on" (or "open") too, but only for a number with its unit ("100 %", "22 Grad"): "the right *one*" is not 1 %.
+
+"Ask" is one of the answers. The action answer is then weighed by "command or question?": "ask" is multiplied by "a question", the rest by "a command", and scaled back up to 100 %. A question about all of a kind is handed off (`unsupported`), except for sensors: "how warm is it in here" asks the model which of the room's sensors.
 
 There are no on/off word lists: the model decides on, off, open, close, lock and unlock. When you name several devices ("mach das Küchenlicht an und den Fernseher aus"), each one is asked a second time with **only its own words** as the sentence: from halfway after the name before it to halfway before the name after it ("den Fernseher aus"). The two answers are averaged, so a sure answer wins over an unsure one, and when they disagree the confidence drops and the check below hands the sentence off.
 
@@ -308,7 +320,7 @@ The model always sees every action of that kind of device, because models get wo
 `confidence = (number of answers × top likelihood − 1) ÷ (number of answers − 1)`.
 0 means "no better than a random pick", 1 means "certain". Example: 4 answers, top one at 70 % → (4 × 0.7 − 1) ÷ 3 = **0.6**.
 
-**The confidence check.** If any answer the server used is below your threshold, **nothing runs** and the whole sentence is handed off. A sentence is done completely or not at all. Answers it asked but didn't need (say, "which device?" when you meant all of them) don't count. Changing a lock or garage door also needs every answer at 0.5 or more, whatever the threshold. The default threshold is 0.4 (English) and 0.5 (German); each model has its own best value, see the README's [Choose a model](README.md#2-choose-a-model).
+**The confidence check.** If any answer the server used is below your threshold, **nothing runs** and the whole sentence is handed off. A sentence is done completely or not at all. Answers it asked but didn't need (say, "which device?" when you meant all of them) don't count. Changing a lock or garage door also needs every answer at 0.5 or more, whatever the threshold, even 0 (until 2026-10-19 a threshold of 0 let a less sure answer through). The default threshold is 0.4 (English) and 0.5 (German); each model has its own best value, see the README's [Choose a model](README.md#2-choose-a-model).
 
 **How long it takes.** All questions that need no other answer go to the model in **one call**. A second call follows when a room, a floor or nothing was named, and one more for each device named among others. One call takes about 15–25 ms with Laya and d1-omni-600M, 80 ms with d1-3B and 0.2–0.3 s with Intern-Decision on an Apple M4 Pro. The d3 models answer each question of a call in its own pass: d3-lite takes about 50 ms per question on an NVIDIA RTX 3060 laptop GPU. The server answers one request at a time. If more than 4 requests are waiting, it answers "busy".
 
@@ -347,11 +359,10 @@ The model always sees every action of that kind of device, because models get wo
 | `no_target` | No device or room name was recognized, and the satellite has no room. |
 | `too_many_devices` | More than 10 devices to act on, or a room with more than 10 devices and no kind of device said. |
 | `no_action` | Everything a device can do was ruled out, e.g. "lock" for a light. |
-| `missing_value` | "Dim the light", but no number was said, or the model chose "no value". |
+| `missing_value` | "Set the blinds", but no number was said, or the model chose "no value". |
 | `value_not_possible` | The number doesn't fit the action, e.g. 70 degrees for a thermostat. |
 | `not_for_home` | The model says the sentence isn't about the home's devices ("tell me a joke"). |
-| `inconsistent` | The model's answers contradict each other: the device picked isn't of the kind picked. |
-| `unsupported` | A question about all devices of a kind ("are all the lights off?"). Not supported yet. |
+| `unsupported` | A question about all devices of a kind ("are all the lights off?"), other than sensors. Not supported yet. |
 | `unsupported_language` | The loaded model does not speak this language. |
 | `no_exposed_entities` | Nothing is exposed to voice assistants. |
 
@@ -365,10 +376,13 @@ flowchart TD
     FB -- no --> SORRY["Say 'Sorry, I couldn't understand that'"]
     E -- no --> V["Check each action:<br/>allowed action? allowed parameters?<br/>device or room that was sent?"]
     V -- fails --> DROP["Drop it and write a warning to the log"]
-    V -- ok --> RUN["Run it through Home Assistant's own handler<br/>(same rules as any voice command)"]
+    V -- ok --> STEP["A step? For each device it names:<br/>new value from its state"]
+    STEP --> RUN["Run it through Home Assistant's own handler<br/>(same rules as any voice command)"]
     RUN --> SAY["Build the reply from Home Assistant's<br/>built-in sentences (EN/DE)"]
     SAY --> ALL["Join all replies<br/>+ 'I didn't understand the rest' if needed"]
 ```
+
+**Steps.** The server knows no states, so "brighter" arrives as `brightness_step: 25`. For each light it names (one by name, or every exposed light of the room), Assist Decider reads the light's state: on at 60 % becomes `HassLightSet` with `brightness: 85`; a light that is off is turned on (`HassTurnOn`, Home Assistant's last brightness). "Dimmer" on a light that is off does nothing. The new value stays between 1 and 100 %. `temperature_step` works the same from the thermostat's target temperature, kept between its `min_temp` and `max_temp` and rounded to 0.5 °. A step and a value in one action, or a step of more than 100 % or 10 °, is dropped.
 
 If the server cannot be reached, or does not answer within **10 seconds**, Home Assistant says "the decision server is not reachable", or uses the fallback agent if one is set.
 
@@ -376,7 +390,7 @@ If the server cannot be reached, or does not answer within **10 seconds**, Home 
 
 | Field | Meaning | Type and limits |
 |---|---|---|
-| `protocol_version` | Must match on both sides | always `3` |
+| `protocol_version` | Must match on both sides | always `4` (`3` before brighter/dimmer and warmer/cooler) |
 | `text` | What you said | 1–500 characters |
 | `language` | | `en` or `de` |
 | `satellite_area_id` | Room of the satellite you spoke to | room ID, optional |
@@ -401,7 +415,7 @@ flowchart LR
     end
     subgraph SRV["Decision server: understands the sentence"]
         S1["Code: names, numbers,<br/>what each device can do,<br/>memory, 'all' per room"]
-        S2["Model: command or question?<br/>about the home?<br/>one or all? which device?<br/>what to do? which number?"]
+        S2["Model: command or question?<br/>about the home?<br/>which kind?<br/>what to do? which number?"]
     end
     H1 -- "names and IDs" --> S1
     S1 <-->|"one short question,<br/>at most 10 answers"| S2
@@ -411,4 +425,5 @@ flowchart LR
 
 - **Home Assistant** knows the house and has the final say.
 - **Code on the server** does everything that has a clear rule: matching names, reading numbers, listing what each device can do, remembering the last command, and turning "all" into one action per room.
+- **Assist Decider in Home Assistant** turns a step ("brighter", "warmer") into a value from the device's state, since only Home Assistant knows states.
 - **The model** answers short multiple-choice questions about your sentence, and only from answers the code allows. It never sees your whole home. There are no word lists in between.

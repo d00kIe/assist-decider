@@ -16,6 +16,7 @@ from .lang import fold
 
 # German articles double as "on" particles ("schalte das Licht ein"), so they only count as
 # 1 directly before a unit ("eine Stunde"). Same for English "a"/"an".
+LANGUAGES = ("en", "de")
 _AMBIGUOUS_ONE = frozenset({"ein", "eine", "einen", "einer", "eines", "einem"})
 _ONE_BEFORE_UNIT = re.compile(
     r"(?<!\w)(?:ein|eine|einen|einer|a|an|one)\s+(?=(?:hours?|minutes?|seconds?|stunden?|minuten?|sekunden?)(?!\w))"
@@ -28,6 +29,8 @@ _FRACTIONS = [
     (re.compile(r"(?<!\w)(?:a\s+)?quarter\s+(?:of\s+)?(?:an\s+)?hour(?!\w)"), "15 min"),
     (re.compile(r"(?<!\w)(?:anderthalb|eineinhalb)(?!\w)"), "1.5"),
 ]
+# Said without "one"/"ein" in front: "a hundred percent", "auf hundert Prozent".
+_EXTRA = {"en": {"hundred": 100}, "de": {"hundert": 100}}
 _UNITS = {
     "pct": r"%|prozent|percent|pct",
     "deg": r"°\s*[cf]?|grad(?:\s+celsius)?|degrees?(?:\s+(?:celsius|fahrenheit))?|celsius",
@@ -57,22 +60,27 @@ def _words(lang: str) -> tuple[dict[str, int], re.Pattern[str]]:
             word = fold(text).replace("-", " ").strip()
             if word and word not in _AMBIGUOUS_ONE:
                 table.setdefault(word, n)
+    for word, n in _EXTRA.get(lang, {}).items():
+        table.setdefault(word, n)
     alternation = "|".join(re.escape(w) for w in sorted(table, key=len, reverse=True))
     return table, re.compile(rf"(?<!\w)({alternation})(?!\w)")
 
 
 def _digits(text: str, lang: str) -> str:
-    """Rewrite spoken numbers as digits: 'einundzwanzig komma fuenf grad' -> '21.5 grad'."""
+    """Rewrite spoken numbers as digits: 'einundzwanzig komma fuenf grad' -> '21.5 grad'.
+    Number words of every language count, the request's first: speech-to-text set to German
+    still writes "a hundred percent" when English is spoken."""
     for pattern, replacement in _FRACTIONS:
         text = pattern.sub(replacement, text)
-    table, word_re = _words(lang)
-    text = word_re.sub(lambda m: str(table[m.group(1)]), text)
-    # "zweieinhalb" -> 2.5
-    text = re.sub(
-        r"(?<!\w)(\w+?)einhalb(?!\w)",
-        lambda m: f"{table[m.group(1)]}.5" if m.group(1) in table else m.group(0),
-        text,
-    )
+    for lng in dict.fromkeys([lang, *LANGUAGES]):
+        table, word_re = _words(lng)
+        text = word_re.sub(lambda m, t=table: str(t[m.group(1)]), text)
+        # "zweieinhalb" -> 2.5
+        text = re.sub(
+            r"(?<!\w)(\w+?)einhalb(?!\w)",
+            lambda m, t=table: f"{t[m.group(1)]}.5" if m.group(1) in t else m.group(0),
+            text,
+        )
     text = re.sub(r"(?<!\w)(\d+)\s+(?:komma|point)\s+(\d+)(?!\w)", r"\1.\2", text)
     text = re.sub(r"(?<!\w)(\d+)\s+and\s+a\s+half(?!\w)", r"\1.5", text)
     return _ONE_BEFORE_UNIT.sub("1 ", text)

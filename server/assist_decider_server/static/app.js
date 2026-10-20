@@ -71,8 +71,7 @@ const REASONS = {
   missing_value: "no value said or chosen",
   value_not_possible: "the number does not fit that action",
   not_for_home: "not about the home's devices",
-  inconsistent: "the model's answers contradict each other",
-  unsupported: "a question about all of a kind is not supported yet",
+  unsupported: "a question about all of a kind (not sensors) is not supported yet",
   unsupported_language: "the model does not speak this language",
   no_exposed_entities: "nothing is exposed to Assist",
 };
@@ -213,7 +212,7 @@ function renderLegend() {
     "Names: a device, room or floor name or alias, word for word or with another ending (“linke Licht” → “Linkes Licht”). Text is compared lowercase with ä→ae, ö→oe, ü→ue, ß→ss (the “matched by” forms). The longest name wins.",
     "One word of a name counts when no other device, room or floor has it (“the right one” → Right Light), never for “exact name only” devices.",
     "Compound words: a one-word room name of 4+ letters also matches at the start of a longer word (“wohnzimmerlicht” → Wohnzimmer).",
-    "A room or floor: the model says one device or all of one kind, which kind, and which device, worded as “model sees”. When a number is said, only devices that can take it are offered.",
+    "A room or floor: the model says which kind of device, and every device of that kind there is meant, as in Home Assistant (“turn on the light” in a room). One device is picked only by its name or a word only it has. When a number is said, only devices that can take it are offered.",
     "Nothing named: the model says whether the previous command's devices are meant (“turn it off”), else here, this floor or the whole home.",
     "“Exact name only” devices (locks, alarms, garage/gate/door covers) are never picked from a room, and “all” never includes them.",
   ]) steps.append(el("li", null, text));

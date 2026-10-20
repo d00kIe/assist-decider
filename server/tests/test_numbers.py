@@ -26,6 +26,12 @@ from assist_decider_server.numbers import Num, extract
         # "ein" is the separable particle of "einschalten", not the number one.
         ("Schalte das Licht ein", "de", []),
         ("Küche, Flur", "de", []),
+        # "hundred" without "one", and number words of the other language
+        ("set the lights to a hundred percent", "en", [Num(100, "pct")]),
+        ("one hundred percent", "en", [Num(100, "pct")]),
+        ("Setzt das Licht auf hundert Prozent", "de", [Num(100, "pct")]),
+        ("Set the brightness to a hundred percent", "de", [Num(100, "pct")]),
+        ("stell die heizung auf zweiundzwanzig grad", "en", [Num(22, "deg")]),
     ],
 )
 def test_extract(text: str, lang: str, expected: list[Num]) -> None:

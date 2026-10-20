@@ -1,4 +1,4 @@
-"""Assist Decider wire protocol, version 3.
+"""Assist Decider wire protocol, version 4.
 
 This file is shared verbatim between the decision server
 (server/assist_decider_server/protocol.py) and the Home Assistant integration
@@ -16,7 +16,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 
 EntityId = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]+\.[a-z0-9_]+$", max_length=255)]
 Ident = Annotated[str, StringConstraints(pattern=r"^[a-z0-9_]+$", min_length=1, max_length=100)]
@@ -73,7 +73,7 @@ class Options(_Request):
 
 
 class ProcessRequest(_Request):
-    protocol_version: Literal[3]
+    protocol_version: Literal[4]
     text: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=500)]
     language: Literal["en", "de"]
     satellite_area_id: Ident | None = None
@@ -87,6 +87,8 @@ class Action(_Response):
     """One intent call for Home Assistant to execute.
 
     Slots carry IDs, not names: ``name`` is an entity_id, ``area`` an area_id.
+    A ``*_step`` slot (``brightness_step``, ``temperature_step``) is a change from the
+    current value; the client turns it into the absolute slot from the entity's state.
     """
 
     intent: IntentName

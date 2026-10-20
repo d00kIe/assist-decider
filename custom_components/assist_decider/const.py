@@ -28,13 +28,20 @@ TARGET_SLOTS: Final = frozenset({"name", "area", "domain"})
 SUPPORTED_INTENTS: Final[dict[str, frozenset[str]]] = {
     "HassTurnOn": TARGET_SLOTS,
     "HassTurnOff": TARGET_SLOTS,
-    "HassLightSet": TARGET_SLOTS | {"brightness"},
-    "HassClimateSetTemperature": frozenset({"name", "area", "temperature"}),
+    "HassLightSet": TARGET_SLOTS | {"brightness", "brightness_step"},
+    "HassClimateSetTemperature": frozenset({"name", "area", "temperature", "temperature_step"}),
     "HassSetPosition": TARGET_SLOTS | {"position"},
     "HassGetState": TARGET_SLOTS | {"state"},
     "HassClimateGetTemperature": frozenset({"name", "area"}),
 }
 QUERY_INTENTS: Final = frozenset({"HassGetState", "HassClimateGetTemperature"})
+# A change from the current value ("brighter", "warmer"): step slot -> (absolute slot, domain,
+# largest step). Home Assistant's intents take only absolute values, so the integration reads
+# each entity's state and sends the new value.
+STEP_SLOTS: Final = {
+    "brightness_step": ("brightness", "light", 100),
+    "temperature_step": ("temperature", "climate", 10),
+}
 
 # Spoken when the intents package has nothing better.
 MESSAGES: Final = {
