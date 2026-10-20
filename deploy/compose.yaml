@@ -12,7 +12,7 @@ services:
   assist-decider:
     image: ghcr.io/astral-sh/uv:python3.12-bookworm@sha256:85d4cb1afa769a7338e095b927bee941cf5ec92266c7424b3f6c0f2748567248
     environment:
-      REF: eb4a167a771ccb9b27cea00d6002d1fdc98014ef
+      REF: 71352ea164b732f902c7d4f9669e79ae82b25ac1
       ASSIST_DECIDER_HOST: 0.0.0.0
       # Set MODEL=... in a .env file next to this one (see "Choose a model" in the README).
       ASSIST_DECIDER_MODEL: ${MODEL:-d3-lite}
